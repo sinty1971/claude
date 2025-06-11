@@ -7,8 +7,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+
+	_ "penguin-backend/docs"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
+// @title Penguin Folder Management API
+// @version 1.0.0
+// @description API for managing and browsing folders
+// @host localhost:8080
+// @BasePath /api
 func main() {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -29,18 +37,27 @@ func main() {
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
 	}))
 
+	// Swagger documentation
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
+
 	folderHandler := handlers.NewFolderHandler()
+	timeHandler := handlers.NewTimeHandler()
 
 	api := app.Group("/api")
 	api.Get("/folders", folderHandler.GetFolders)
+	api.Get("/kouji-folders", folderHandler.GetKoujiFolders)
+	api.Post("/time/parse", timeHandler.ParseTime)
+	api.Get("/time/formats", timeHandler.GetSupportedFormats)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"message": "Penguin Backend API",
 			"version": "1.0.0",
+			"docs":    "/swagger/index.html",
 		})
 	})
 
 	log.Println("Server starting on :8080")
+	log.Println("API documentation available at http://localhost:8080/swagger/index.html")
 	log.Fatal(app.Listen(":8080"))
 }

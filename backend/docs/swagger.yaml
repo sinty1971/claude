@@ -1,0 +1,280 @@
+basePath: /api
+definitions:
+  models.Folder:
+    description: File or directory information
+    properties:
+      is_directory:
+        description: Whether this item is a directory
+        example: true
+        type: boolean
+      modified_time:
+        description: Last modification time
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      name:
+        description: Name of the file or folder
+        example: documents
+        type: string
+      path:
+        description: Full path to the file or folder
+        example: /home/user/documents
+        type: string
+      size:
+        description: Size of the file in bytes
+        example: 4096
+        type: integer
+    type: object
+  models.FolderListResponse:
+    description: Response containing list of folders
+    properties:
+      count:
+        description: Total number of folders returned
+        example: 10
+        type: integer
+      folders:
+        description: List of folders
+        items:
+          $ref: '#/definitions/models.Folder'
+        type: array
+      path:
+        description: The path that was queried
+        example: /home/user/documents
+        type: string
+    type: object
+  models.KoujiFolder:
+    description: Construction project folder information with extended attributes
+    properties:
+      description:
+        example: 工事関連の資料とドキュメント
+        type: string
+      end_date:
+        example: "2024-12-31T00:00:00Z"
+        type: string
+      file_count:
+        example: 42
+        type: integer
+      is_directory:
+        description: Whether this item is a directory
+        example: true
+        type: boolean
+      modified_time:
+        description: Last modification time
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      name:
+        description: Name of the file or folder
+        example: documents
+        type: string
+      path:
+        description: Full path to the file or folder
+        example: /home/user/documents
+        type: string
+      project_id:
+        description: Additional fields specific to Kouji folders
+        example: PRJ-2024-001
+        type: string
+      project_name:
+        example: 豊田築炉工事
+        type: string
+      size:
+        description: Size of the file in bytes
+        example: 4096
+        type: integer
+      start_date:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      status:
+        example: 進行中
+        type: string
+      subdir_count:
+        example: 5
+        type: integer
+      tags:
+        example:
+        - '[''工事'''
+        - ' ''豊田'''
+        - ' ''築炉'']'
+        items:
+          type: string
+        type: array
+    type: object
+  models.KoujiFolderListResponse:
+    description: Response containing list of construction project folders
+    properties:
+      count:
+        example: 10
+        type: integer
+      folders:
+        items:
+          $ref: '#/definitions/models.KoujiFolder'
+        type: array
+      path:
+        example: ~/penguin/豊田築炉/2-工事
+        type: string
+      total_size:
+        example: 1073741824
+        type: integer
+    type: object
+  models.SupportedFormatsResponse:
+    description: List of all supported date/time formats
+    properties:
+      formats:
+        description: List of supported formats
+        items:
+          $ref: '#/definitions/models.TimeFormat'
+        type: array
+    type: object
+  models.TimeFormat:
+    description: Supported time format information
+    properties:
+      example:
+        description: Example value
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      name:
+        description: Format name
+        example: RFC3339
+        type: string
+      pattern:
+        description: Format pattern
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+    type: object
+  models.TimeParseRequest:
+    description: Request for parsing various date/time formats
+    properties:
+      time_string:
+        description: Time string to parse
+        example: 2024-01-15T10:30:00
+        type: string
+    type: object
+  models.TimeParseResponse:
+    description: Response containing parsed time in various formats
+    properties:
+      original:
+        description: Original input string
+        example: 2024-01-15T10:30:00
+        type: string
+      readable:
+        description: Human readable format
+        example: January 15, 2024 10:30 AM
+        type: string
+      rfc3339:
+        description: Parsed time in RFC3339 format
+        example: "2024-01-15T10:30:00Z"
+        type: string
+      timezone:
+        description: Time zone used
+        example: Local
+        type: string
+      unix:
+        description: Unix timestamp
+        example: 1705318200
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for managing and browsing folders
+  title: Penguin Folder Management API
+  version: 1.0.0
+paths:
+  /folders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of folders from the specified path
+      parameters:
+      - default: ~/penguin/豊田築炉/2-工事
+        description: Path to the directory to list
+        in: query
+        name: path
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            $ref: '#/definitions/models.FolderListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get folders
+      tags:
+      - folders
+  /kouji-folders:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of construction project folders from the specified
+        path
+      parameters:
+      - default: ~/penguin/豊田築炉/2-工事
+        description: Path to the directory to list
+        in: query
+        name: path
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            $ref: '#/definitions/models.KoujiFolderListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get kouji folders
+      tags:
+      - kouji-folders
+  /time/formats:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all supported date/time formats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            $ref: '#/definitions/models.SupportedFormatsResponse'
+      summary: Get supported time formats
+      tags:
+      - time
+  /time/parse:
+    post:
+      consumes:
+      - application/json
+      description: Parse various date/time string formats
+      parameters:
+      - description: Time string to parse
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.TimeParseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful response
+          schema:
+            $ref: '#/definitions/models.TimeParseResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Parse time string
+      tags:
+      - time
+swagger: "2.0"
