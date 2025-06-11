@@ -1,59 +1,59 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+このファイルは、このリポジトリでコードを扱う際のClaude Code (claude.ai/code) へのガイダンスを提供します。
 
-## Project Overview
+## プロジェクト概要
 
-This is a Folder Management System (フォルダー管理システム) that provides a web interface for browsing and managing folders. It consists of:
-- **Backend**: Go (1.21) with Fiber v2 framework
-- **Frontend**: React (19.1.0) with TypeScript and Vite
+フォルダー管理システムは、フォルダーの閲覧と管理のためのWebインターフェースを提供します。構成は以下の通りです：
+- **バックエンド**: Go (1.21) と Fiber v2 フレームワーク
+- **フロントエンド**: React (19.1.0) と TypeScript、Vite
 
-## Development Commands
+## 開発コマンド
 
-### Frontend Development
+### フロントエンド開発
 ```bash
 cd frontend
-npm install          # Install dependencies
-npm run dev          # Start dev server (http://localhost:5173)
-npm run build        # Build for production
-npm run lint         # Run ESLint
-npm run preview      # Preview production build
+npm install          # 依存関係をインストール
+npm run dev          # 開発サーバーを起動 (http://localhost:5173)
+npm run build        # 本番用にビルド
+npm run lint         # ESLintを実行
+npm run preview      # 本番ビルドをプレビュー
 ```
 
-### Backend Development
+### バックエンド開発
 ```bash
 cd backend
-go mod tidy          # Install/update dependencies
-go run cmd/main.go   # Start server (http://localhost:8080)
+go mod tidy          # 依存関係をインストール/更新
+go run cmd/main.go   # サーバーを起動 (http://localhost:8080)
 ```
 
-## Architecture
+## アーキテクチャ
 
-### Backend Structure
-- `cmd/main.go`: Entry point, sets up Fiber server with CORS
-- `internal/handlers/`: HTTP request handlers (folder_handler.go)
-- `internal/services/`: Business logic (folder_service.go)
-- `internal/models/`: Data models (folder.go, instant.go)
+### バックエンド構造
+- `cmd/main.go`: エントリーポイント、CORSを持つFiberサーバーをセットアップ
+- `internal/handlers/`: HTTPリクエストハンドラー (folder_handler.go)
+- `internal/services/`: ビジネスロジック (folder_service.go)
+- `internal/models/`: データモデル (folder.go, instant.go)
 
-The backend serves a REST API at `http://localhost:8080/api` with the main endpoint:
-- `GET /api/folders?path=<optional-path>` - Returns folder contents
+バックエンドは `http://localhost:8080/api` でREST APIを提供し、主要なエンドポイントは以下です：
+- `GET /api/folders?path=<オプション-パス>` - フォルダーの内容を返す
 
-### Frontend Structure
-- `src/App.tsx`: Main app component with routing
-- `src/components/`: UI components (FolderGrid, FolderModal)
-- `src/services/api.ts`: Backend API client
-- `src/types/`: TypeScript type definitions
+### フロントエンド構造
+- `src/App.tsx`: ルーティング機能を持つメインアプリコンポーネント
+- `src/components/`: UIコンポーネント (FolderGrid, FolderModal)
+- `src/services/api.ts`: バックエンドAPIクライアント
+- `src/types/`: TypeScript型定義
 
-### Key Implementation Details
+### 主要な実装詳細
 
-1. **Default Path**: The system defaults to browsing `~/penguin/2-工事` directory
-2. **CORS**: Backend allows all origins with `AllowOrigins: "*"`
-3. **File Type Detection**: Frontend displays different icons based on file extensions:
-   - Folders: 📁
-   - PDFs: 📄
-   - Images (jpg, jpeg, png, gif): 🖼️
-   - Videos (mp4, avi, mov): 🎬
-   - Audio (mp3, wav): 🎵
-   - Others: 📎
+1. **デフォルトパス**: システムは `~/penguin` ディレクトリを標準で参照します
+2. **CORS**: バックエンドは `AllowOrigins: "*"` で全てのオリジンを許可します
+3. **ファイル種別検出**: フロントエンドはファイル拡張子に基づいて異なるアイコンを表示します：
+   - フォルダー: 📁
+   - PDF: 📄
+   - 画像 (jpg, jpeg, png, gif): 🖼️
+   - 動画 (mp4, avi, mov): 🎬
+   - 音声 (mp3, wav): 🎵
+   - その他: 📎
 
-4. **API Response Format**: The backend returns an array of folder items with properties like name, path, size, isDirectory, etc.
+4. **APIレスポンス形式**: バックエンドは name、path、size、isDirectory などのプロパティを持つフォルダーアイテムの配列を返します
