@@ -14,7 +14,15 @@ const KoujiFolderGrid = () => {
       setError(null);
       
       const response = await api.koujiFolders.getKoujiFolders(targetPath);
-      setFolders(response.folders);
+      
+      // Sort folders by date in descending order (newest first)
+      const sortedFolders = response.folders.sort((a, b) => {
+        const dateA = new Date(a.start_date || '');
+        const dateB = new Date(b.start_date || '');
+        return dateB.getTime() - dateA.getTime();
+      });
+      
+      setFolders(sortedFolders);
       setPath(response.path);
       setTotalSize(response.total_size || 0);
     } catch (err) {
