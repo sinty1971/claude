@@ -7,8 +7,8 @@ export const FolderGrid: React.FC = () => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState('~/penguin/2-工事');
-  const [pathInput, setPathInput] = useState('~/penguin/2-工事');
+  const [currentPath, setCurrentPath] = useState('~/penguin/豊田築炉/2-工事');
+  const [pathInput, setPathInput] = useState('~/penguin/豊田築炉/2-工事');
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -43,6 +43,7 @@ export const FolderGrid: React.FC = () => {
     e.preventDefault();
     loadFolders(pathInput);
   };
+
 
   const getFolderIcon = (folder: Folder) => {
     if (folder.is_directory) {

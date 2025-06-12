@@ -14,8 +14,8 @@ export type TimeParseRequest = components['schemas']['TimeParseRequest'];
 export type TimeParseResponse = components['schemas']['TimeParseResponse'];
 export type TimeFormat = components['schemas']['TimeFormat'];
 export type SupportedFormatsResponse = components['schemas']['SupportedFormatsResponse'];
-export type KoujiFolder = components['schemas']['KoujiFolder'];
-export type KoujiFolderListResponse = components['schemas']['KoujiFolderListResponse'];
+export type KoujiProject = components['schemas']['KoujiProject'];
+export type KoujiProjectListResponse = components['schemas']['KoujiProjectListResponse'];
 
 // API methods
 export const folderApi = {
@@ -72,28 +72,73 @@ export const timeApi = {
   },
 };
 
-// Kouji Folder API methods
-export const koujiFolderApi = {
+// Kouji Project API methods
+export const koujiProjectApi = {
   /**
-   * Get kouji folders from the construction project path
+   * Get kouji projects from the construction project path
    */
-  async getKoujiFolders(path?: string): Promise<KoujiFolderListResponse> {
+  async getKoujiProjects(path?: string): Promise<KoujiProjectListResponse> {
     const response = await client.get({
-      url: '/kouji-folders',
+      url: '/kouji-projects',
       query: path ? { path } : undefined,
     });
 
     if (response.error) {
-      throw new Error((response.error as any).message || 'Failed to fetch kouji folders');
+      throw new Error((response.error as any).message || 'Failed to fetch kouji projects');
     }
 
-    return response.data as unknown as KoujiFolderListResponse;
+    return response.data as unknown as KoujiProjectListResponse;
+  },
+
+  /**
+   * Save kouji projects to YAML file
+   */
+  async saveKoujiProjects(path?: string, outputPath?: string): Promise<{message: string}> {
+    const response = await client.post({
+      url: '/kouji-projects/save',
+      query: {
+        ...(path && { path }),
+        ...(outputPath && { output_path: outputPath }),
+      },
+    });
+
+    if (response.error) {
+      throw new Error((response.error as any).message || 'Failed to save kouji projects');
+    }
+
+    return response.data as unknown as {message: string};
+  },
+
+  /**
+   * Update kouji project dates
+   */
+  async updateKoujiProjectDates(projectId: string, startDate: string, endDate: string): Promise<{message: string; project_id: string}> {
+    const response = await client.put({
+      url: `/kouji-projects/${projectId}/dates`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: {
+        start_date: startDate,
+        end_date: endDate,
+      },
+    });
+
+    if (response.error) {
+      const errorMessage = (response.error as any)?.message || 
+                          (response.error as any)?.error || 
+                          JSON.stringify(response.error) || 
+                          'Failed to update project dates';
+      throw new Error(errorMessage);
+    }
+
+    return response.data as unknown as {message: string; project_id: string};
   },
 };
 
 // Export a default API object
 export const api = {
   folders: folderApi,
-  koujiFolders: koujiFolderApi,
+  koujiProjects: koujiProjectApi,
   time: timeApi,
 };

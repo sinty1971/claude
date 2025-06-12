@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
 	_ "penguin-backend/docs"
+
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
@@ -45,7 +46,10 @@ func main() {
 
 	api := app.Group("/api")
 	api.Get("/folders", folderHandler.GetFolders)
-	api.Get("/kouji-folders", folderHandler.GetKoujiFolders)
+	api.Get("/kouji-projects", folderHandler.GetKoujiProjects)
+	api.Post("/kouji-projects/save", folderHandler.SaveKoujiProjectsToYAML)
+	api.Put("/kouji-projects/:project_id/dates", folderHandler.UpdateKoujiProjectDates)
+	api.Post("/kouji-projects/cleanup", folderHandler.CleanupInvalidTimeData)
 	api.Post("/time/parse", timeHandler.ParseTime)
 	api.Get("/time/formats", timeHandler.GetSupportedFormats)
 

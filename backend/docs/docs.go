@@ -31,7 +31,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "default": "~/penguin/豊田築炉/2-工事",
+                        "default": "~/penguin",
                         "description": "Path to the directory to list",
                         "name": "path",
                         "in": "query"
@@ -83,6 +83,57 @@ const docTemplate = `{
                         "description": "Successful response",
                         "schema": {
                             "$ref": "#/definitions/models.KoujiFolderListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/kouji-projects/save": {
+            "post": {
+                "description": "Save kouji folder information to a YAML file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kouji-folders"
+                ],
+                "summary": "Save kouji folders to YAML",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "~/penguin/豊田築炉/2-工事",
+                        "description": "Path to the directory to scan",
+                        "name": "path",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "~/penguin/豊田築炉/2-工事/.inside.yaml",
+                        "description": "Output YAML file path",
+                        "name": "output_path",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -223,6 +274,10 @@ const docTemplate = `{
             "description": "Construction project folder information with extended attributes",
             "type": "object",
             "properties": {
+                "company_name": {
+                    "type": "string",
+                    "example": "豊田築炉"
+                },
                 "description": {
                     "type": "string",
                     "example": "工事関連の資料とドキュメント"
@@ -239,6 +294,10 @@ const docTemplate = `{
                     "description": "Whether this item is a directory",
                     "type": "boolean",
                     "example": true
+                },
+                "location_name": {
+                    "type": "string",
+                    "example": "名和工場"
                 },
                 "modified_time": {
                     "description": "Last modification time",
@@ -258,11 +317,11 @@ const docTemplate = `{
                 "project_id": {
                     "description": "Additional fields specific to Kouji folders",
                     "type": "string",
-                    "example": "PRJ-2024-001"
+                    "example": "A3K7M"
                 },
                 "project_name": {
                     "type": "string",
-                    "example": "豊田築炉工事"
+                    "example": "豊田築炉 名和工場工事"
                 },
                 "size": {
                     "description": "Size of the file in bytes",
@@ -288,8 +347,8 @@ const docTemplate = `{
                     },
                     "example": [
                         "['工事'",
-                        " '豊田'",
-                        " '築炉']"
+                        " '豊田築炉'",
+                        " '名和工場']"
                     ]
                 }
             }

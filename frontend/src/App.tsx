@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { FolderGrid } from './components/FolderGrid';
-import KoujiFolderPage from './components/KoujiFolderPage';
+import KoujiProjectPage from './components/KoujiProjectPage';
 import './App.css';
 
 function Navigation() {
@@ -39,7 +39,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<FolderGrid />} />
-            <Route path="/kouji" element={<KoujiFolderPage />} />
+            <Route path="/kouji" element={<KoujiProjectPage />} />
           </Routes>
         </main>
       </div>

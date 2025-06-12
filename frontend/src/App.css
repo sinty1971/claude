@@ -102,6 +102,26 @@
   background: #45a049;
 }
 
+.save-button {
+  padding: 0.75rem 1.5rem;
+  background: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.save-button:hover:not(:disabled) {
+  background: #F57C00;
+}
+
+.save-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
 .folder-info {
   display: flex;
   justify-content: space-between;
@@ -133,6 +153,16 @@
 
 .error {
   background: rgba(244, 67, 54, 0.8);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.success {
+  text-align: center;
+  padding: 1rem 2rem;
+  color: white;
+  font-size: 1rem;
+  background: rgba(76, 175, 80, 0.9);
   border-radius: 8px;
   margin-bottom: 1rem;
 }
@@ -393,6 +423,21 @@
   margin-left: 1rem;
 }
 
+.company-location-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.company-name, .location-name {
+  background: #f5f5f5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: #555;
+}
+
 .project-status {
   text-align: center;
 }
@@ -470,4 +515,98 @@
 
 .empty-state p {
   margin: 0.5rem 0;
+}
+
+/* Date Edit Modal Styles */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.date-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid #fcc;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.cancel-button {
+  padding: 0.75rem 1.5rem;
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.submit-button {
+  padding: 0.75rem 1.5rem;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.cancel-button:disabled,
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Edit Date Button */
+.edit-dates-button {
+  background: #2196F3;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.edit-dates-button:hover {
+  background: #1976D2;
 }

@@ -58,10 +58,26 @@ class ApiClient {
   async getSupportedFormats(): Promise<SupportedFormatsResponse> {
     return this.request<SupportedFormatsResponse>('/time/formats');
   }
+
+  async saveKoujiProjects(path?: string, outputPath?: string): Promise<{ message: string; output_path: string; count: number }> {
+    const params = new URLSearchParams();
+    if (path) {
+      params.append('path', path);
+    }
+    if (outputPath) {
+      params.append('output_path', outputPath);
+    }
+    
+    return this.request<{ message: string; output_path: string; count: number }>(
+      `/kouji-folders/save${params.toString() ? `?${params.toString()}` : ''}`,
+      { method: 'POST' }
+    );
+  }
 }
 
 export const apiClient = new ApiClient();
 
 export const folderService = {
   getFolders: (path?: string) => apiClient.getFolders(path),
+  saveKoujiProjects: (path?: string, outputPath?: string) => apiClient.saveKoujiProjects(path, outputPath),
 };

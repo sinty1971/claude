@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"penguin-backend/internal/models"
 	"penguin-backend/internal/services"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,12 +27,12 @@ func NewFolderHandler() *FolderHandler {
 // @Tags         folders
 // @Accept       json
 // @Produce      json
-// @Param        path query string false "Path to the directory to list" default(~/penguin/豊田築炉/2-工事)
+// @Param        path query string false "Path to the directory to list" default(~/penguin)
 // @Success      200 {object} models.FolderListResponse "Successful response"
 // @Failure      500 {object} map[string]string "Internal server error"
 // @Router       /folders [get]
 func (fh *FolderHandler) GetFolders(c *fiber.Ctx) error {
-	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
+	targetPath := c.Query("path", "~/penguin")
 
 	folders, err := fh.folderService.GetFolders(targetPath)
 	if err != nil {
@@ -43,26 +45,28 @@ func (fh *FolderHandler) GetFolders(c *fiber.Ctx) error {
 	return c.JSON(folders)
 }
 
-// GetKoujiFolders godoc
-// @Summary      Get kouji folders
+// GetKoujiProjects godoc
+// @Summary      Get kouji projects
 // @Description  Retrieve a list of construction project folders from the specified path
-// @Tags         kouji-folders
+// @Tags         kouji-projects
 // @Accept       json
 // @Produce      json
 // @Param        path query string false "Path to the directory to list" default(~/penguin/豊田築炉/2-工事)
-// @Success      200 {object} models.KoujiFolderListResponse "Successful response"
+// @Success      200 {object} models.KoujiProjectListResponse "Successful response"
 // @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /kouji-folders [get]
-func (fh *FolderHandler) GetKoujiFolders(c *fiber.Ctx) error {
+// @Router       /kouji-projects [get]
+func (fh *FolderHandler) GetKoujiProjects(c *fiber.Ctx) error {
 	// Fixed target path for kouji folders
 	targetPath := "~/penguin/豊田築炉/2-工事"
-	
+	yamlPath := "~/penguin/豊田築炉/2-工事/.inside.yaml"
+
 	// Allow override via query parameter if needed
 	if queryPath := c.Query("path"); queryPath != "" {
 		targetPath = queryPath
 	}
 
-	folders, err := fh.folderService.GetFolders(targetPath)
+	// 1. ファイルシステムから工事プロジェクト一覧を取得
+	fsProjects, err := fh.getKoujiProjectsFromFileSystem(targetPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",
@@ -70,31 +74,155 @@ func (fh *FolderHandler) GetKoujiFolders(c *fiber.Ctx) error {
 		})
 	}
 
-	// Regular expression to match folder names like "2025-0618 豊田築炉 名和工場"
-	// Pattern: YYYY-MMDD Company Factory
-	koujiPattern := regexp.MustCompile(`^(\d{4}-\d{4})\s+(.+?)\s+(.+)$`)
-	
-	// Convert to KoujiFolders with additional metadata
-	koujiFolders := make([]models.KoujiFolder, 0)
+	// 2. 既存のYAMLファイルから工事プロジェクト一覧を読み込み
+	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(yamlPath)
+	if err != nil {
+		// YAMLファイルの読み込みに失敗した場合はファイルシステムのデータのみを使用
+		existingProjects = []models.KoujiProject{}
+	}
+
+	// 3. プロジェクトをマージ（project_idで判断）
+	mergedProjects := fh.mergeKoujiProjects(fsProjects, existingProjects)
+
+	// 4. 開始日の降順でソート（新しい順）
+	sort.Slice(mergedProjects, func(i, j int) bool {
+		return mergedProjects[i].StartDate.After(mergedProjects[j].StartDate)
+	})
+
 	totalSize := int64(0)
-	subdirCount := 0
+	for _, project := range mergedProjects {
+		totalSize += project.Size
+	}
+
+	response := models.KoujiProjectListResponse{
+		Projects:  mergedProjects,
+		Count:     len(mergedProjects),
+		Path:      targetPath,
+		TotalSize: totalSize,
+	}
+
+	return c.JSON(response)
+}
+
+// SaveKoujiProjectsToYAML godoc
+// @Summary      Save kouji projects to YAML
+// @Description  Save kouji project information to a YAML file
+// @Tags         kouji-projects
+// @Accept       json
+// @Produce      json
+// @Param        path query string false "Path to the directory to scan" default(~/penguin/豊田築炉/2-工事)
+// @Param        output_path query string false "Output YAML file path" default(~/penguin/豊田築炉/2-工事/.inside.yaml)
+// @Success      200 {object} map[string]string "Success message"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /kouji-projects/save [post]
+func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
+	// SaveKoujiProjectsToYAML は工事プロジェクト情報をYAMLファイルに保存する
+	//
+	// ファイル形式 (.inside.yaml):
+	//   - version: YAML形式のバージョン
+	//   - generated_at: 生成タイムスタンプ
+	//   - generated_by: システム識別子
+	//   - projects: プロジェクト情報の配列
+	//
+	// 書き込み手順:
+	//   1. 既存の[2-工事/.inside.yaml]ファイルが存在するときは工事プロジェクト一覧を２つのバージョンを取得する。
+	//      一つのバージョンはファイルシステム[2-工事]からの取得、もう一つは[2-工事/.inside.yaml]ファイルからのデシリアライズ取得です。
+	//   2. ファイルシステムからの取得は下記の手順に従う
+	//   	a. 対象ディレクトリをスキャン（デフォルト: ~/penguin/豊田築炉/2-工事）
+	//   	b. "YYYY-MMDD 会社名 現場名" パターンに一致するフォルダーを抽出
+	//   	c. 5文字のハッシュを使用して一意のプロジェクトIDを生成（例: "A3K7M"）
+	//   	d. 開始日の降順でプロジェクトをソート（新しい順）
+	//   	e. 更新日・開始日・終了日のタイムスタンプを必要に応じてローカルタイムゾーン（JST）に変換
+	//   3. ファイルシステムと.inside.yamlファイル内の工事プロジェクトが同じプロジェクトかの判断はproject_idで行う。
+	//   4. ファイルシステムから取得した工事プロジェクトが.inside.yaml内に存在しないときは.inside.yamlに追加する。
+	//   5. 両方に同じproject_idのプロジェクトがある時は下記の判断を行う。
+	//      a.ファイルシステムの工事プロジェクト更新日が.inside.yamlファイルの更新日より新しい場合...
+	//          i.  ファイルシステムのバージョンから得られない情報(Description, EndDate)は.inside.yamlの情報を使用する。
+	//          ii. 間違ってもファイルシステムから得られない情報(Description, EndDate)で.inside.yamlの情報を上書きしないこと。
+	//      b. .inside.yamlファイルの更新日がファイルシステムの工事プロジェクト更新日よりのほうが新しい場合...
+	//          i.  現時点ではファイル名の変更等が必要なプロジェクトIDごとのファイルの移動は行わない。
+	//          ii. ただし変更が必要な工事プロジェクトのファイルシステム情報と.inside.yamlの情報を返す
+	//
+	// エラーハンドリング:
+	//   - ディレクトリが存在しない場合は作成
+	//   - 書き込みが失敗した場合はエラーを返す
+
+	// Default paths
+	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
+	outputPath := c.Query("output_path", "~/penguin/豊田築炉/2-工事/.inside.yaml")
+
+	// 1. 既存の.inside.yamlファイルから工事プロジェクト一覧を読み込み
+	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(outputPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to load existing YAML file",
+			"message": err.Error(),
+		})
+	}
+
+	// 2. ファイルシステムから工事プロジェクト一覧を取得
+	fsProjects, err := fh.getKoujiProjectsFromFileSystem(targetPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to read directory",
+			"message": err.Error(),
+		})
+	}
+
+	// 3. プロジェクトをマージ（project_idで判断）
+	mergedProjects := fh.mergeKoujiProjects(fsProjects, existingProjects)
+
+	// 4. 開始日の降順でソート
+	sort.Slice(mergedProjects, func(i, j int) bool {
+		return mergedProjects[i].StartDate.After(mergedProjects[j].StartDate)
+	})
+
+	// 5. YAMLファイルに保存
+	err = fh.folderService.SaveKoujiProjectsToYAML(outputPath, mergedProjects)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to save YAML file",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":     "工事フォルダー情報をYAMLファイルに保存しました",
+		"output_path": outputPath,
+		"count":       len(mergedProjects),
+	})
+}
+
+// getKoujiProjectsFromFileSystem はファイルシステムから工事プロジェクト一覧を取得する
+func (fh *FolderHandler) getKoujiProjectsFromFileSystem(targetPath string) ([]models.KoujiProject, error) {
+	// Get kouji folders from file system
+	folders, err := fh.folderService.GetFolders(targetPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Regular expression to match folder names like "2025-0618 豊田築炉 名和工場"
+	koujiPattern := regexp.MustCompile(`^(\d{4}-\d{4})\s+(.+?)\s+(.+)$`)
+
+	// Convert to KoujiProjects with additional metadata
+	koujiProjects := make([]models.KoujiProject, 0)
 
 	for _, folder := range folders.Folders {
 		// Only process directories that match the naming pattern
 		if !folder.IsDirectory {
 			continue
 		}
-		
+
 		matches := koujiPattern.FindStringSubmatch(folder.Name)
 		if matches == nil || len(matches) != 4 {
 			continue // Skip folders that don't match the pattern
 		}
-		
+
 		// Extract parts from the folder name
-		dateStr := matches[1]      // e.g., "2025-0618"
-		companyName := matches[2]   // e.g., "豊田築炉"
-		factoryName := matches[3]   // e.g., "名和工場"
-		
+		dateStr := matches[1]     // e.g., "2025-0618"
+		companyName := matches[2] // e.g., "豊田築炉"
+		factoryName := matches[3] // e.g., "名和工場"
+
 		// Parse date from folder name
 		var projectDate time.Time
 		if len(dateStr) == 9 && dateStr[4] == '-' {
@@ -104,37 +232,253 @@ func (fh *FolderHandler) GetKoujiFolders(c *fiber.Ctx) error {
 				month := monthDay[:2]
 				day := monthDay[2:]
 				dateTimeStr := year + "-" + month + "-" + day
-				projectDate, _ = time.Parse("2006-01-02", dateTimeStr)
+				// Parse as local time to preserve timezone
+				projectDate, _ = time.ParseInLocation("2006-01-02", dateTimeStr, time.Local)
 			}
 		}
+
+		// Get folder creation date (use modification time as proxy for creation date)
+		createdDate := folder.ModifiedTime
 		
-		koujiFolder := models.KoujiFolder{
+		// Generate unique project ID using folder creation date, company name, and location name
+		// This ensures the same project always gets the same ID
+		createdDateStr := createdDate.Format("2006-01-02")
+		idSource := createdDateStr + "_" + companyName + "_" + factoryName
+		projectID := models.NewIDFromString(idSource).Len5()
+
+		koujiProject := models.KoujiProject{
 			Folder: folder,
 			// Generate project metadata based on folder name
-			ProjectID:   "PRJ-" + dateStr,
-			ProjectName: companyName + " " + factoryName + "工事",
-			Status:      determineProjectStatus(projectDate),
-			StartDate:   projectDate,
-			EndDate:     projectDate.AddDate(0, 3, 0), // Assume 3-month project duration
-			Description: companyName + "の" + factoryName + "における工事プロジェクト",
-			Tags:        []string{"工事", companyName, factoryName, dateStr[:4]}, // Include year as tag
+			ProjectID:    projectID,
+			ProjectName:  companyName + " " + factoryName + "工事",
+			CompanyName:  companyName,
+			LocationName: factoryName,
+			Status:       determineProjectStatus(projectDate),
+			CreatedDate:  createdDate,
+			StartDate:    projectDate,
+			EndDate:      projectDate.AddDate(0, 3, 0), // Assume 3-month project duration
+			Description:  companyName + "の" + factoryName + "における工事プロジェクト",
+			Tags:         []string{"工事", companyName, factoryName, dateStr[:4]}, // Include year as tag
+		}
+
+		koujiProject.FileCount = 0 // Would need to scan subdirectory to get actual count
+		koujiProject.SubdirCount = 0
+
+		koujiProjects = append(koujiProjects, koujiProject)
+	}
+
+	return koujiProjects, nil
+}
+
+// mergeKoujiProjects はファイルシステムと既存YAMLファイルの工事プロジェクトをマージする
+func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []models.KoujiProject) []models.KoujiProject {
+	// Create a map of existing projects by project_id for quick lookup
+	existingMap := make(map[string]models.KoujiProject)
+	for _, project := range existingProjects {
+		existingMap[project.ProjectID] = project
+	}
+
+	mergedProjects := make([]models.KoujiProject, 0)
+
+	// Process file system projects
+	for _, fsProject := range fsProjects {
+		if existingProject, exists := existingMap[fsProject.ProjectID]; exists {
+			// Both versions exist - compare modification times
+			if fsProject.ModifiedTime.After(existingProject.ModifiedTime) {
+				// File system is newer - use FS data but preserve YAML-only fields
+				mergedProject := fsProject
+				mergedProject.Description = existingProject.Description // Preserve description from YAML
+				if !existingProject.EndDate.IsZero() {
+					mergedProject.EndDate = existingProject.EndDate // Preserve custom end date from YAML
+				}
+				mergedProjects = append(mergedProjects, mergedProject)
+			} else {
+				// YAML is newer or same - use existing project
+				mergedProjects = append(mergedProjects, existingProject)
+			}
+			// Remove from map so we don't add it again
+			delete(existingMap, fsProject.ProjectID)
+		} else {
+			// New project from file system - add it
+			mergedProjects = append(mergedProjects, fsProject)
+		}
+	}
+
+	// Add remaining projects from YAML that don't exist in file system
+	for _, remainingProject := range existingMap {
+		mergedProjects = append(mergedProjects, remainingProject)
+	}
+
+	return mergedProjects
+}
+
+// UpdateKoujiProjectDates godoc
+// @Summary      Update kouji project dates
+// @Description  Update start and end dates for a specific kouji project
+// @Tags         kouji-projects
+// @Accept       json
+// @Produce      json
+// @Param        project_id path string true "Project ID"
+// @Param        dates body UpdateProjectDatesRequest true "Updated dates"
+// @Success      200 {object} map[string]string "Success message"
+// @Failure      400 {object} map[string]string "Bad request"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /kouji-projects/{project_id}/dates [put]
+func (fh *FolderHandler) UpdateKoujiProjectDates(c *fiber.Ctx) error {
+	projectID := c.Params("project_id")
+	if projectID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "project_id is required",
+		})
+	}
+
+	// Define request body structure
+	type UpdateProjectDatesRequest struct {
+		StartDate string `json:"start_date" example:"2024-01-01T00:00:00Z"`
+		EndDate   string `json:"end_date" example:"2024-12-31T00:00:00Z"`
+	}
+
+	var req UpdateProjectDatesRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"message": err.Error(),
+		})
+	}
+
+	// Parse dates with flexible format support
+	parseDateString := func(dateStr string) (time.Time, error) {
+		// Try RFC3339 first
+		if parsedTime, err := time.Parse(time.RFC3339, dateStr); err == nil {
+			return parsedTime, nil
 		}
 		
-		subdirCount++
-		koujiFolder.FileCount = 0 // Would need to scan subdirectory to get actual count
-		koujiFolder.SubdirCount = 0
+		// Try RFC3339 without timezone (assume local timezone)
+		if parsedTime, err := time.ParseInLocation("2006-01-02T15:04:05", dateStr, time.Local); err == nil {
+			return parsedTime, nil
+		}
 		
-		koujiFolders = append(koujiFolders, koujiFolder)
+		// Try date only format (assume local timezone)
+		if parsedTime, err := time.ParseInLocation("2006-01-02", dateStr, time.Local); err == nil {
+			return parsedTime, nil
+		}
+		
+		return time.Time{}, fmt.Errorf("unsupported date format")
 	}
 
-	response := models.KoujiFolderListResponse{
-		Folders:   koujiFolders,
-		Count:     len(koujiFolders),
-		Path:      targetPath,
-		TotalSize: totalSize,
+	startDate, err := parseDateString(req.StartDate)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid start_date format",
+			"message": fmt.Sprintf("Date must be in RFC3339, ISO format, or YYYY-MM-DD format. Error: %v", err),
+		})
 	}
 
-	return c.JSON(response)
+	endDate, err := parseDateString(req.EndDate)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid end_date format",
+			"message": fmt.Sprintf("Date must be in RFC3339, ISO format, or YYYY-MM-DD format. Error: %v", err),
+		})
+	}
+
+	// Default path for YAML file
+	outputPath := "~/penguin/豊田築炉/2-工事/.inside.yaml"
+
+	// Load existing projects from YAML
+	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(outputPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to load existing projects",
+			"message": err.Error(),
+		})
+	}
+
+	// Find and update the project
+	projectFound := false
+	for i, project := range existingProjects {
+		if project.ProjectID == projectID {
+			existingProjects[i].StartDate = startDate.In(time.Local)
+			existingProjects[i].EndDate = endDate.In(time.Local)
+			existingProjects[i].Status = determineProjectStatus(startDate.In(time.Local))
+			projectFound = true
+			break
+		}
+	}
+
+	if !projectFound {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Project not found",
+		})
+	}
+
+	// Save updated projects to YAML
+	err = fh.folderService.SaveKoujiProjectsToYAML(outputPath, existingProjects)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to save updated projects",
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message":    "プロジェクトの日付が更新されました",
+		"project_id": projectID,
+	})
+}
+
+// CleanupInvalidTimeData godoc
+// @Summary      Cleanup invalid time data
+// @Description  Remove projects with invalid time data (like 0001-01-01T09:26:51+09:18) from YAML
+// @Tags         kouji-projects
+// @Accept       json
+// @Produce      json
+// @Param        yaml_path query string false "Path to the YAML file" default(~/penguin/豊田築炉/2-工事/.inside.yaml)
+// @Success      200 {object} map[string]string "Success message with cleanup details"
+// @Failure      500 {object} map[string]string "Internal server error"
+// @Router       /kouji-projects/cleanup [post]
+func (fh *FolderHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
+	yamlPath := c.Query("yaml_path", "~/penguin/豊田築炉/2-工事/.inside.yaml")
+
+	// Load existing projects to count before cleanup
+	projectsBefore, err := fh.folderService.LoadKoujiProjectsFromYAML(yamlPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to load YAML file",
+			"message": err.Error(),
+		})
+	}
+
+	countBefore := len(projectsBefore)
+
+	// Perform cleanup
+	err = fh.folderService.CleanupInvalidTimeData(yamlPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to cleanup invalid time data",
+			"message": err.Error(),
+		})
+	}
+
+	// Load projects again to count after cleanup
+	projectsAfter, err := fh.folderService.LoadKoujiProjectsFromYAML(yamlPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to reload YAML file after cleanup",
+			"message": err.Error(),
+		})
+	}
+
+	countAfter := len(projectsAfter)
+	removedCount := countBefore - countAfter
+
+	return c.JSON(fiber.Map{
+		"message":       "異常な時刻データのクリーンアップが完了しました",
+		"yaml_path":     yamlPath,
+		"projects_before": countBefore,
+		"projects_after":  countAfter,
+		"removed_count":   removedCount,
+	})
 }
 
 // determineProjectStatus determines the project status based on the date
@@ -142,10 +486,10 @@ func determineProjectStatus(projectDate time.Time) string {
 	if projectDate.IsZero() {
 		return "不明"
 	}
-	
+
 	now := time.Now()
 	endDate := projectDate.AddDate(0, 3, 0) // 3 months duration
-	
+
 	if now.Before(projectDate) {
 		return "予定"
 	} else if now.After(endDate) {
