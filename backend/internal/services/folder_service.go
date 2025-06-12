@@ -229,10 +229,8 @@ func parseTimeWithValidation(timeStr string) time.Time {
 		return time.Time{}
 	}
 	
-	// 異常なタイムゾーンオフセット（+09:18など）を検出
-	// 0001年の日付で+09:18のオフセットは異常値として扱う
-	if parsedTime.Year() == 1 && parsedTime.Month() == 1 && parsedTime.Day() == 1 {
-		// ゼロ値として扱う
+	// 異常値を検出する包括的なチェック
+	if isInvalidParsedTime(parsedTime) {
 		return time.Time{}
 	}
 	
@@ -260,15 +258,8 @@ func (fs *FolderService) CleanupInvalidTimeData(yamlPath string) error {
 	removedCount := 0
 	
 	for _, project := range projects {
-		// CreatedDateが異常値（0001年かつ空のcompanynameなど）かチェック
-		isInvalid := false
-		
-		if project.CreatedDate.Year() == 1 && project.CreatedDate.Month() == 1 && project.CreatedDate.Day() == 1 {
-			// 追加の条件でより確実に異常データを特定
-			if project.CompanyName == "" && project.LocationName == "" {
-				isInvalid = true
-			}
-		}
+		// より包括的な異常値チェック
+		isInvalid := isInvalidProject(project)
 		
 		if !isInvalid {
 			validProjects = append(validProjects, project)
@@ -286,4 +277,74 @@ func (fs *FolderService) CleanupInvalidTimeData(yamlPath string) error {
 	}
 	
 	return nil
+}
+
+// isInvalidParsedTime は解析済み時刻が異常値かどうかをチェックする
+func isInvalidParsedTime(t time.Time) bool {
+	// ゼロ値
+	if t.IsZero() {
+		return true
+	}
+	
+	// 0001年（Go言語のゼロ値に近い異常値）
+	if t.Year() == 1 {
+		return true
+	}
+	
+	// 異常なタイムゾーンオフセットの検出
+	// 日本のタイムゾーンは+09:00であるべきなのに+09:18のような異常値を検出
+	_, offset := t.Zone()
+	if offset == 33408 { // +09:18 = 9*3600 + 18*60 = 33408 seconds
+		return true
+	}
+	
+	// その他の異常なオフセット（分単位で0, 15, 30, 45以外）
+	minutes := (offset % 3600) / 60
+	if minutes != 0 && minutes != 15 && minutes != 30 && minutes != 45 {
+		return true
+	}
+	
+	// 不合理な将来日付（1年以上先）
+	if t.After(time.Now().AddDate(1, 0, 0)) {
+		return true
+	}
+	
+	// 不合理な過去日付（2000年より前）
+	if t.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		return true
+	}
+	
+	return false
+}
+
+// isInvalidProject はプロジェクトが異常データかどうかをチェックする
+func isInvalidProject(project models.KoujiProject) bool {
+	// CreatedDateの異常値チェック
+	if isInvalidParsedTime(project.CreatedDate) {
+		return true
+	}
+	
+	// StartDateの異常値チェック
+	if !project.StartDate.IsZero() && isInvalidParsedTime(project.StartDate) {
+		return true
+	}
+	
+	// EndDateの異常値チェック
+	if !project.EndDate.IsZero() && isInvalidParsedTime(project.EndDate) {
+		return true
+	}
+	
+	// 0001年の特定パターン（"0001-01-01T09:26:51+09:18"に近い値）
+	if project.CreatedDate.Year() == 1 {
+		// 会社名や場所名が空の場合は明らかに異常
+		if project.CompanyName == "" && project.LocationName == "" {
+			return true
+		}
+		// プロジェクトIDが空の場合も異常
+		if project.ProjectID == "" {
+			return true
+		}
+	}
+	
+	return false
 }

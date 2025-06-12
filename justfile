@@ -32,6 +32,13 @@ dev:
 # Clean and reinstall all dependencies
 clean-install: backend-deps frontend-deps
 
+# Kill process running on port 8080
+kill-port:
+    @echo "Stopping process on port 8080..."
+    @-pkill -f ":8080" 2>/dev/null || true
+    @-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+    @echo "Port 8080 cleanup completed"
+
 # Show available commands
 help:
     @just --list

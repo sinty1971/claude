@@ -133,6 +133,7 @@ func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	//   	c. 5文字のハッシュを使用して一意のプロジェクトIDを生成（例: "A3K7M"）
 	//   	d. 開始日の降順でプロジェクトをソート（新しい順）
 	//   	e. 更新日・開始日・終了日のタイムスタンプを必要に応じてローカルタイムゾーン（JST）に変換
+	//   	f. 異常な時刻データ（0001年、不正なタイムゾーンオフセットなど）を検出・除外
 	//   3. ファイルシステムと.inside.yamlファイル内の工事プロジェクトが同じプロジェクトかの判断はproject_idで行う。
 	//   4. ファイルシステムから取得した工事プロジェクトが.inside.yaml内に存在しないときは.inside.yamlに追加する。
 	//   5. 両方に同じproject_idのプロジェクトがある時は下記の判断を行う。
@@ -142,10 +143,17 @@ func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	//      b. .inside.yamlファイルの更新日がファイルシステムの工事プロジェクト更新日よりのほうが新しい場合...
 	//          i.  現時点ではファイル名の変更等が必要なプロジェクトIDごとのファイルの移動は行わない。
 	//          ii. ただし変更が必要な工事プロジェクトのファイルシステム情報と.inside.yamlの情報を返す
+	//   6. マージ処理時に異常なcreatedDate値を持つプロジェクトは自動的に除外される。
+	//
+	// データ品質保証:
+	//   - 「0001-01-01T09:26:51+09:18」のような異常な時刻データを検出・除外
+	//   - 不正なタイムゾーンオフセット（+09:18など）の検出
+	//   - 不合理な作成日時範囲（1990年以前）のフィルタリング
 	//
 	// エラーハンドリング:
 	//   - ディレクトリが存在しない場合は作成
 	//   - 書き込みが失敗した場合はエラーを返す
+	//   - 異常データは警告なしに除外される
 
 	// Default paths
 	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
@@ -238,12 +246,18 @@ func (fh *FolderHandler) getKoujiProjectsFromFileSystem(targetPath string) ([]mo
 		}
 
 		// Get folder creation date (use modification time as proxy for creation date)
+		// Validate the modification time to avoid invalid dates
 		createdDate := folder.ModifiedTime
-		
+		if createdDate.Year() == 1 || createdDate.IsZero() {
+			// Use current time if modification time is invalid
+			createdDate = time.Now()
+		}
+
 		// Generate unique project ID using folder creation date, company name, and location name
 		// This ensures the same project always gets the same ID
-		createdDateStr := createdDate.Format("2006-01-02")
-		idSource := createdDateStr + "_" + companyName + "_" + factoryName
+		// Use project date instead of creation date for more stable ID generation
+		projectDateStr := projectDate.Format("2006-01-02")
+		idSource := projectDateStr + "_" + companyName + "_" + factoryName
 		projectID := models.NewIDFromString(idSource).Len5()
 
 		koujiProject := models.KoujiProject{
@@ -282,8 +296,21 @@ func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []model
 
 	// Process file system projects
 	for _, fsProject := range fsProjects {
+		// Skip projects with invalid creation dates
+		if isInvalidCreatedDate(fsProject.CreatedDate) {
+			continue
+		}
+
 		if existingProject, exists := existingMap[fsProject.ProjectID]; exists {
-			// Both versions exist - compare modification times
+			// Skip if existing project also has invalid date
+			if isInvalidCreatedDate(existingProject.CreatedDate) {
+				// Replace invalid existing project with valid FS project
+				mergedProjects = append(mergedProjects, fsProject)
+				delete(existingMap, fsProject.ProjectID)
+				continue
+			}
+
+			// Both versions exist and are valid - compare modification times
 			if fsProject.ModifiedTime.After(existingProject.ModifiedTime) {
 				// File system is newer - use FS data but preserve YAML-only fields
 				mergedProject := fsProject
@@ -305,11 +332,39 @@ func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []model
 	}
 
 	// Add remaining projects from YAML that don't exist in file system
+	// Skip projects with invalid creation dates
 	for _, remainingProject := range existingMap {
-		mergedProjects = append(mergedProjects, remainingProject)
+		if !isInvalidCreatedDate(remainingProject.CreatedDate) {
+			mergedProjects = append(mergedProjects, remainingProject)
+		}
 	}
 
 	return mergedProjects
+}
+
+// isInvalidCreatedDate checks if a creation date is invalid
+func isInvalidCreatedDate(createdDate time.Time) bool {
+	// Check for zero value
+	if createdDate.IsZero() {
+		return true
+	}
+
+	// Check for year 1 (0001-01-01) which indicates invalid Go time
+	if createdDate.Year() == 1 {
+		return true
+	}
+
+	// Check for unreasonable future dates (more than 1 year from now)
+	if createdDate.After(time.Now().AddDate(1, 0, 0)) {
+		return true
+	}
+
+	// Check for unreasonable past dates (before year 2000)
+	if createdDate.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		return true
+	}
+
+	return false
 }
 
 // UpdateKoujiProjectDates godoc
@@ -352,17 +407,17 @@ func (fh *FolderHandler) UpdateKoujiProjectDates(c *fiber.Ctx) error {
 		if parsedTime, err := time.Parse(time.RFC3339, dateStr); err == nil {
 			return parsedTime, nil
 		}
-		
+
 		// Try RFC3339 without timezone (assume local timezone)
 		if parsedTime, err := time.ParseInLocation("2006-01-02T15:04:05", dateStr, time.Local); err == nil {
 			return parsedTime, nil
 		}
-		
+
 		// Try date only format (assume local timezone)
 		if parsedTime, err := time.ParseInLocation("2006-01-02", dateStr, time.Local); err == nil {
 			return parsedTime, nil
 		}
-		
+
 		return time.Time{}, fmt.Errorf("unsupported date format")
 	}
 
@@ -473,8 +528,8 @@ func (fh *FolderHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 	removedCount := countBefore - countAfter
 
 	return c.JSON(fiber.Map{
-		"message":       "異常な時刻データのクリーンアップが完了しました",
-		"yaml_path":     yamlPath,
+		"message":         "異常な時刻データのクリーンアップが完了しました",
+		"yaml_path":       yamlPath,
 		"projects_before": countBefore,
 		"projects_after":  countAfter,
 		"removed_count":   removedCount,
