@@ -101,7 +101,19 @@ export const FolderGrid: React.FC = () => {
             <div className="folder-info">
               <div className="folder-name">{folder.name}</div>
               <div className="folder-meta">
-                {folder.is_directory ? 'フォルダー' : 'ファイル'}
+                <span>{folder.is_directory ? 'フォルダー' : 'ファイル'}</span>
+                {folder.created_date && (
+                  <span className="folder-date">
+                    {' · 作成: '}
+                    {new Date(folder.created_date).toLocaleDateString('ja-JP', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                )}
               </div>
             </div>
           </div>

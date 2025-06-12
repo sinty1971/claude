@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Architecture - Penguin Project</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        h1 {
+            border-bottom: 2px solid #0366d6;
+            padding-bottom: 10px;
+        }
+        .diagram-container {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .mermaid {
+            text-align: center;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .layer-desc {
+            background-color: #f0f7ff;
+            border-left: 4px solid #0366d6;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        ul {
+            line-height: 1.8;
+        }
+        .flow-example {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .zoom-controls {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .zoom-controls button {
+            margin: 0 5px;
+            padding: 8px 16px;
+            border: 1px solid #0366d6;
+            background-color: white;
+            color: #0366d6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .zoom-controls button:hover {
+            background-color: #0366d6;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Backend Architecture - Penguin Project</h1>
+        <p>このドキュメントは、Penguin Backend の internal パッケージ内の handlers、models、services の関係性を示しています。</p>
+
+        <div class="section">
+            <h2>アーキテクチャ図</h2>
+            <div class="zoom-controls">
+                <button onclick="zoomIn()">拡大 +</button>
+                <button onclick="zoomOut()">縮小 -</button>
+                <button onclick="resetZoom()">リセット</button>
+            </div>
+            <div class="diagram-container">
+                <div class="mermaid" id="architecture-diagram">
+graph TB
+    subgraph "HTTP Layer"
+        Client[HTTP Client/Frontend]
+    end
+    
+    Client -->|HTTP Request| FH
+
+    subgraph "Handler Layer (internal/handlers)"
+        FH[FolderHandler]
+        FH_GetFolders[GetFolders]
+        FH_GetKouji[GetKoujiProjects]
+        FH_SaveKouji[SaveKoujiProjectsToYAML]
+        FH_UpdateDates[UpdateKoujiProjectDates]
+        FH_Cleanup[CleanupInvalidTimeData]
+        
+        FH --> FH_GetFolders
+        FH --> FH_GetKouji
+        FH --> FH_SaveKouji
+        FH --> FH_UpdateDates
+        FH --> FH_Cleanup
+    end
+
+    FH_GetFolders -->|calls| FS_GetFolders
+    FH_GetKouji -->|calls| FS_GetFolders
+    FH_GetKouji -->|calls| FS_LoadYAML
+    FH_SaveKouji -->|calls| FS_LoadYAML
+    FH_SaveKouji -->|calls| FS_SaveYAML
+    FH_UpdateDates -->|calls| FS_LoadYAML
+    FH_UpdateDates -->|calls| FS_SaveYAML
+    FH_Cleanup -->|calls| FS_Cleanup
+
+    subgraph "Service Layer (internal/services)"
+        FS[FolderService]
+        FS_GetFolders[GetFolders]
+        FS_LoadYAML[LoadKoujiProjectsFromYAML]
+        FS_SaveYAML[SaveKoujiProjectsToYAML]
+        FS_Cleanup[CleanupInvalidTimeData]
+        
+        FS --> FS_GetFolders
+        FS --> FS_LoadYAML
+        FS --> FS_SaveYAML
+        FS --> FS_Cleanup
+    end
+
+    FS_GetFolders -->|reads| FileSystem
+    FS_LoadYAML -->|reads| YAMLFile
+    FS_SaveYAML -->|writes| YAMLFile
+    FS_Cleanup -->|read/write| YAMLFile
+
+    FS_GetFolders -.uses.-> Folder
+    FS_GetFolders -.returns.-> FolderListResponse
+    FS_LoadYAML -.returns.-> KoujiProject
+    FS_SaveYAML -.uses.-> KoujiProject
+    FH_GetKouji -.returns.-> KoujiProjectListResponse
+
+    subgraph "Model Layer (internal/models)"
+        Folder[Folder struct]
+        KoujiProject[KoujiProject struct]
+        FolderListResponse[FolderListResponse]
+        KoujiProjectListResponse[KoujiProjectListResponse]
+        
+        KoujiProject -.embed.-> Folder
+    end
+
+    subgraph "Data Storage"
+        FileSystem[File System<br/>~/penguin/]
+        YAMLFile[.inside.yaml]
+    end
+
+    style Client fill:#f9f,stroke:#333,stroke-width:2px
+    style FileSystem fill:#ff9,stroke:#333,stroke-width:2px
+    style YAMLFile fill:#ff9,stroke:#333,stroke-width:2px
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>レイヤーごとの責務</h2>
+            
+            <div class="layer-desc">
+                <h3>Handler層 (internal/handlers/folder_handler.go)</h3>
+                <ul>
+                    <li>HTTPリクエスト/レスポンスの処理</li>
+                    <li>バリデーション</li>
+                    <li>Service層の呼び出し</li>
+                    <li>ビジネスロジック（プロジェクトのマージ、ステータス判定など）</li>
+                </ul>
+            </div>
+
+            <div class="layer-desc">
+                <h3>Service層 (internal/services/folder_service.go)</h3>
+                <ul>
+                    <li>ファイルシステムやYAMLファイルへのアクセス</li>
+                    <li>データの読み書き処理</li>
+                    <li>パスの展開（<code>~/</code>の処理）</li>
+                    <li>時刻データの検証とフォーマット</li>
+                </ul>
+            </div>
+
+            <div class="layer-desc">
+                <h3>Model層 (internal/models/)</h3>
+                <ul>
+                    <li>データ構造の定義</li>
+                    <li><code>Folder</code>: 基本的なファイル/フォルダ情報（CreatedDateを含む）</li>
+                    <li><code>KoujiProject</code>: Folderを埋め込み、工事プロジェクト固有の情報を追加</li>
+                    <li>レスポンス用の構造体定義</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>データフロー例</h2>
+            
+            <div class="flow-example">
+                <h4>1. フォルダ一覧取得</h4>
+                <p>Client → FolderHandler.GetFolders → FolderService.GetFolders → FileSystem</p>
+            </div>
+
+            <div class="flow-example">
+                <h4>2. 工事プロジェクト取得</h4>
+                <p>Client → FolderHandler.GetKoujiProjects → FolderService.GetFolders + LoadKoujiProjectsFromYAML → FileSystem + YAMLFile</p>
+            </div>
+
+            <div class="flow-example">
+                <h4>3. 工事プロジェクト保存</h4>
+                <p>Client → FolderHandler.SaveKoujiProjectsToYAML → FolderService.LoadKoujiProjectsFromYAML + SaveKoujiProjectsToYAML → YAMLFile</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>主要な処理の流れ</h2>
+            
+            <h3>GetKoujiProjects の処理</h3>
+            <ol>
+                <li>ファイルシステムから工事フォルダ一覧を取得</li>
+                <li>YAMLファイルから既存の工事プロジェクト情報を読み込み</li>
+                <li>project_id を基準に両者をマージ</li>
+                <li>開始日の降順でソート</li>
+                <li>レスポンスとして返却</li>
+            </ol>
+
+            <h3>SaveKoujiProjectsToYAML の処理</h3>
+            <ol>
+                <li>既存のYAMLファイルを読み込み</li>
+                <li>ファイルシステムから最新の工事フォルダ情報を取得</li>
+                <li>project_id を基準にマージ（更新日時で新旧判定）</li>
+                <li>異常な時刻データを持つプロジェクトを除外</li>
+                <li>YAMLファイルに保存</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+
+        let currentZoom = 1;
+        
+        function zoomIn() {
+            currentZoom += 0.1;
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom -= 0.1;
+            if (currentZoom < 0.5) currentZoom = 0.5;
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function applyZoom() {
+            const svg = document.querySelector('#architecture-diagram svg');
+            if (svg) {
+                svg.style.transform = `scale(${currentZoom})`;
+                svg.style.transformOrigin = 'center top';
+            }
+        }
+    </script>
+</body>
+</html>

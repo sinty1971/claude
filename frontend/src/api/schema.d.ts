@@ -112,6 +112,12 @@ export interface components {
             size: number;
             /**
              * Format: date-time
+             * @description Creation time
+             * @example 2024-01-01T00:00:00Z
+             */
+            created_date?: string;
+            /**
+             * Format: date-time
              * @description Last modification time
              * @example 2024-01-15T10:30:00Z
              */

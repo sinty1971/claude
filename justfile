@@ -39,6 +39,15 @@ kill-port:
     @-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
     @echo "Port 8080 cleanup completed"
 
+# Update claude-code
+claude-code:
+    npm i -g @anthropic-ai/claude-code
+
+# Show backend architecture diagram in browser
+architecture:
+    @echo "Opening architecture diagram..."
+    @xdg-open "https://mermaid.live/edit#$(cat doc/backend-architecture.md | grep -A 100 '```mermaid' | grep -B 100 '```' | grep -v '```' | base64 -w 0)" 2>/dev/null || open "https://mermaid.live/" 2>/dev/null || echo "Please visit https://mermaid.live/ and paste the mermaid code from doc/backend-architecture.md"
+
 # Show available commands
 help:
     @just --list

@@ -1,12 +1,15 @@
 package services
 
 import (
+	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 	"penguin-backend/internal/models"
 	"strings"
+	"syscall"
 	"time"
-	"os/user"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,7 +28,7 @@ func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListRespon
 		}
 		targetPath = filepath.Join(usr.HomeDir, targetPath[2:])
 	}
-	
+
 	absPath, err := filepath.Abs(targetPath)
 	if err != nil {
 		return nil, err
@@ -42,12 +45,14 @@ func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListRespon
 		if err != nil {
 			continue
 		}
+		stat := info.Sys().(*syscall.Stat_t)
 
 		folder := models.Folder{
 			Name:         entry.Name(),
 			Path:         filepath.Join(absPath, entry.Name()),
 			IsDirectory:  entry.IsDir(),
 			Size:         info.Size(),
+			CreatedDate:  time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec),
 			ModifiedTime: info.ModTime(),
 		}
 		folders = append(folders, folder)
@@ -65,11 +70,11 @@ func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListRespon
 // LoadKoujiProjectsFromYAML は工事プロジェクト情報をYAMLファイルから読み込む
 //
 // 読み込み手順:
-//   1. 指定されたディレクトリに .inside.yaml が存在するかチェック
-//   2. YAML内容を KoujiFolder 構造体に解析
-//   3. プロジェクトIDと必須フィールドを検証
-//   4. タイムスタンプをローカルタイムゾーンから time.Time に変換
-//   5. ソート済みのプロジェクトリストを返す
+//  1. 指定されたディレクトリに .inside.yaml が存在するかチェック
+//  2. YAML内容を KoujiFolder 構造体に解析
+//  3. プロジェクトIDと必須フィールドを検証
+//  4. タイムスタンプをローカルタイムゾーンから time.Time に変換
+//  5. ソート済みのプロジェクトリストを返す
 //
 // エラーハンドリング:
 //   - ファイルが存在しない場合は空のリストを返す
@@ -83,7 +88,7 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 		}
 		yamlPath = filepath.Join(usr.HomeDir, yamlPath[2:])
 	}
-	
+
 	absPath, err := filepath.Abs(yamlPath)
 	if err != nil {
 		return nil, err
@@ -108,13 +113,12 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 		CompanyName  string        `yaml:"companyname"`
 		LocationName string        `yaml:"locationname"`
 		Status       string        `yaml:"status"`
-		CreatedDate  string        `yaml:"createddate"`
 		StartDate    string        `yaml:"startdate"`
 		EndDate      string        `yaml:"enddate"`
 		Description  string        `yaml:"description"`
 		Tags         []string      `yaml:"tags"`
-		FileCount    int          `yaml:"filecount"`
-		SubdirCount  int          `yaml:"subdircount"`
+		FileCount    int           `yaml:"filecount"`
+		SubdirCount  int           `yaml:"subdircount"`
 	}
 
 	var yamlProjects []YAMLKoujiProject
@@ -126,10 +130,15 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 	koujiProjects := make([]models.KoujiProject, len(yamlProjects))
 	for i, yf := range yamlProjects {
 		// Parse dates with error handling and zero value detection
-		createdDate := parseTimeWithValidation(yf.CreatedDate)
-		startDate := parseTimeWithValidation(yf.StartDate)
-		endDate := parseTimeWithValidation(yf.EndDate)
-		
+		startDate, err := parseTimeWithValidation(yf.StartDate)
+		if err != nil {
+			return nil, err
+		}
+		endDate, err := parseTimeWithValidation(yf.EndDate)
+		if err != nil {
+			return nil, err
+		}
+
 		koujiProjects[i] = models.KoujiProject{
 			Folder:       yf.Folder,
 			ProjectID:    yf.ProjectID,
@@ -137,7 +146,6 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 			CompanyName:  yf.CompanyName,
 			LocationName: yf.LocationName,
 			Status:       yf.Status,
-			CreatedDate:  createdDate,
 			StartDate:    startDate,
 			EndDate:      endDate,
 			Description:  yf.Description,
@@ -150,6 +158,11 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 	return koujiProjects, nil
 }
 
+// @TODO: この関数は内部で使用するだけで、外部に公開する必要はない
+// @Description: 工事プロジェクト情報をYAMLファイルに保存する
+// @param targetPath: 保存先パス
+// @param koujiProjects: 保存する工事プロジェクト情報
+// @return error: エラー
 func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProjects []models.KoujiProject) error {
 	// Expand ~ to home directory
 	if strings.HasPrefix(targetPath, "~/") {
@@ -159,7 +172,7 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 		}
 		targetPath = filepath.Join(usr.HomeDir, targetPath[2:])
 	}
-	
+
 	absPath, err := filepath.Abs(targetPath)
 	if err != nil {
 		return err
@@ -171,33 +184,31 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 		return err
 	}
 
-	// Create YAML data with custom formatting for time fields
-	type YAMLKoujiProject struct {
+	// Create Inside data with custom formatting for time fields
+	type InsideKoujiProject struct {
 		Folder       models.Folder `yaml:"folder"`
 		ProjectID    string        `yaml:"projectid"`
 		ProjectName  string        `yaml:"projectname"`
 		CompanyName  string        `yaml:"companyname"`
 		LocationName string        `yaml:"locationname"`
 		Status       string        `yaml:"status"`
-		CreatedDate  string        `yaml:"createddate"`
 		StartDate    string        `yaml:"startdate"`
 		EndDate      string        `yaml:"enddate"`
 		Description  string        `yaml:"description"`
 		Tags         []string      `yaml:"tags"`
-		FileCount    int          `yaml:"filecount"`
-		SubdirCount  int          `yaml:"subdircount"`
+		FileCount    int           `yaml:"filecount"`
+		SubdirCount  int           `yaml:"subdircount"`
 	}
 
-	yamlProjects := make([]YAMLKoujiProject, len(koujiProjects))
+	insideProjects := make([]InsideKoujiProject, len(koujiProjects))
 	for i, kf := range koujiProjects {
-		yamlProjects[i] = YAMLKoujiProject{
+		insideProjects[i] = InsideKoujiProject{
 			Folder:       kf.Folder,
 			ProjectID:    kf.ProjectID,
 			ProjectName:  kf.ProjectName,
 			CompanyName:  kf.CompanyName,
 			LocationName: kf.LocationName,
 			Status:       kf.Status,
-			CreatedDate:  formatTimeForYAML(kf.CreatedDate),
 			StartDate:    formatTimeForYAML(kf.StartDate),
 			EndDate:      formatTimeForYAML(kf.EndDate),
 			Description:  kf.Description,
@@ -208,7 +219,7 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 	}
 
 	// Convert to YAML format
-	yamlData, err := yaml.Marshal(yamlProjects)
+	yamlData, err := yaml.Marshal(insideProjects)
 	if err != nil {
 		return err
 	}
@@ -218,23 +229,25 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 }
 
 // parseTimeWithValidation は時刻文字列をパースし、異常値を検出する
-func parseTimeWithValidation(timeStr string) time.Time {
+// @param timeStr: パースする時刻文字列
+// @return time.Time: パースされた時刻
+func parseTimeWithValidation(timeStr string) (time.Time, error) {
 	if timeStr == "" {
-		return time.Time{} // 空文字列の場合はゼロ値を返す
+		return time.Time{}, errors.New("timeStr is empty") // 空文字列の場合はエラーを返す
 	}
-	
+
 	parsedTime, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
 		// パースエラーの場合はゼロ値を返す
-		return time.Time{}
+		return time.Time{}, err
 	}
-	
+
 	// 異常値を検出する包括的なチェック
 	if isInvalidParsedTime(parsedTime) {
-		return time.Time{}
+		return time.Time{}, errors.New("invalid parsed time")
 	}
-	
-	return parsedTime
+
+	return parsedTime, nil
 }
 
 // formatTimeForYAML は時刻をYAML保存用にフォーマットする
@@ -252,22 +265,22 @@ func (fs *FolderService) CleanupInvalidTimeData(yamlPath string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// 異常データを検出して削除
 	validProjects := make([]models.KoujiProject, 0)
 	removedCount := 0
-	
+
 	for _, project := range projects {
 		// より包括的な異常値チェック
 		isInvalid := isInvalidProject(project)
-		
+
 		if !isInvalid {
 			validProjects = append(validProjects, project)
 		} else {
 			removedCount++
 		}
 	}
-	
+
 	// 異常データが見つかった場合は保存
 	if removedCount > 0 {
 		err = fs.SaveKoujiProjectsToYAML(yamlPath, validProjects)
@@ -275,7 +288,7 @@ func (fs *FolderService) CleanupInvalidTimeData(yamlPath string) error {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -285,55 +298,32 @@ func isInvalidParsedTime(t time.Time) bool {
 	if t.IsZero() {
 		return true
 	}
-	
+
 	// 0001年（Go言語のゼロ値に近い異常値）
 	if t.Year() == 1 {
 		return true
 	}
-	
-	// 異常なタイムゾーンオフセットの検出
-	// 日本のタイムゾーンは+09:00であるべきなのに+09:18のような異常値を検出
-	_, offset := t.Zone()
-	if offset == 33408 { // +09:18 = 9*3600 + 18*60 = 33408 seconds
-		return true
-	}
-	
-	// その他の異常なオフセット（分単位で0, 15, 30, 45以外）
-	minutes := (offset % 3600) / 60
-	if minutes != 0 && minutes != 15 && minutes != 30 && minutes != 45 {
-		return true
-	}
-	
+
 	// 不合理な将来日付（1年以上先）
 	if t.After(time.Now().AddDate(1, 0, 0)) {
 		return true
 	}
-	
+
 	// 不合理な過去日付（2000年より前）
 	if t.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		return true
 	}
-	
+
 	return false
 }
 
-// isInvalidProject はプロジェクトが異常データかどうかをチェックする
+// isInvalidProject は工事プロジェクトが異常データかどうかをチェックする
 func isInvalidProject(project models.KoujiProject) bool {
 	// CreatedDateの異常値チェック
 	if isInvalidParsedTime(project.CreatedDate) {
 		return true
 	}
-	
-	// StartDateの異常値チェック
-	if !project.StartDate.IsZero() && isInvalidParsedTime(project.StartDate) {
-		return true
-	}
-	
-	// EndDateの異常値チェック
-	if !project.EndDate.IsZero() && isInvalidParsedTime(project.EndDate) {
-		return true
-	}
-	
+
 	// 0001年の特定パターン（"0001-01-01T09:26:51+09:18"に近い値）
 	if project.CreatedDate.Year() == 1 {
 		// 会社名や場所名が空の場合は明らかに異常
@@ -345,6 +335,6 @@ func isInvalidProject(project models.KoujiProject) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

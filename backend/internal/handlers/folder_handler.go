@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"path/filepath"
 	"penguin-backend/internal/models"
 	"penguin-backend/internal/services"
 	"regexp"
@@ -56,14 +57,9 @@ func (fh *FolderHandler) GetFolders(c *fiber.Ctx) error {
 // @Failure      500 {object} map[string]string "Internal server error"
 // @Router       /kouji-projects [get]
 func (fh *FolderHandler) GetKoujiProjects(c *fiber.Ctx) error {
-	// Fixed target path for kouji folders
-	targetPath := "~/penguin/豊田築炉/2-工事"
-	yamlPath := "~/penguin/豊田築炉/2-工事/.inside.yaml"
-
-	// Allow override via query parameter if needed
-	if queryPath := c.Query("path"); queryPath != "" {
-		targetPath = queryPath
-	}
+	// Default paths
+	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
+	databasePath := filepath.Join(targetPath, ".inside.yaml")
 
 	// 1. ファイルシステムから工事プロジェクト一覧を取得
 	fsProjects, err := fh.getKoujiProjectsFromFileSystem(targetPath)
@@ -74,15 +70,15 @@ func (fh *FolderHandler) GetKoujiProjects(c *fiber.Ctx) error {
 		})
 	}
 
-	// 2. 既存のYAMLファイルから工事プロジェクト一覧を読み込み
-	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(yamlPath)
+	// 2. データベースファイルから工事プロジェクト一覧を読み込み
+	dbProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(databasePath)
 	if err != nil {
-		// YAMLファイルの読み込みに失敗した場合はファイルシステムのデータのみを使用
-		existingProjects = []models.KoujiProject{}
+		// データベースファイルの読み込みに失敗した場合はファイルシステムのデータのみを使用
+		dbProjects = []models.KoujiProject{}
 	}
 
-	// 3. プロジェクトをマージ（project_idで判断）
-	mergedProjects := fh.mergeKoujiProjects(fsProjects, existingProjects)
+	// 3. プロジェクトをマージ
+	mergedProjects := fh.mergeKoujiProjects(fsProjects, dbProjects)
 
 	// 4. 開始日の降順でソート（新しい順）
 	sort.Slice(mergedProjects, func(i, j int) bool {
@@ -97,7 +93,6 @@ func (fh *FolderHandler) GetKoujiProjects(c *fiber.Ctx) error {
 	response := models.KoujiProjectListResponse{
 		Projects:  mergedProjects,
 		Count:     len(mergedProjects),
-		Path:      targetPath,
 		TotalSize: totalSize,
 	}
 
@@ -157,10 +152,10 @@ func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 
 	// Default paths
 	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
-	outputPath := c.Query("output_path", "~/penguin/豊田築炉/2-工事/.inside.yaml")
+	yamlPath := filepath.Join(targetPath, ".inside.yaml")
 
 	// 1. 既存の.inside.yamlファイルから工事プロジェクト一覧を読み込み
-	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(outputPath)
+	existingProjects, err := fh.folderService.LoadKoujiProjectsFromYAML(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to load existing YAML file",
@@ -186,7 +181,7 @@ func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	})
 
 	// 5. YAMLファイルに保存
-	err = fh.folderService.SaveKoujiProjectsToYAML(outputPath, mergedProjects)
+	err = fh.folderService.SaveKoujiProjectsToYAML(yamlPath, mergedProjects)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to save YAML file",
@@ -196,7 +191,7 @@ func (fh *FolderHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message":     "工事フォルダー情報をYAMLファイルに保存しました",
-		"output_path": outputPath,
+		"output_path": yamlPath,
 		"count":       len(mergedProjects),
 	})
 }
@@ -268,7 +263,6 @@ func (fh *FolderHandler) getKoujiProjectsFromFileSystem(targetPath string) ([]mo
 			CompanyName:  companyName,
 			LocationName: factoryName,
 			Status:       determineProjectStatus(projectDate),
-			CreatedDate:  createdDate,
 			StartDate:    projectDate,
 			EndDate:      projectDate.AddDate(0, 3, 0), // Assume 3-month project duration
 			Description:  companyName + "の" + factoryName + "における工事プロジェクト",
@@ -285,11 +279,41 @@ func (fh *FolderHandler) getKoujiProjectsFromFileSystem(targetPath string) ([]mo
 }
 
 // mergeKoujiProjects はファイルシステムと既存YAMLファイルの工事プロジェクトをマージする
-func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []models.KoujiProject) []models.KoujiProject {
-	// Create a map of existing projects by project_id for quick lookup
-	existingMap := make(map[string]models.KoujiProject)
-	for _, project := range existingProjects {
-		existingMap[project.ProjectID] = project
+func (fh *FolderHandler) mergeKoujiProjects(fsProjects, dbProjects []models.KoujiProject) []models.KoujiProject {
+	// mergeKoujiProjects はファイルシステムとデータベースファイルの工事プロジェクトをマージする
+	//
+	// データベース形式 (.inside.yaml):
+	//   - version: データベース形式のバージョン
+	//   - generated_at: 生成タイムスタンプ
+	//   - generated_by: システム識別子
+	//   - projects: 工事プロジェクト情報の配列
+	//
+	// 取得手順:
+	//   1. ファイルシステムとデータベースファイル内の工事プロジェクトが同じプロジェクトかの判断はproject_idで行う。
+	//   2. ファイルシステムから取得した工事プロジェクトをデータベースファイルの工事プロジェクトで補完する。
+	//   3. project_idが同じプロジェクトがデータベース内に存在するときは下記の処理を行う。
+	//      a.ファイルシステムの工事プロジェクト更新日がデータベースファイルの更新日より新しい場合...
+	//          i.  ファイルシステムのバージョンから得られない情報(Description, EndDate)は.inside.yamlの情報を使用する。
+	//          ii. 間違ってもファイルシステムから得られない情報(Description, EndDate)で.inside.yamlの情報を上書きしないこと。
+	//      b. .inside.yamlファイルの更新日がファイルシステムの工事プロジェクト更新日よりのほうが新しい場合...
+	//          i.  現時点ではファイル名の変更等が必要なプロジェクトIDごとのファイルの移動は行わない。
+	//          ii. ただし変更が必要な工事プロジェクトのファイルシステム情報と.inside.yamlの情報を返す
+	//   6. マージ処理時に異常なcreatedDate値を持つプロジェクトは自動的に除外される。
+	//
+	// データ品質保証:
+	//   - 「0001-01-01T09:26:51+09:18」のような異常な時刻データを検出・除外
+	//   - 不正なタイムゾーンオフセット（+09:18など）の検出
+	//   - 不合理な作成日時範囲（1990年以前）のフィルタリング
+	//
+	// エラーハンドリング:
+	//   - ディレクトリが存在しない場合は作成
+	//   - 書き込みが失敗した場合はエラーを返す
+	//   - 異常データは警告なしに除外される
+
+	// Create a map of database projects by project_id for quick lookup
+	dbMap := make(map[string]models.KoujiProject)
+	for _, project := range dbProjects {
+		dbMap[project.ProjectID] = project
 	}
 
 	mergedProjects := make([]models.KoujiProject, 0)
@@ -297,34 +321,34 @@ func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []model
 	// Process file system projects
 	for _, fsProject := range fsProjects {
 		// Skip projects with invalid creation dates
-		if isInvalidCreatedDate(fsProject.CreatedDate) {
+		if isInvalidCreatedDate(fsProject) {
 			continue
 		}
 
-		if existingProject, exists := existingMap[fsProject.ProjectID]; exists {
+		if dbProject, exists := dbMap[fsProject.ProjectID]; exists {
 			// Skip if existing project also has invalid date
-			if isInvalidCreatedDate(existingProject.CreatedDate) {
+			if isInvalidCreatedDate(dbProject) {
 				// Replace invalid existing project with valid FS project
 				mergedProjects = append(mergedProjects, fsProject)
-				delete(existingMap, fsProject.ProjectID)
+				delete(dbMap, fsProject.ProjectID)
 				continue
 			}
 
 			// Both versions exist and are valid - compare modification times
-			if fsProject.ModifiedTime.After(existingProject.ModifiedTime) {
+			if fsProject.ModifiedTime.After(dbProject.ModifiedTime) {
 				// File system is newer - use FS data but preserve YAML-only fields
 				mergedProject := fsProject
-				mergedProject.Description = existingProject.Description // Preserve description from YAML
-				if !existingProject.EndDate.IsZero() {
-					mergedProject.EndDate = existingProject.EndDate // Preserve custom end date from YAML
+				mergedProject.Description = dbProject.Description // Preserve description from YAML
+				if !dbProject.EndDate.IsZero() {
+					mergedProject.EndDate = dbProject.EndDate // Preserve custom end date from YAML
 				}
 				mergedProjects = append(mergedProjects, mergedProject)
 			} else {
 				// YAML is newer or same - use existing project
-				mergedProjects = append(mergedProjects, existingProject)
+				mergedProjects = append(mergedProjects, dbProject)
 			}
 			// Remove from map so we don't add it again
-			delete(existingMap, fsProject.ProjectID)
+			delete(dbMap, fsProject.ProjectID)
 		} else {
 			// New project from file system - add it
 			mergedProjects = append(mergedProjects, fsProject)
@@ -333,8 +357,8 @@ func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []model
 
 	// Add remaining projects from YAML that don't exist in file system
 	// Skip projects with invalid creation dates
-	for _, remainingProject := range existingMap {
-		if !isInvalidCreatedDate(remainingProject.CreatedDate) {
+	for _, remainingProject := range dbMap {
+		if !isInvalidCreatedDate(remainingProject) {
 			mergedProjects = append(mergedProjects, remainingProject)
 		}
 	}
@@ -343,7 +367,9 @@ func (fh *FolderHandler) mergeKoujiProjects(fsProjects, existingProjects []model
 }
 
 // isInvalidCreatedDate checks if a creation date is invalid
-func isInvalidCreatedDate(createdDate time.Time) bool {
+func isInvalidCreatedDate(project models.KoujiProject) bool {
+	var createdDate = project.CreatedDate
+
 	// Check for zero value
 	if createdDate.IsZero() {
 		return true
@@ -354,8 +380,8 @@ func isInvalidCreatedDate(createdDate time.Time) bool {
 		return true
 	}
 
-	// Check for unreasonable future dates (more than 1 year from now)
-	if createdDate.After(time.Now().AddDate(1, 0, 0)) {
+	// Check for unreasonable future dates (more than 1 day from now)
+	if createdDate.After(time.Now().AddDate(0, 0, 1)) {
 		return true
 	}
 
