@@ -41,10 +41,10 @@ func NewIDFromTime(t time.Time) *ID {
 	return NewIDFromString(timeStr)
 }
 
-// NewIDFromFolderWithTime はフォルダー名とタイムスタンプからIDを生成
-func NewIDFromFolderWithTime(folderName string) *ID {
-	// フォルダー名 + ナノ秒タイムスタンプで一意性を確保
-	data := fmt.Sprintf("%s_%d", folderName, time.Now().UnixNano())
+// NewIDFromStateInfo フォルダー名からIDを生成
+func NewIDFromKoujiProject(koujiProject Kouji) *ID {
+	// フォルダー名で一意性を確保
+	data := fmt.Sprintf("%d%s%s", koujiProject.Folder.Id, koujiProject.CompanyName, koujiProject.LocationName)
 	return NewIDFromString(data)
 }
 

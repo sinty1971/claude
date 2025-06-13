@@ -5,6 +5,8 @@ import "time"
 // Folder represents a file or directory
 // @Description File or directory information
 type Folder struct {
+	// ID of the file or folder
+	Id uint64 `json:"id" yaml:"id" example:"123456"`
 	// Name of the file or folder
 	Name string `json:"name" yaml:"name" example:"documents"`
 	// Full path to the file or folder
@@ -13,8 +15,6 @@ type Folder struct {
 	IsDirectory bool `json:"is_directory" yaml:"isdirectory" example:"true"`
 	// Size of the file in bytes
 	Size int64 `json:"size" yaml:"size" example:"4096"`
-	// Creation time
-	CreatedDate time.Time `json:"created_date,omitempty" yaml:"createddate" example:"2024-01-01T00:00:00Z"`
 	// Last modification time
 	ModifiedTime time.Time `json:"modified_time" yaml:"modifiedtime" example:"2024-01-15T10:30:00Z"`
 }

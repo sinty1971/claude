@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"os/user"
@@ -13,13 +14,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type FolderService struct{}
+type FileSystemService struct{}
 
-func NewFolderService() *FolderService {
-	return &FolderService{}
+func NewFileSystemService() *FileSystemService {
+	return &FileSystemService{}
 }
 
-func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListResponse, error) {
+func (fss *FileSystemService) GetFolders(targetPath string) (*models.FolderListResponse, error) {
 	// Expand ~ to home directory
 	if strings.HasPrefix(targetPath, "~/") {
 		usr, err := user.Current()
@@ -48,11 +49,11 @@ func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListRespon
 		stat := info.Sys().(*syscall.Stat_t)
 
 		folder := models.Folder{
+			Id:           stat.Ino,
 			Name:         entry.Name(),
 			Path:         filepath.Join(absPath, entry.Name()),
 			IsDirectory:  entry.IsDir(),
 			Size:         info.Size(),
-			CreatedDate:  time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec),
 			ModifiedTime: info.ModTime(),
 		}
 		folders = append(folders, folder)
@@ -79,24 +80,24 @@ func (fs *FolderService) GetFolders(targetPath string) (*models.FolderListRespon
 // エラーハンドリング:
 //   - ファイルが存在しない場合は空のリストを返す
 //   - YAML解析が失敗した場合はエラーを返す
-func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.KoujiProject, error) {
+func (fss *FileSystemService) LoadKoujiProjectsFromYAML(databasePath string) ([]models.Kouji, error) {
 	// Expand ~ to home directory
-	if strings.HasPrefix(yamlPath, "~/") {
+	if strings.HasPrefix(databasePath, "~/") {
 		usr, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
-		yamlPath = filepath.Join(usr.HomeDir, yamlPath[2:])
+		databasePath = filepath.Join(usr.HomeDir, databasePath[2:])
 	}
 
-	absPath, err := filepath.Abs(yamlPath)
+	absPath, err := filepath.Abs(databasePath)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if file exists
 	if _, err := os.Stat(absPath); os.IsNotExist(err) {
-		return []models.KoujiProject{}, nil // Return empty list if file doesn't exist
+		return []models.Kouji{}, nil // Return empty list if file doesn't exist
 	}
 
 	// Read YAML file
@@ -105,31 +106,15 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 		return nil, err
 	}
 
-	// Define YAML structure for loading
-	type YAMLKoujiProject struct {
-		Folder       models.Folder `yaml:"folder"`
-		ProjectID    string        `yaml:"projectid"`
-		ProjectName  string        `yaml:"projectname"`
-		CompanyName  string        `yaml:"companyname"`
-		LocationName string        `yaml:"locationname"`
-		Status       string        `yaml:"status"`
-		StartDate    string        `yaml:"startdate"`
-		EndDate      string        `yaml:"enddate"`
-		Description  string        `yaml:"description"`
-		Tags         []string      `yaml:"tags"`
-		FileCount    int           `yaml:"filecount"`
-		SubdirCount  int           `yaml:"subdircount"`
-	}
-
-	var yamlProjects []YAMLKoujiProject
-	if err := yaml.Unmarshal(yamlData, &yamlProjects); err != nil {
+	var dbProjects []models.Kouji
+	if err := yaml.Unmarshal(yamlData, &dbProjects); err != nil {
 		return nil, err
 	}
 
 	// Convert to KoujiProject structures
-	koujiProjects := make([]models.KoujiProject, len(yamlProjects))
-	for i, yf := range yamlProjects {
-		// Parse dates with error handling and zero value detection
+	fsProjects := make([]models.Kouji, len(dbProjects))
+	for i, yf := range dbProjects {
+		// 日付データを正規化
 		startDate, err := parseTimeWithValidation(yf.StartDate)
 		if err != nil {
 			return nil, err
@@ -139,10 +124,9 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 			return nil, err
 		}
 
-		koujiProjects[i] = models.KoujiProject{
+		fsProjects[i] = models.Kouji{
 			Folder:       yf.Folder,
-			ProjectID:    yf.ProjectID,
-			ProjectName:  yf.ProjectName,
+			Id:           yf.Id,
 			CompanyName:  yf.CompanyName,
 			LocationName: yf.LocationName,
 			Status:       yf.Status,
@@ -155,7 +139,7 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 		}
 	}
 
-	return koujiProjects, nil
+	return fsProjects, nil
 }
 
 // @TODO: この関数は内部で使用するだけで、外部に公開する必要はない
@@ -163,7 +147,7 @@ func (fs *FolderService) LoadKoujiProjectsFromYAML(yamlPath string) ([]models.Ko
 // @param targetPath: 保存先パス
 // @param koujiProjects: 保存する工事プロジェクト情報
 // @return error: エラー
-func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProjects []models.KoujiProject) error {
+func (fs *FileSystemService) SaveKoujiProjectsToYAML(targetPath string, koujiProjects []models.Kouji) error {
 	// Expand ~ to home directory
 	if strings.HasPrefix(targetPath, "~/") {
 		usr, err := user.Current()
@@ -185,8 +169,7 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 	}
 
 	// Create Inside data with custom formatting for time fields
-	type InsideKoujiProject struct {
-		Folder       models.Folder `yaml:"folder"`
+	type DatabaseKoujiProject struct {
 		ProjectID    string        `yaml:"projectid"`
 		ProjectName  string        `yaml:"projectname"`
 		CompanyName  string        `yaml:"companyname"`
@@ -198,14 +181,15 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 		Tags         []string      `yaml:"tags"`
 		FileCount    int           `yaml:"filecount"`
 		SubdirCount  int           `yaml:"subdircount"`
+		Folder       models.Folder `yaml:"folder"`
 	}
 
-	insideProjects := make([]InsideKoujiProject, len(koujiProjects))
+	insideProjects := make([]DatabaseKoujiProject, len(koujiProjects))
 	for i, kf := range koujiProjects {
-		insideProjects[i] = InsideKoujiProject{
+		insideProjects[i] = DatabaseKoujiProject{
 			Folder:       kf.Folder,
-			ProjectID:    kf.ProjectID,
-			ProjectName:  kf.ProjectName,
+			ProjectID:    kf.Id,
+			ProjectName:  kf.KoujiName,
 			CompanyName:  kf.CompanyName,
 			LocationName: kf.LocationName,
 			Status:       kf.Status,
@@ -219,13 +203,16 @@ func (fs *FolderService) SaveKoujiProjectsToYAML(targetPath string, koujiProject
 	}
 
 	// Convert to YAML format
-	yamlData, err := yaml.Marshal(insideProjects)
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+
+	if err := encoder.Encode(insideProjects); err != nil {
 		return err
 	}
 
 	// Write to file
-	return os.WriteFile(absPath, yamlData, 0644)
+	return os.WriteFile(absPath, buf.Bytes(), 0644)
 }
 
 // parseTimeWithValidation は時刻文字列をパースし、異常値を検出する
@@ -258,40 +245,6 @@ func formatTimeForYAML(t time.Time) string {
 	return t.In(time.Local).Format(time.RFC3339)
 }
 
-// CleanupInvalidTimeData は異常な時刻データを含むプロジェクトを削除する
-func (fs *FolderService) CleanupInvalidTimeData(yamlPath string) error {
-	// 既存のプロジェクトを読み込み
-	projects, err := fs.LoadKoujiProjectsFromYAML(yamlPath)
-	if err != nil {
-		return err
-	}
-
-	// 異常データを検出して削除
-	validProjects := make([]models.KoujiProject, 0)
-	removedCount := 0
-
-	for _, project := range projects {
-		// より包括的な異常値チェック
-		isInvalid := isInvalidProject(project)
-
-		if !isInvalid {
-			validProjects = append(validProjects, project)
-		} else {
-			removedCount++
-		}
-	}
-
-	// 異常データが見つかった場合は保存
-	if removedCount > 0 {
-		err = fs.SaveKoujiProjectsToYAML(yamlPath, validProjects)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // isInvalidParsedTime は解析済み時刻が異常値かどうかをチェックする
 func isInvalidParsedTime(t time.Time) bool {
 	// ゼロ値
@@ -312,28 +265,6 @@ func isInvalidParsedTime(t time.Time) bool {
 	// 不合理な過去日付（2000年より前）
 	if t.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		return true
-	}
-
-	return false
-}
-
-// isInvalidProject は工事プロジェクトが異常データかどうかをチェックする
-func isInvalidProject(project models.KoujiProject) bool {
-	// CreatedDateの異常値チェック
-	if isInvalidParsedTime(project.CreatedDate) {
-		return true
-	}
-
-	// 0001年の特定パターン（"0001-01-01T09:26:51+09:18"に近い値）
-	if project.CreatedDate.Year() == 1 {
-		// 会社名や場所名が空の場合は明らかに異常
-		if project.CompanyName == "" && project.LocationName == "" {
-			return true
-		}
-		// プロジェクトIDが空の場合も異常
-		if project.ProjectID == "" {
-			return true
-		}
 	}
 
 	return false

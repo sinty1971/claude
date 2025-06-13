@@ -41,7 +41,7 @@ func main() {
 	// Swagger documentation
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	folderHandler := handlers.NewFolderHandler()
+	folderHandler := handlers.NewFileSystemHandler()
 	timeHandler := handlers.NewTimeHandler()
 
 	api := app.Group("/api")
