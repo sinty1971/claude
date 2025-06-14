@@ -8,14 +8,11 @@ import (
 
 type FileSystemHandler struct {
 	FileSystemService *services.FileSystemService
-	KoujiService      *services.KoujiService
 }
 
 func NewFileSystemHandler() *FileSystemHandler {
-	fsService := services.NewFileSystemService()
 	return &FileSystemHandler{
-		FileSystemService: fsService,
-		KoujiService:      services.NewKoujiService(fsService),
+		FileSystemService: services.NewFileSystemService(),
 	}
 }
 
@@ -29,10 +26,10 @@ func NewFileSystemHandler() *FileSystemHandler {
 // @Success      200 {object} models.FolderListResponse "Successful response"
 // @Failure      500 {object} map[string]string "Internal server error"
 // @Router       /folders [get]
-func (fh *FileSystemHandler) GetFolders(c *fiber.Ctx) error {
+func (h *FileSystemHandler) GetFolders(c *fiber.Ctx) error {
 	targetPath := c.Query("path", "~/penguin")
 
-	folders, err := fh.FileSystemService.GetFolders(targetPath)
+	folders, err := h.FileSystemService.GetFolders(targetPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",

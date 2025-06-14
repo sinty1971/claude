@@ -10,15 +10,15 @@ import (
 )
 
 // Formats and regexps with timezone information (try these first)
-var DefaultRegexpsWithTZ = make(map[string]regexp.Regexp, len(DefaultFormatsWithTZ))
-var DefaultFormatsWithTZ = []string{
+var DefaultTimestampRegexpsWithTZ = make(map[string]regexp.Regexp, len(DefaultTimestampFormatsWithTZ))
+var DefaultTimestampFormatsWithTZ = []string{
 	time.RFC3339Nano,
 	time.RFC3339,
 }
 
 // Formats and regexps without timezone information (use local timezone)
-var DefaultRegexpsWithoutTZ = make(map[string]regexp.Regexp, len(DefaultFormatsWithoutTZ))
-var DefaultFormatsWithoutTZ = []string{
+var DefaultTimestampRegexpsWithoutTZ = make(map[string]regexp.Regexp, len(DefaultTimestampFormatsWithoutTZ))
+var DefaultTimestampFormatsWithoutTZ = []string{
 	"2006-01-02T15:04:05.999999999",
 	"2006-01-02T15:04:05",
 	"2006-01-02 15:04:05",
@@ -32,7 +32,7 @@ var DefaultFormatsWithoutTZ = []string{
 }
 
 // 置換ルール定義
-var DateParseReplaceRule = map[string]string{
+var TimestampParseReplaceRule = map[string]string{
 	"2006":      `\d{4}`,                 // 年
 	"01":        `\d{2}`,                 // 月
 	"02":        `\d{2}`,                 // 日
@@ -52,39 +52,39 @@ func init() {
 		pattern := format
 
 		// DateParseReplaceRuleからキーを取得し、文字数順でソート
-		keys := slices.Collect(maps.Keys(DateParseReplaceRule))
+		keys := slices.Collect(maps.Keys(TimestampParseReplaceRule))
 		slices.SortFunc(keys, func(a, b string) int {
 			return len(b) - len(a) // 文字数の大きい順
 		})
 
 		// 順序に従って置換
 		for _, key := range keys {
-			pattern = strings.Replace(pattern, key, DateParseReplaceRule[key], -1)
+			pattern = strings.Replace(pattern, key, TimestampParseReplaceRule[key], -1)
 		}
 
 		return *regexp.MustCompile(pattern)
 	}
 
 	// Initialize patterns for formats with timezone
-	for _, format := range DefaultFormatsWithTZ {
-		DefaultRegexpsWithTZ[format] = formatToRegex(format)
+	for _, format := range DefaultTimestampFormatsWithTZ {
+		DefaultTimestampRegexpsWithTZ[format] = formatToRegex(format)
 	}
 
 	// Initialize patterns for formats without timezone
-	for _, format := range DefaultFormatsWithoutTZ {
-		DefaultRegexpsWithoutTZ[format] = formatToRegex(format)
+	for _, format := range DefaultTimestampFormatsWithoutTZ {
+		DefaultTimestampRegexpsWithoutTZ[format] = formatToRegex(format)
 	}
 }
 
-// Parse parses various date/time string formats and returns a time.Time
+// ParseTime parses various date/time string formats and returns a time.Time
 // When no timezone is specified, it uses the server's local timezone
-func Parse(s string) (time.Time, error) {
-	t, _, err := ParseDateAndRest(s)
-	return t, err
+func ParseTime(s string) (time.Time, error) {
+	ts, _, err := ParseTimeAndRest(s)
+	return ts, err
 }
 
 // 日時文字列の抽出と、日時文字列から日付文字列をどり除いた文字列を返す
-func findAndRest(re *regexp.Regexp, s string) (*string, *string) {
+func findTimeStringAndRest(re *regexp.Regexp, s string) (*string, *string) {
 	matches := re.FindStringIndex(s)
 	if matches == nil {
 		return nil, nil
@@ -107,11 +107,11 @@ func findAndRest(re *regexp.Regexp, s string) (*string, *string) {
 }
 
 // 文字列をパースし、戻り値はtime.Timeと、日付文字列から日付文字列をどり除いた文字列を返す
-func ParseDateAndRest(s string) (time.Time, string, error) {
+func ParseTimeAndRest(s string) (time.Time, string, error) {
 	// タイムゾーン付きのフォーマットを試行（配列順序で）
-	for _, format := range DefaultFormatsWithTZ {
-		re := DefaultRegexpsWithTZ[format]
-		dateStr, restStr := findAndRest(&re, s)
+	for _, format := range DefaultTimestampFormatsWithTZ {
+		re := DefaultTimestampRegexpsWithTZ[format]
+		dateStr, restStr := findTimeStringAndRest(&re, s)
 		if dateStr == nil {
 			continue
 		}
@@ -121,9 +121,9 @@ func ParseDateAndRest(s string) (time.Time, string, error) {
 	}
 
 	// タイムゾーンなしのフォーマットを試行（配列順序で）
-	for _, format := range DefaultFormatsWithoutTZ {
-		re := DefaultRegexpsWithoutTZ[format]
-		dateStr, restStr := findAndRest(&re, s)
+	for _, format := range DefaultTimestampFormatsWithoutTZ {
+		re := DefaultTimestampRegexpsWithoutTZ[format]
+		dateStr, restStr := findTimeStringAndRest(&re, s)
 		if dateStr == nil {
 			continue
 		}
@@ -138,10 +138,14 @@ func ParseDateAndRest(s string) (time.Time, string, error) {
 
 // RFC3339Nano で文字列をパースする
 func ParseRFC3339Nano(s string) (time.Time, error) {
-	re := DefaultRegexpsWithTZ[time.RFC3339Nano]
-	dateStr, _ := findAndRest(&re, s)
+	re := DefaultTimestampRegexpsWithTZ[time.RFC3339Nano]
+	dateStr, _ := findTimeStringAndRest(&re, s)
 	if dateStr == nil {
 		return time.Time{}, fmt.Errorf("unable to parse date/time in the string: %s", s)
 	}
-	return time.Parse(time.RFC3339Nano, *dateStr)
+	t, err := time.Parse(time.RFC3339Nano, *dateStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unable to parse date/time in the string: %s", s)
+	}
+	return t, nil
 }

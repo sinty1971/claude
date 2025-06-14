@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"penguin-backend/internal/handlers"
+	"penguin-backend/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -41,15 +42,24 @@ func main() {
 	// Swagger documentation
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
+	// Create services
+	fileSystemService := services.NewFileSystemService()
+	
+	// Create handlers
 	folderHandler := handlers.NewFileSystemHandler()
 	timeHandler := handlers.NewTimeHandler()
+	koujiHandler := handlers.NewKoujiHandler(fileSystemService)
 
 	api := app.Group("/api")
+	
+	// Folder routes
 	api.Get("/folders", folderHandler.GetFolders)
-	api.Get("/kouji-list", folderHandler.GetKoujiList)
-	api.Post("/kouji-list/save", folderHandler.SaveKoujiListToDatabase)
-	api.Put("/kouji-list/:project_id/dates", folderHandler.UpdateKoujiProjectDates)
-	api.Post("/kouji-list/cleanup", folderHandler.CleanupInvalidTimeData)
+	
+	// Kouji routes
+	api.Get("/kouji-list", koujiHandler.GetKoujiList)
+	api.Post("/kouji-list/save", koujiHandler.SaveKoujiListToDatabase)
+	api.Put("/kouji-projects/:project_id/dates", koujiHandler.UpdateKoujiProjectDates)
+	api.Post("/kouji-projects/cleanup", koujiHandler.CleanupInvalidTimeData)
 	api.Post("/time/parse", timeHandler.ParseTime)
 	api.Get("/time/formats", timeHandler.GetSupportedFormats)
 

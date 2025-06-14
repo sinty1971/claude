@@ -24,7 +24,7 @@ func NewTimeHandler() *TimeHandler {
 // @Success      200 {object} models.TimeParseResponse "Successful response"
 // @Failure      400 {object} map[string]string "Bad request"
 // @Router       /time/parse [post]
-func (th *TimeHandler) ParseTime(c *fiber.Ctx) error {
+func (h *TimeHandler) ParseTime(c *fiber.Ctx) error {
 	var req models.TimeParseRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -33,7 +33,7 @@ func (th *TimeHandler) ParseTime(c *fiber.Ctx) error {
 		})
 	}
 
-	parsedTime, err := utils.Parse(req.TimeString)
+	parsedTime, err := utils.ParseTime(req.TimeString)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Failed to parse time",
@@ -41,7 +41,8 @@ func (th *TimeHandler) ParseTime(c *fiber.Ctx) error {
 		})
 	}
 
-	response := models.ConvertDateTimeInstant(parsedTime)
+	parsedTimestamp := models.NewTimestamp(parsedTime)
+	response := models.ConvertDateTimeInstant(parsedTimestamp)
 	response.Original = req.TimeString
 	return c.JSON(response)
 }

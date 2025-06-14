@@ -43,12 +43,12 @@ type SupportedFormatsResponse struct {
 }
 
 // ConvertDateTimeInstant converts a parsed time to an instant representation
-func ConvertDateTimeInstant(t time.Time) TimeParseResponse {
+func ConvertDateTimeInstant(t Timestamp) TimeParseResponse {
 	return TimeParseResponse{
-		Original: t.Format("2006-01-02T15:04:05"),
-		RFC3339:  t.Format(time.RFC3339),
-		Unix:     t.Unix(),
-		Readable: t.Format("January 2, 2006 3:04 PM"),
-		TimeZone: t.Location().String(),
+		Original: t.Time.Format("2006-01-02T15:04:05"),
+		RFC3339:  t.Time.Format(time.RFC3339),
+		Unix:     t.Time.Unix(),
+		Readable: t.Time.Format("January 2, 2006 3:04 PM"),
+		TimeZone: t.Time.Location().String(),
 	}
 }

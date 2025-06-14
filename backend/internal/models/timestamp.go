@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"penguin-backend/internal/utils"
 	"time"
 )
 
@@ -15,8 +16,23 @@ func NewTimestamp(t time.Time) Timestamp {
 	return Timestamp{Time: t}
 }
 
+// ParseTimestamp parses various date/time string formats and returns a Timestamp
+// When no timezone is specified, it uses the server's local timezone
+func ParseTimestamp(s string) (Timestamp, error) {
+	t, _, err := utils.ParseTimeAndRest(s)
+	return NewTimestamp(t), err
+}
+
+// MarshalYAML implements yaml.Marshaler
+func (ts Timestamp) MarshalYAML() (interface{}, error) {
+	if ts.Time.IsZero() {
+		return "", nil
+	}
+	return ts.Time.Format(time.RFC3339Nano), nil
+}
+
 // UnmarshalYAML implements yaml.Unmarshaler
-func (ts *Timestamp) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (ts *Timestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	var str string
 	if err := unmarshal(&str); err != nil {
 		return err
@@ -38,14 +54,6 @@ func (ts *Timestamp) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	ts.Time = parsed
 	return nil
-}
-
-// MarshalYAML implements yaml.Marshaler
-func (ts Timestamp) MarshalYAML() (interface{}, error) {
-	if ts.Time.IsZero() {
-		return "", nil
-	}
-	return ts.Time.Format(time.RFC3339Nano), nil
 }
 
 // MarshalJSON implements json.Marshaler
