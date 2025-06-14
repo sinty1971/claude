@@ -7,8 +7,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"penguin-backend/internal/models"
 )
 
 // Formats and regexps with timezone information (try these first)
@@ -146,86 +144,4 @@ func ParseRFC3339Nano(s string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("unable to parse date/time in the string: %s", s)
 	}
 	return time.Parse(time.RFC3339Nano, *dateStr)
-}
-
-// FolderデータをFolderYAMLに変換する
-func ConvertToFolderYAML(folder *models.Folder) models.FolderYAML {
-	modifiedTime := folder.ModifiedTime.Format(time.RFC3339Nano)
-
-	return models.FolderYAML{
-		Id:           folder.Id,
-		Name:         folder.Name,
-		Path:         folder.Path,
-		IsDirectory:  folder.IsDirectory,
-		Size:         folder.Size,
-		ModifiedTime: modifiedTime,
-	}
-}
-
-// FolderYAMLデータをFolderに変換する
-func ConvertToFolder(folderYAML *models.FolderYAML) (models.Folder, error) {
-	modifiedTime, err := time.Parse(time.RFC3339Nano, folderYAML.ModifiedTime)
-	if err != nil {
-		return models.Folder{}, err
-	}
-
-	return models.Folder{
-		Id:           folderYAML.Id,
-		Name:         folderYAML.Name,
-		Path:         folderYAML.Path,
-		IsDirectory:  folderYAML.IsDirectory,
-		Size:         folderYAML.Size,
-		ModifiedTime: modifiedTime,
-	}, nil
-}
-
-// KoujiデータをKoujiYAMLに変換する
-func ConvertToKoujiYAML(kouji *models.Kouji) models.KoujiYAML {
-	folderYAML := ConvertToFolderYAML(&kouji.Folder)
-	startDate := kouji.StartDate.Format(time.RFC3339Nano)
-	endDate := kouji.EndDate.Format(time.RFC3339Nano)
-
-	return models.KoujiYAML{
-		Id:           kouji.Id,
-		CompanyName:  kouji.CompanyName,
-		LocationName: kouji.LocationName,
-		Status:       kouji.Status,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		Description:  kouji.Description,
-		Tags:         kouji.Tags,
-		FileCount:    kouji.FileCount,
-		SubdirCount:  kouji.SubdirCount,
-		Folder:       folderYAML,
-	}
-}
-
-// KoujiYAMLデータをKoujiに変換する
-func ConvertToKouji(koujiYAML *models.KoujiYAML) (models.Kouji, error) {
-	startDate, err := time.Parse(time.RFC3339Nano, koujiYAML.StartDate)
-	if err != nil {
-		return models.Kouji{}, err
-	}
-	endDate, err := time.Parse(time.RFC3339Nano, koujiYAML.EndDate)
-	if err != nil {
-		return models.Kouji{}, err
-	}
-	folder, err := ConvertToFolder(&koujiYAML.Folder)
-	if err != nil {
-		return models.Kouji{}, err
-	}
-
-	return models.Kouji{
-		Id:           koujiYAML.Id,
-		CompanyName:  koujiYAML.CompanyName,
-		LocationName: koujiYAML.LocationName,
-		Status:       koujiYAML.Status,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		Description:  koujiYAML.Description,
-		Tags:         koujiYAML.Tags,
-		FileCount:    koujiYAML.FileCount,
-		SubdirCount:  koujiYAML.SubdirCount,
-		Folder:       folder,
-	}, nil
 }

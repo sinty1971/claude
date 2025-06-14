@@ -8,11 +8,14 @@ import (
 
 type FileSystemHandler struct {
 	FileSystemService *services.FileSystemService
+	KoujiService      *services.KoujiService
 }
 
 func NewFileSystemHandler() *FileSystemHandler {
+	fsService := services.NewFileSystemService()
 	return &FileSystemHandler{
-		FileSystemService: services.NewFileSystemService(),
+		FileSystemService: fsService,
+		KoujiService:      services.NewKoujiService(fsService),
 	}
 }
 

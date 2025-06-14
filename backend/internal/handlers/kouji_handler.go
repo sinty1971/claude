@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"penguin-backend/internal/models"
 	"regexp"
-	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -24,40 +23,24 @@ import (
 func (fh *FileSystemHandler) GetKoujiList(c *fiber.Ctx) error {
 	// パラメータの取得
 	fsPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
-	dbPath := filepath.Join(fsPath, ".inside.yaml")
 
-	// 1. ファイルシステムから工事プロジェクト一覧を取得
-	fsKoujiList, err := fh.getKoujiListFromFileSystem(fsPath)
+	// KoujiServiceを使用して工事リストを取得
+	koujiList, err := fh.KoujiService.GetKoujiList(fsPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to read directory",
+			"error":   "Failed to get kouji list",
 			"message": err.Error(),
 		})
 	}
 
-	// 2. データベースファイルから工事プロジェクト一覧を読み込み
-	dbKoujiList, err := fh.FileSystemService.LoadKoujiListFromDatabase(dbPath)
-	if err != nil {
-		// データベースファイルの読み込みに失敗した場合はファイルシステムのデータのみを使用
-		dbKoujiList = []models.Kouji{}
-	}
-
-	// 3. プロジェクトをマージ
-	mgKoujiList := fh.mergeKoujiList(fsKoujiList, dbKoujiList)
-
-	// 4. 開始日の降順でソート（新しい順）
-	sort.Slice(mgKoujiList, func(i, j int) bool {
-		return mgKoujiList[i].StartDate.After(mgKoujiList[j].StartDate)
-	})
-
 	totalSize := int64(0)
-	for _, kouji := range mgKoujiList {
-		totalSize += kouji.Folder.Size
+	for _, kouji := range koujiList {
+		totalSize += kouji.FileEntry.Size
 	}
 
 	return c.JSON(models.KoujiListResponse{
-		KoujiList: mgKoujiList,
-		Count:     len(mgKoujiList),
+		KoujiList: koujiList,
+		Count:     len(koujiList),
 		TotalSize: totalSize,
 	})
 }
@@ -115,51 +98,27 @@ func (fh *FileSystemHandler) SaveKoujiListToDatabase(c *fiber.Ctx) error {
 
 	// Default paths
 	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
+
+	// KoujiServiceを使用して工事プロジェクトを保存
+	count, err := fh.KoujiService.SaveKoujiProjects(targetPath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":   "Failed to save kouji projects",
+			"message": err.Error(),
+		})
+	}
+
 	yamlPath := filepath.Join(targetPath, ".inside.yaml")
-
-	// 1. 既存の.inside.yamlファイルから工事プロジェクト一覧を読み込み
-	existingProjects, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to load existing YAML file",
-			"message": err.Error(),
-		})
-	}
-
-	// 2. ファイルシステムから工事プロジェクト一覧を取得
-	fsProjects, err := fh.getKoujiListFromFileSystem(targetPath)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to read directory",
-			"message": err.Error(),
-		})
-	}
-
-	// 3. プロジェクトをマージ（project_idで判断）
-	mergedProjects := fh.mergeKoujiList(fsProjects, existingProjects)
-
-	// 4. 開始日の降順でソート
-	sort.Slice(mergedProjects, func(i, j int) bool {
-		return mergedProjects[i].StartDate.After(mergedProjects[j].StartDate)
-	})
-
-	// 5. YAMLファイルに保存
-	err = fh.FileSystemService.SaveKoujiListToYAML(yamlPath, mergedProjects)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to save YAML file",
-			"message": err.Error(),
-		})
-	}
 
 	return c.JSON(fiber.Map{
 		"message":     "工事フォルダー情報をYAMLファイルに保存しました",
 		"output_path": yamlPath,
-		"count":       len(mergedProjects),
+		"count":       count,
 	})
 }
 
 // getKoujiListFromFileSystem はファイルシステムから工事プロジェクト一覧を取得する
+// Deprecated: Use KoujiService.GetKoujiListFromFileSystem instead
 func (fh *FileSystemHandler) getKoujiListFromFileSystem(targetPath string) ([]models.Kouji, error) {
 	// Get kouji folders from file system
 	folders, err := fh.FileSystemService.GetFolders(targetPath)
@@ -216,12 +175,12 @@ func (fh *FileSystemHandler) getKoujiListFromFileSystem(targetPath string) ([]mo
 			CompanyName:  companyName,
 			LocationName: factoryName,
 			Status:       determineProjectStatus(projectDate),
-			StartDate:    projectDate,
-			EndDate:      projectDate.AddDate(0, 3, 0), // Assume 3-month project duration
+			StartDate:    models.NewTimestamp(projectDate),
+			EndDate:      models.NewTimestamp(projectDate.AddDate(0, 3, 0)), // Assume 3-month project duration
 			Description:  companyName + "の" + factoryName + "における工事プロジェクト",
 			Tags:         []string{"工事", companyName, factoryName, dateStr[:4]}, // Include year as tag
 			// Folder: ファイルシステムから取得したフォルダー情報
-			Folder: folder,
+			FileEntry: folder,
 		}
 
 		koujiProject.FileCount = 0 // Would need to scan subdirectory to get actual count
@@ -234,6 +193,7 @@ func (fh *FileSystemHandler) getKoujiListFromFileSystem(targetPath string) ([]mo
 }
 
 // mergeKoujiList はファイルシステムと既存YAMLファイルの工事プロジェクトをマージする
+// Deprecated: Use KoujiService.MergeKoujiList instead
 func (fh *FileSystemHandler) mergeKoujiList(fsKoujiList, dbKoujiList []models.Kouji) []models.Kouji {
 	// mergeKoujiProjects はファイルシステムとデータベースファイルの工事プロジェクトをマージする
 	//
@@ -278,11 +238,11 @@ func (fh *FileSystemHandler) mergeKoujiList(fsKoujiList, dbKoujiList []models.Ko
 
 		if dbKouji, exists := dbMap[fsKouji.Id]; exists {
 			// Both versions exist and are valid - compare modification times
-			if fsKouji.ModifiedTime.After(dbKouji.ModifiedTime) {
+			if fsKouji.ModifiedTime.Time.After(dbKouji.ModifiedTime.Time) {
 				// File system is newer - use FS data but preserve YAML-only fields
 				mergedProject := fsKouji
 				mergedProject.Description = dbKouji.Description // Preserve description from YAML
-				if !dbKouji.EndDate.IsZero() {
+				if !dbKouji.EndDate.Time.IsZero() {
 					mergedProject.EndDate = dbKouji.EndDate // Preserve custom end date from YAML
 				}
 				mergedProjects = append(mergedProjects, mergedProject)
@@ -371,41 +331,16 @@ func (fh *FileSystemHandler) UpdateKoujiProjectDates(c *fiber.Ctx) error {
 		})
 	}
 
-	// Default path for YAML file
-	outputPath := "~/penguin/豊田築炉/2-工事/.inside.yaml"
-
-	// Load existing projects from YAML
-	existingProjects, err := fh.FileSystemService.LoadKoujiListFromDatabase(outputPath)
+	// KoujiServiceを使用してプロジェクトの日付を更新
+	err = fh.KoujiService.UpdateProjectDates(projectID, startDate, endDate)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to load existing projects",
-			"message": err.Error(),
-		})
-	}
-
-	// Find and update the project
-	projectFound := false
-	for i, project := range existingProjects {
-		if project.Id == projectID {
-			existingProjects[i].StartDate = startDate.In(time.Local)
-			existingProjects[i].EndDate = endDate.In(time.Local)
-			existingProjects[i].Status = determineProjectStatus(startDate.In(time.Local))
-			projectFound = true
-			break
+		if err.Error() == "project not found: "+projectID {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Project not found",
+			})
 		}
-	}
-
-	if !projectFound {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Project not found",
-		})
-	}
-
-	// Save updated projects to YAML
-	err = fh.FileSystemService.SaveKoujiListToYAML(outputPath, existingProjects)
-	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":   "Failed to save updated projects",
+			"error":   "Failed to update project dates",
 			"message": err.Error(),
 		})
 	}
@@ -430,7 +365,7 @@ func (fh *FileSystemHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 	yamlPath := c.Query("yaml_path", "~/penguin/豊田築炉/2-工事/.inside.yaml")
 
 	// Load existing projects to count before cleanup
-	projectsBefore, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
+	projectsBefore, err := fh.KoujiService.LoadKoujiListFromDatabase(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to load YAML file",
@@ -441,7 +376,7 @@ func (fh *FileSystemHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 	countBefore := len(projectsBefore)
 
 	// Load projects again to count after cleanup
-	projectsAfter, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
+	projectsAfter, err := fh.KoujiService.LoadKoujiListFromDatabase(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to reload YAML file after cleanup",
@@ -462,6 +397,7 @@ func (fh *FileSystemHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 }
 
 // determineProjectStatus determines the project status based on the date
+// Deprecated: Use KoujiService.DetermineProjectStatus instead
 func determineProjectStatus(projectDate time.Time) string {
 	if projectDate.IsZero() {
 		return "不明"
