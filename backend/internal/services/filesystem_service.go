@@ -51,7 +51,7 @@ func (fss *FileSystemService) GetFolders(targetPath string) (*models.FolderListR
 		// For symlinks, check the target's type
 		isDirectory := entry.IsDir()
 		entryPath := filepath.Join(absPath, entry.Name())
-		
+
 		// If it's a symlink, check what it points to
 		if info.Mode()&os.ModeSymlink != 0 {
 			targetInfo, err := os.Stat(entryPath) // Follow the symlink
@@ -77,7 +77,7 @@ func (fss *FileSystemService) GetFolders(targetPath string) (*models.FolderListR
 	}, nil
 }
 
-// LoadKoujiProjectsFromYAML は工事プロジェクト情報をYAMLファイルから読み込む
+// LoadKoujiListFromDatabase は工事プロジェクト情報をYAMLファイルから読み込む
 //
 // 読み込み手順:
 //  1. 指定されたディレクトリに .inside.yaml が存在するかチェック
@@ -89,7 +89,7 @@ func (fss *FileSystemService) GetFolders(targetPath string) (*models.FolderListR
 // エラーハンドリング:
 //   - ファイルが存在しない場合は空のリストを返す
 //   - YAML解析が失敗した場合はエラーを返す
-func (fss *FileSystemService) LoadKoujiProjectsFromYAML(databasePath string) ([]models.Kouji, error) {
+func (fss *FileSystemService) LoadKoujiListFromDatabase(databasePath string) ([]models.Kouji, error) {
 	// Expand ~ to home directory
 	if strings.HasPrefix(databasePath, "~/") {
 		usr, err := user.Current()

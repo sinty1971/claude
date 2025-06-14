@@ -47,7 +47,7 @@ func main() {
 	api := app.Group("/api")
 	api.Get("/folders", folderHandler.GetFolders)
 	api.Get("/kouji-list", folderHandler.GetKoujiList)
-	api.Post("/kouji-list/save", folderHandler.SaveKoujiProjectsToYAML)
+	api.Post("/kouji-list/save", folderHandler.SaveKoujiListToDatabase)
 	api.Put("/kouji-list/:project_id/dates", folderHandler.UpdateKoujiProjectDates)
 	api.Post("/kouji-list/cleanup", folderHandler.CleanupInvalidTimeData)
 	api.Post("/time/parse", timeHandler.ParseTime)

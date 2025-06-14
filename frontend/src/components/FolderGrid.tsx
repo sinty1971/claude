@@ -74,7 +74,16 @@ export const FolderGrid: React.FC = () => {
 
   const handlePathSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loadFolders(pathInput);
+    
+    // /home/shin/penguinより親に行かないようにバリデーション
+    const minPath = '/home/shin/penguin';
+    if (pathInput.startsWith(minPath) || pathInput === minPath) {
+      loadFolders(pathInput);
+    } else {
+      // バリデーションエラーの場合、最小パスに設定
+      setPathInput(minPath);
+      loadFolders(minPath);
+    }
   };
 
   const handleGoBack = () => {
@@ -83,8 +92,13 @@ export const FolderGrid: React.FC = () => {
     if (pathParts.length > 1) {
       const parentPath = pathParts.slice(0, -1).join('/');
       const newPath = parentPath || '/';
-      setPathInput(newPath);
-      loadFolders(newPath);
+      
+      // /home/shin/penguinより親に行かないようにバリデーション
+      const minPath = '/home/shin/penguin';
+      if (newPath.startsWith(minPath) || newPath === minPath) {
+        setPathInput(newPath);
+        loadFolders(newPath);
+      }
     }
   };
 
@@ -125,7 +139,9 @@ export const FolderGrid: React.FC = () => {
         <h1>フォルダー管理システム</h1>
         
         <form onSubmit={handlePathSubmit} className="path-form">
-          <button type="button" onClick={handleGoBack} className="back-button">戻る</button>
+          <button type="button" onClick={handleGoBack} className="back-button">
+            <span className="back-arrow">⮜</span>
+          </button>
           <input
             type="text"
             value={pathInput}

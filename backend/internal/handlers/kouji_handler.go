@@ -11,16 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// FileSystemとDatabaseとMargeの定義
-// FileSystem: ファイルシステムから取得した情報
-//     接頭語として"fs"を付与
-// Database: 2025/6/14時点ではKoujiListに関しては[/home/<user>/penguin/豊田築炉/2-工事/.inside.yaml]に保存されている
-//     接頭語として"db"を付与
-//     データベースのファイル名は".inside.yaml"
-// Merge: FileSystemとDatabaseのデータすり合わせ（マージ）
-//     接頭語として"mg"を付与
-//     この処理はかなり重要
-
 // GetKoujiList godoc
 // @Summary      Get kouji list
 // @Description  Retrieve a list of construction project folders from the specified path
@@ -33,11 +23,11 @@ import (
 // @Router       /kouji-list [get]
 func (fh *FileSystemHandler) GetKoujiList(c *fiber.Ctx) error {
 	// パラメータの取得
-	targetPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
-	databasePath := filepath.Join(targetPath, ".inside.yaml")
+	fsPath := c.Query("path", "~/penguin/豊田築炉/2-工事")
+	dbPath := filepath.Join(fsPath, ".inside.yaml")
 
 	// 1. ファイルシステムから工事プロジェクト一覧を取得
-	fsProjects, err := fh.getKoujiProjectsFromFileSystem(targetPath)
+	fsKoujiList, err := fh.getKoujiListFromFileSystem(fsPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",
@@ -46,46 +36,44 @@ func (fh *FileSystemHandler) GetKoujiList(c *fiber.Ctx) error {
 	}
 
 	// 2. データベースファイルから工事プロジェクト一覧を読み込み
-	dbProjects, err := fh.FileSystemService.LoadKoujiProjectsFromYAML(databasePath)
+	dbKoujiList, err := fh.FileSystemService.LoadKoujiListFromDatabase(dbPath)
 	if err != nil {
 		// データベースファイルの読み込みに失敗した場合はファイルシステムのデータのみを使用
-		dbProjects = []models.Kouji{}
+		dbKoujiList = []models.Kouji{}
 	}
 
 	// 3. プロジェクトをマージ
-	mergedProjects := fh.mergeKoujiProjects(fsProjects, dbProjects)
+	mgKoujiList := fh.mergeKoujiList(fsKoujiList, dbKoujiList)
 
 	// 4. 開始日の降順でソート（新しい順）
-	sort.Slice(mergedProjects, func(i, j int) bool {
-		return mergedProjects[i].StartDate.After(mergedProjects[j].StartDate)
+	sort.Slice(mgKoujiList, func(i, j int) bool {
+		return mgKoujiList[i].StartDate.After(mgKoujiList[j].StartDate)
 	})
 
 	totalSize := int64(0)
-	for _, project := range mergedProjects {
-		totalSize += project.Size
+	for _, kouji := range mgKoujiList {
+		totalSize += kouji.Folder.Size
 	}
 
-	response := models.KoujiListResponse{
-		KoujiList: mergedProjects,
-		Count:     len(mergedProjects),
+	return c.JSON(models.KoujiListResponse{
+		KoujiList: mgKoujiList,
+		Count:     len(mgKoujiList),
 		TotalSize: totalSize,
-	}
-
-	return c.JSON(response)
+	})
 }
 
-// SaveKoujiProjectsToYAML godoc
+// SaveKoujiListToDatabase godoc
 // @Summary      Save kouji projects to YAML
 // @Description  Save kouji project information to a YAML file
-// @Tags         kouji-projects
+// @Tags         kouji-list
 // @Accept       json
 // @Produce      json
 // @Param        path query string false "Path to the directory to scan" default(~/penguin/豊田築炉/2-工事)
 // @Param        output_path query string false "Output YAML file path" default(~/penguin/豊田築炉/2-工事/.inside.yaml)
 // @Success      200 {object} map[string]string "Success message"
 // @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /kouji-projects/save [post]
-func (fh *FileSystemHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
+// @Router       /kouji-list/save [post]
+func (fh *FileSystemHandler) SaveKoujiListToDatabase(c *fiber.Ctx) error {
 	// SaveKoujiProjectsToYAML は工事プロジェクト情報をYAMLファイルに保存する
 	//
 	// ファイル形式 (.inside.yaml):
@@ -130,7 +118,7 @@ func (fh *FileSystemHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	yamlPath := filepath.Join(targetPath, ".inside.yaml")
 
 	// 1. 既存の.inside.yamlファイルから工事プロジェクト一覧を読み込み
-	existingProjects, err := fh.FileSystemService.LoadKoujiProjectsFromYAML(yamlPath)
+	existingProjects, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to load existing YAML file",
@@ -139,7 +127,7 @@ func (fh *FileSystemHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	}
 
 	// 2. ファイルシステムから工事プロジェクト一覧を取得
-	fsProjects, err := fh.getKoujiProjectsFromFileSystem(targetPath)
+	fsProjects, err := fh.getKoujiListFromFileSystem(targetPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",
@@ -148,7 +136,7 @@ func (fh *FileSystemHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	}
 
 	// 3. プロジェクトをマージ（project_idで判断）
-	mergedProjects := fh.mergeKoujiProjects(fsProjects, existingProjects)
+	mergedProjects := fh.mergeKoujiList(fsProjects, existingProjects)
 
 	// 4. 開始日の降順でソート
 	sort.Slice(mergedProjects, func(i, j int) bool {
@@ -171,8 +159,8 @@ func (fh *FileSystemHandler) SaveKoujiProjectsToYAML(c *fiber.Ctx) error {
 	})
 }
 
-// getKoujiProjectsFromFileSystem はファイルシステムから工事プロジェクト一覧を取得する
-func (fh *FileSystemHandler) getKoujiProjectsFromFileSystem(targetPath string) ([]models.Kouji, error) {
+// getKoujiListFromFileSystem はファイルシステムから工事プロジェクト一覧を取得する
+func (fh *FileSystemHandler) getKoujiListFromFileSystem(targetPath string) ([]models.Kouji, error) {
 	// Get kouji folders from file system
 	folders, err := fh.FileSystemService.GetFolders(targetPath)
 	if err != nil {
@@ -245,8 +233,8 @@ func (fh *FileSystemHandler) getKoujiProjectsFromFileSystem(targetPath string) (
 	return koujiProjects, nil
 }
 
-// mergeKoujiProjects はファイルシステムと既存YAMLファイルの工事プロジェクトをマージする
-func (fh *FileSystemHandler) mergeKoujiProjects(fsKoujiList, dbKoujiList []models.Kouji) []models.Kouji {
+// mergeKoujiList はファイルシステムと既存YAMLファイルの工事プロジェクトをマージする
+func (fh *FileSystemHandler) mergeKoujiList(fsKoujiList, dbKoujiList []models.Kouji) []models.Kouji {
 	// mergeKoujiProjects はファイルシステムとデータベースファイルの工事プロジェクトをマージする
 	//
 	// データベース形式 (.inside.yaml):
@@ -387,7 +375,7 @@ func (fh *FileSystemHandler) UpdateKoujiProjectDates(c *fiber.Ctx) error {
 	outputPath := "~/penguin/豊田築炉/2-工事/.inside.yaml"
 
 	// Load existing projects from YAML
-	existingProjects, err := fh.FileSystemService.LoadKoujiProjectsFromYAML(outputPath)
+	existingProjects, err := fh.FileSystemService.LoadKoujiListFromDatabase(outputPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to load existing projects",
@@ -442,7 +430,7 @@ func (fh *FileSystemHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 	yamlPath := c.Query("yaml_path", "~/penguin/豊田築炉/2-工事/.inside.yaml")
 
 	// Load existing projects to count before cleanup
-	projectsBefore, err := fh.FileSystemService.LoadKoujiProjectsFromYAML(yamlPath)
+	projectsBefore, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to load YAML file",
@@ -453,7 +441,7 @@ func (fh *FileSystemHandler) CleanupInvalidTimeData(c *fiber.Ctx) error {
 	countBefore := len(projectsBefore)
 
 	// Load projects again to count after cleanup
-	projectsAfter, err := fh.FileSystemService.LoadKoujiProjectsFromYAML(yamlPath)
+	projectsAfter, err := fh.FileSystemService.LoadKoujiListFromDatabase(yamlPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to reload YAML file after cleanup",
