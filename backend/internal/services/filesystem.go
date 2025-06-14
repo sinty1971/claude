@@ -15,17 +15,17 @@ func NewFileSystemService() *FileSystemService {
 	return &FileSystemService{}
 }
 
-func (fs *FileSystemService) GetFolders(targetPath string) (*models.FolderListResponse, error) {
+func (fs *FileSystemService) GetFolders(fsPath string) (*models.FolderListResponse, error) {
 	// Expand ~ to home directory
-	if strings.HasPrefix(targetPath, "~/") {
+	if strings.HasPrefix(fsPath, "~/") {
 		usr, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
-		targetPath = filepath.Join(usr.HomeDir, targetPath[2:])
+		fsPath = filepath.Join(usr.HomeDir, fsPath[2:])
 	}
 
-	absPath, err := filepath.Abs(targetPath)
+	absPath, err := filepath.Abs(fsPath)
 	if err != nil {
 		return nil, err
 	}

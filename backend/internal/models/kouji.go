@@ -8,8 +8,8 @@ type Kouji struct {
 	CompanyName  string    `json:"company_name,omitempty" yaml:"company_name" example:"豊田築炉"`
 	LocationName string    `json:"location_name,omitempty" yaml:"location_name" example:"名和工場"`
 	Status       string    `json:"status,omitempty" yaml:"status" example:"進行中"`
-	StartDate    Timestamp `json:"start_date,omitempty" yaml:"start_date" example:"2024-01-01T00:00:00Z"`
-	EndDate      Timestamp `json:"end_date,omitempty" yaml:"end_date" example:"2024-12-31T00:00:00Z"`
+	StartDate    Timestamp `json:"start_date,omitempty" yaml:"start_date"`
+	EndDate      Timestamp `json:"end_date,omitempty" yaml:"end_date"`
 	Description  string    `json:"description,omitempty" yaml:"description" example:"工事関連の資料とドキュメント"`
 	Tags         []string  `json:"tags,omitempty" yaml:"tags" example:"['工事', '豊田築炉', '名和工場']"`
 	FileCount    int       `json:"file_count,omitempty" yaml:"file_count" example:"42"`
@@ -24,4 +24,11 @@ type KoujiListResponse struct {
 	KoujiList []Kouji `json:"kouji_list" description:"List of kouji projects"`
 	Count     int     `json:"count" example:"10" description:"Total number of projects returned"`
 	TotalSize int64   `json:"total_size,omitempty" example:"1073741824" description:"Total size of all files in bytes"`
+}
+
+// UpdateProjectDatesRequest represents the request body for updating project dates
+// @Description Request body for updating project start and end dates
+type UpdateProjectDatesRequest struct {
+	StartDate string `json:"start_date" example:"2024-01-01T00:00:00Z"`
+	EndDate   string `json:"end_date" example:"2024-12-31T00:00:00Z"`
 }

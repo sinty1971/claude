@@ -12,9 +12,31 @@ frontend:
 backend-deps:
     cd ./backend && go mod tidy
 
+# Update all Go packages to latest versions
+# ただしメジャーなバージョンは更新しない
+backend-update:
+    cd ./backend && go get -u ./...
+    cd ./backend && go mod tidy
+
+# Generate OpenAPI documentation from Go code
+generate-api:
+    cd ./backend && swag init -g cmd/main.go
+    cd ./backend && cp docs/swagger.yaml api/openapi.yaml
+    @echo "OpenAPI documentation generated at backend/api/openapi.yaml"
+
 # Install frontend dependencies  
 frontend-deps:
     cd ./frontend && npm install
+
+# Update all npm packages to latest versions
+frontend-update:
+    cd ./frontend && npm update
+    cd ./frontend && npm audit fix
+
+# Generate TypeScript types from OpenAPI spec
+generate-types:
+    cd ./frontend && npm run generate-api
+    @echo "TypeScript types generated at frontend/src/api/schema.d.ts"
 
 # Build frontend for production
 frontend-build:
@@ -28,6 +50,12 @@ frontend-lint:
 dev:
     @echo "Starting backend and frontend..."
     @echo "Run 'just backend' in one terminal and 'just frontend' in another"
+
+# Generate both API docs and TypeScript types
+generate-all: generate-api generate-types
+
+# Update all dependencies (Go and npm)
+update-all: backend-update frontend-update
 
 # Clean and reinstall all dependencies
 clean-install: backend-deps frontend-deps

@@ -99,7 +99,7 @@ func (h *KoujiHandler) SaveKoujiListToDatabase(c *fiber.Ctx) error {
 // @Accept       json
 // @Produce      json
 // @Param        project_id path string true "Project ID"
-// @Param        dates body UpdateProjectDatesRequest true "Updated dates"
+// @Param        dates body models.UpdateProjectDatesRequest true "Updated dates"
 // @Success      200 {object} map[string]string "Success message"
 // @Failure      400 {object} map[string]string "Bad request"
 // @Failure      500 {object} map[string]string "Internal server error"
@@ -112,13 +112,7 @@ func (h *KoujiHandler) UpdateKoujiProjectDates(c *fiber.Ctx) error {
 		})
 	}
 
-	// Define request body structure
-	type UpdateProjectDatesRequest struct {
-		StartDate string `json:"start_date" example:"2024-01-01T00:00:00Z"`
-		EndDate   string `json:"end_date" example:"2024-12-31T00:00:00Z"`
-	}
-
-	var req UpdateProjectDatesRequest
+	var req models.UpdateProjectDatesRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Invalid request body",

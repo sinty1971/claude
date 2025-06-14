@@ -13,7 +13,7 @@ type FileEntry struct {
 	// Size of the file in bytes
 	Size int64 `json:"size" yaml:"size" example:"4096"`
 	// Last modification time
-	ModifiedTime Timestamp `json:"modified_time" yaml:"modified_time" example:"2024-01-15T10:30:00Z"`
+	ModifiedTime Timestamp `json:"modified_time" yaml:"modified_time"`
 }
 
 // FolderListResponse represents the response for folder listing

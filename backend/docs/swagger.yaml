@@ -1,16 +1,19 @@
 basePath: /api
 definitions:
-  models.Folder:
+  models.FileEntry:
     description: File or directory information
     properties:
+      id:
+        example: 123456
+        type: integer
       is_directory:
         description: Whether this item is a directory
         example: true
         type: boolean
       modified_time:
+        allOf:
+        - $ref: '#/definitions/models.Timestamp'
         description: Last modification time
-        example: "2024-01-15T10:30:00Z"
-        type: string
       name:
         description: Name of the file or folder
         example: documents
@@ -34,30 +37,25 @@ definitions:
       folders:
         description: List of folders
         items:
-          $ref: '#/definitions/models.Folder'
+          $ref: '#/definitions/models.FileEntry'
         type: array
-      path:
-        description: The path that was queried
-        example: /home/user/documents
-        type: string
     type: object
-  models.KoujiProject:
+  models.Kouji:
     description: Construction project folder information with extended attributes
     properties:
       company_name:
         example: 豊田築炉
         type: string
-      created_date:
-        example: "2024-01-01T00:00:00Z"
-        type: string
       description:
         example: 工事関連の資料とドキュメント
         type: string
       end_date:
-        example: "2024-12-31T00:00:00Z"
-        type: string
+        $ref: '#/definitions/models.Timestamp'
       file_count:
         example: 42
+        type: integer
+      id:
+        example: 123456
         type: integer
       is_directory:
         description: Whether this item is a directory
@@ -67,9 +65,9 @@ definitions:
         example: 名和工場
         type: string
       modified_time:
+        allOf:
+        - $ref: '#/definitions/models.Timestamp'
         description: Last modification time
-        example: "2024-01-15T10:30:00Z"
-        type: string
       name:
         description: Name of the file or folder
         example: documents
@@ -78,20 +76,12 @@ definitions:
         description: Full path to the file or folder
         example: /home/user/documents
         type: string
-      project_id:
-        description: Additional fields specific to Kouji folders
-        example: A3K7M
-        type: string
-      project_name:
-        example: 豊田築炉 名和工場工事
-        type: string
       size:
         description: Size of the file in bytes
         example: 4096
         type: integer
       start_date:
-        example: "2024-01-01T00:00:00Z"
-        type: string
+        $ref: '#/definitions/models.Timestamp'
       status:
         example: 進行中
         type: string
@@ -107,19 +97,16 @@ definitions:
           type: string
         type: array
     type: object
-  models.KoujiProjectListResponse:
+  models.KoujiListResponse:
     description: Response containing list of construction project folders
     properties:
       count:
         example: 10
         type: integer
-      projects:
+      kouji_list:
         items:
-          $ref: '#/definitions/models.KoujiProject'
+          $ref: '#/definitions/models.Kouji'
         type: array
-      path:
-        example: ~/penguin/豊田築炉/2-工事
-        type: string
       total_size:
         example: 1073741824
         type: integer
@@ -181,6 +168,22 @@ definitions:
         example: 1705318200
         type: integer
     type: object
+  models.Timestamp:
+    description: Timestamp in RFC3339 format
+    properties:
+      time.Time:
+        type: string
+    type: object
+  models.UpdateProjectDatesRequest:
+    description: Request body for updating project start and end dates
+    properties:
+      end_date:
+        example: "2024-12-31T00:00:00Z"
+        type: string
+      start_date:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -215,7 +218,7 @@ paths:
       summary: Get folders
       tags:
       - folders
-  /kouji-projects:
+  /kouji-list:
     get:
       consumes:
       - application/json
@@ -233,21 +236,21 @@ paths:
         "200":
           description: Successful response
           schema:
-            $ref: '#/definitions/models.KoujiProjectListResponse'
+            $ref: '#/definitions/models.KoujiListResponse'
         "500":
           description: Internal server error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get kouji projects
+      summary: Get kouji list
       tags:
-      - kouji-projects
-  /kouji-projects/save:
+      - kouji-list
+  /kouji-list/save:
     post:
       consumes:
       - application/json
-      description: Save kouji folder information to a YAML file
+      description: Save kouji project information to a YAML file
       parameters:
       - default: ~/penguin/豊田築炉/2-工事
         description: Path to the directory to scan
@@ -276,7 +279,7 @@ paths:
             type: object
       summary: Save kouji projects to YAML
       tags:
-      - kouji-projects
+      - kouji-list
   /kouji-projects/{project_id}/dates:
     put:
       consumes:
@@ -293,17 +296,7 @@ paths:
         name: dates
         required: true
         schema:
-          properties:
-            end_date:
-              example: "2024-12-31T00:00:00Z"
-              type: string
-            start_date:
-              example: "2024-01-01T00:00:00Z"
-              type: string
-          required:
-          - start_date
-          - end_date
-          type: object
+          $ref: '#/definitions/models.UpdateProjectDatesRequest'
       produces:
       - application/json
       responses:
@@ -326,6 +319,36 @@ paths:
               type: string
             type: object
       summary: Update kouji project dates
+      tags:
+      - kouji-projects
+  /kouji-projects/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: Remove projects with invalid time data (like 0001-01-01T09:26:51+09:18)
+        from YAML
+      parameters:
+      - default: ~/penguin/豊田築炉/2-工事/.inside.yaml
+        description: Path to the YAML file
+        in: query
+        name: yaml_path
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message with cleanup details
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cleanup invalid time data
       tags:
       - kouji-projects
   /time/formats:

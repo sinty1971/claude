@@ -7,8 +7,10 @@ import (
 )
 
 // Timestamp wraps time.Time with custom YAML/JSON marshaling/unmarshaling
+// @Description Timestamp in RFC3339 format
+// swagger:model
 type Timestamp struct {
-	time.Time
+	time.Time `swaggertype:"string" format:"date-time" example:"2024-01-15T10:30:00Z"`
 }
 
 // NewTimestamp creates a new Timestamp from time.Time
@@ -24,7 +26,7 @@ func ParseTimestamp(s string) (Timestamp, error) {
 }
 
 // MarshalYAML implements yaml.Marshaler
-func (ts Timestamp) MarshalYAML() (interface{}, error) {
+func (ts Timestamp) MarshalYAML() (any, error) {
 	if ts.Time.IsZero() {
 		return "", nil
 	}
@@ -39,17 +41,9 @@ func (ts *Timestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	// Try parsing with RFC3339Nano first
-	parsed, err := time.Parse(time.RFC3339Nano, str)
+	parsed, err := utils.ParseTime(str)
 	if err != nil {
-		// Try RFC3339 as fallback
-		parsed, err = time.Parse(time.RFC3339, str)
-		if err != nil {
-			// Try local time format
-			parsed, err = time.ParseInLocation("2006-01-02T15:04:05", str, time.Local)
-			if err != nil {
-				return fmt.Errorf("failed to parse timestamp: %w", err)
-			}
-		}
+		return fmt.Errorf("failed to parse timestamp: %w", err)
 	}
 
 	ts.Time = parsed
@@ -76,18 +70,10 @@ func (ts *Timestamp) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// Try parsing with RFC3339Nano first
-	parsed, err := time.Parse(time.RFC3339Nano, str)
+	// タイムスタンプ文字列のパース
+	parsed, err := utils.ParseTime(str)
 	if err != nil {
-		// Try RFC3339 as fallback
-		parsed, err = time.Parse(time.RFC3339, str)
-		if err != nil {
-			// Try local time format
-			parsed, err = time.ParseInLocation("2006-01-02T15:04:05", str, time.Local)
-			if err != nil {
-				return fmt.Errorf("failed to parse timestamp: %w", err)
-			}
-		}
+		return fmt.Errorf("failed to parse timestamp: %w", err)
 	}
 
 	ts.Time = parsed

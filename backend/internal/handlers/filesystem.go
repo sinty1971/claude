@@ -27,9 +27,9 @@ func NewFileSystemHandler() *FileSystemHandler {
 // @Failure      500 {object} map[string]string "Internal server error"
 // @Router       /folders [get]
 func (h *FileSystemHandler) GetFolders(c *fiber.Ctx) error {
-	targetPath := c.Query("path", "~/penguin")
+	fsPath := c.Query("path", "~/penguin")
 
-	folders, err := h.FileSystemService.GetFolders(targetPath)
+	folders, err := h.FileSystemService.GetFolders(fsPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",

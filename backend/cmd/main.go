@@ -44,17 +44,17 @@ func main() {
 
 	// Create services
 	fileSystemService := services.NewFileSystemService()
-	
+
 	// Create handlers
 	folderHandler := handlers.NewFileSystemHandler()
-	timeHandler := handlers.NewTimeHandler()
 	koujiHandler := handlers.NewKoujiHandler(fileSystemService)
+	timeHandler := handlers.NewTimeHandler()
 
 	api := app.Group("/api")
-	
+
 	// Folder routes
 	api.Get("/folders", folderHandler.GetFolders)
-	
+
 	// Kouji routes
 	api.Get("/kouji-list", koujiHandler.GetKoujiList)
 	api.Post("/kouji-list/save", koujiHandler.SaveKoujiListToDatabase)

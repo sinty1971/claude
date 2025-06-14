@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"penguin-backend/internal/models"
+	"penguin-backend/internal/utils"
 	"regexp"
 	"sort"
 	"strings"
@@ -39,55 +40,49 @@ func (ks *KoujiService) GetKoujiListFromFileSystem(targetPath string) ([]models.
 	// Convert to KoujiProjects with additional metadata
 	koujiProjects := make([]models.Kouji, 0)
 
-	for _, folder := range folders.Folders {
+	for _, entry := range folders.Folders {
 		// Only process directories that match the naming pattern
-		if !folder.IsDirectory {
+		if !entry.IsDirectory {
 			continue
 		}
 
-		matches := koujiPattern.FindStringSubmatch(folder.Name)
+		matches := koujiPattern.FindStringSubmatch(entry.Name)
 		if matches == nil || len(matches) != 4 {
 			continue // Skip folders that don't match the pattern
 		}
 
 		// Extract parts from the folder name
-		dateStr := matches[1]     // e.g., "2025-0618"
-		companyName := matches[2] // e.g., "豊田築炉"
-		factoryName := matches[3] // e.g., "名和工場"
+		dateStr := matches[1]      // e.g., "2025-0618"
+		companyName := matches[2]  // e.g., "豊田築炉"
+		LocationName := matches[3] // e.g., "名和工場"
 
 		// Parse date from folder name
-		var projectDate time.Time
-		if len(dateStr) == 9 && dateStr[4] == '-' {
-			year := dateStr[:4]
-			monthDay := dateStr[5:]
-			if len(monthDay) == 4 {
-				month := monthDay[:2]
-				day := monthDay[2:]
-				dateTimeStr := year + "-" + month + "-" + day
-				// Parse as local time to preserve timezone
-				projectDate, _ = time.ParseInLocation("2006-01-02", dateTimeStr, time.Local)
-			}
+		parsedDate, err := utils.ParseTime(dateStr)
+		if err != nil {
+			continue
+		}
+		startDate := models.Timestamp{
+			Time: parsedDate,
 		}
 
 		// Generate unique project ID using folder creation date, company name, and location name
 		// This ensures the same project always gets the same ID
 		// Use project date instead of creation date for more stable ID generation
-		projectDateStr := projectDate.Format("2006-01-02")
-		idSource := projectDateStr + "_" + companyName + "_" + factoryName
-		projectID := models.NewIDFromString(idSource).Len5()
+		idSource := fmt.Sprintf("%d%s%s", entry.Id, companyName, LocationName)
+		id := models.NewIDFromString(idSource)
 
 		koujiProject := models.Kouji{
 			// Generate project metadata based on folder name
-			Id:           projectID,
+			Id:           id.Len5(),
 			CompanyName:  companyName,
-			LocationName: factoryName,
-			Status:       ks.DetermineProjectStatus(projectDate),
-			StartDate:    models.NewTimestamp(projectDate),
-			EndDate:      models.NewTimestamp(projectDate.AddDate(0, 3, 0)), // Assume 3-month project duration
-			Description:  companyName + "の" + factoryName + "における工事プロジェクト",
-			Tags:         []string{"工事", companyName, factoryName, dateStr[:4]}, // Include year as tag
+			LocationName: LocationName,
+			Status:       ks.DetermineKoujiStatus(startDate),
+			StartDate:    startDate,
+			EndDate:      models.NewTimestamp(startDate.Time.AddDate(0, 3, 0)), // Assume 3-month project duration
+			Description:  companyName + "の" + LocationName + "における工事プロジェクト",
+			Tags:         []string{"工事", companyName, LocationName, dateStr[:4]}, // Include year as tag
 			// FileEntry: ファイルシステムから取得したフォルダー情報
-			FileEntry: folder,
+			FileEntry: entry,
 		}
 
 		koujiProject.FileCount = 0 // Would need to scan subdirectory to get actual count
@@ -276,18 +271,17 @@ func (ks *KoujiService) MergeKoujiList(fsKoujiList, dbKoujiList []models.Kouji) 
 	return mergedProjects
 }
 
-// DetermineProjectStatus determines the project status based on the date
-func (ks *KoujiService) DetermineProjectStatus(projectDate time.Time) string {
-	if projectDate.IsZero() {
+// DetermineKoujiStatus determines the project status based on the date
+func (ks *KoujiService) DetermineKoujiStatus(kouji models.Kouji) string {
+	if kouji.StartDate.Time.IsZero() {
 		return "不明"
 	}
 
 	now := time.Now()
-	endDate := projectDate.AddDate(0, 3, 0) // 3 months duration
 
-	if now.Before(projectDate) {
+	if now.Before(kouji.StartDate.Time) {
 		return "予定"
-	} else if now.After(endDate) {
+	} else if now.After(kouji.EndDate.Time) {
 		return "完了"
 	} else {
 		return "進行中"
@@ -311,7 +305,7 @@ func (ks *KoujiService) UpdateProjectDates(projectID string, startDate, endDate 
 		if project.Id == projectID {
 			existingProjects[i].StartDate = models.NewTimestamp(startDate.In(time.Local))
 			existingProjects[i].EndDate = models.NewTimestamp(endDate.In(time.Local))
-			existingProjects[i].Status = ks.DetermineProjectStatus(startDate.In(time.Local))
+			existingProjects[i].Status = ks.DetermineKoujiStatus(existingProjects[i])
 			projectFound = true
 			break
 		}

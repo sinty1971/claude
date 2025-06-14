@@ -56,7 +56,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/kouji-folders": {
+        "/kouji-list": {
             "get": {
                 "description": "Retrieve a list of construction project folders from the specified path",
                 "consumes": [
@@ -66,9 +66,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "kouji-folders"
+                    "kouji-list"
                 ],
-                "summary": "Get kouji folders",
+                "summary": "Get kouji list",
                 "parameters": [
                     {
                         "type": "string",
@@ -82,7 +82,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Successful response",
                         "schema": {
-                            "$ref": "#/definitions/models.KoujiFolderListResponse"
+                            "$ref": "#/definitions/models.KoujiListResponse"
                         }
                     },
                     "500": {
@@ -97,9 +97,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/kouji-projects/save": {
+        "/kouji-list/save": {
             "post": {
-                "description": "Save kouji folder information to a YAML file",
+                "description": "Save kouji project information to a YAML file",
                 "consumes": [
                     "application/json"
                 ],
@@ -107,9 +107,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "kouji-folders"
+                    "kouji-list"
                 ],
-                "summary": "Save kouji folders to YAML",
+                "summary": "Save kouji projects to YAML",
                 "parameters": [
                     {
                         "type": "string",
@@ -129,6 +129,112 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Success message",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/kouji-projects/cleanup": {
+            "post": {
+                "description": "Remove projects with invalid time data (like 0001-01-01T09:26:51+09:18) from YAML",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kouji-projects"
+                ],
+                "summary": "Cleanup invalid time data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "~/penguin/豊田築炉/2-工事/.inside.yaml",
+                        "description": "Path to the YAML file",
+                        "name": "yaml_path",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message with cleanup details",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/kouji-projects/{project_id}/dates": {
+            "put": {
+                "description": "Update start and end dates for a specific kouji project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kouji-projects"
+                ],
+                "summary": "Update kouji project dates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated dates",
+                        "name": "dates",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateProjectDatesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -216,10 +322,14 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.Folder": {
+        "models.FileEntry": {
             "description": "File or directory information",
             "type": "object",
             "properties": {
+                "id": {
+                    "type": "integer",
+                    "example": 123456
+                },
                 "is_directory": {
                     "description": "Whether this item is a directory",
                     "type": "boolean",
@@ -227,8 +337,11 @@ const docTemplate = `{
                 },
                 "modified_time": {
                     "description": "Last modification time",
-                    "type": "string",
-                    "example": "2024-01-15T10:30:00Z"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Timestamp"
+                        }
+                    ]
                 },
                 "name": {
                     "description": "Name of the file or folder",
@@ -260,17 +373,12 @@ const docTemplate = `{
                     "description": "List of folders",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.Folder"
+                        "$ref": "#/definitions/models.FileEntry"
                     }
-                },
-                "path": {
-                    "description": "The path that was queried",
-                    "type": "string",
-                    "example": "/home/user/documents"
                 }
             }
         },
-        "models.KoujiFolder": {
+        "models.Kouji": {
             "description": "Construction project folder information with extended attributes",
             "type": "object",
             "properties": {
@@ -283,12 +391,15 @@ const docTemplate = `{
                     "example": "工事関連の資料とドキュメント"
                 },
                 "end_date": {
-                    "type": "string",
-                    "example": "2024-12-31T00:00:00Z"
+                    "$ref": "#/definitions/models.Timestamp"
                 },
                 "file_count": {
                     "type": "integer",
                     "example": 42
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 123456
                 },
                 "is_directory": {
                     "description": "Whether this item is a directory",
@@ -301,8 +412,11 @@ const docTemplate = `{
                 },
                 "modified_time": {
                     "description": "Last modification time",
-                    "type": "string",
-                    "example": "2024-01-15T10:30:00Z"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Timestamp"
+                        }
+                    ]
                 },
                 "name": {
                     "description": "Name of the file or folder",
@@ -314,23 +428,13 @@ const docTemplate = `{
                     "type": "string",
                     "example": "/home/user/documents"
                 },
-                "project_id": {
-                    "description": "Additional fields specific to Kouji folders",
-                    "type": "string",
-                    "example": "A3K7M"
-                },
-                "project_name": {
-                    "type": "string",
-                    "example": "豊田築炉 名和工場工事"
-                },
                 "size": {
                     "description": "Size of the file in bytes",
                     "type": "integer",
                     "example": 4096
                 },
                 "start_date": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
+                    "$ref": "#/definitions/models.Timestamp"
                 },
                 "status": {
                     "type": "string",
@@ -353,7 +457,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.KoujiFolderListResponse": {
+        "models.KoujiListResponse": {
             "description": "Response containing list of construction project folders",
             "type": "object",
             "properties": {
@@ -361,15 +465,11 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 10
                 },
-                "folders": {
+                "kouji_list": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.KoujiFolder"
+                        "$ref": "#/definitions/models.Kouji"
                     }
-                },
-                "path": {
-                    "type": "string",
-                    "example": "~/penguin/豊田築炉/2-工事"
                 },
                 "total_size": {
                     "type": "integer",
@@ -450,6 +550,29 @@ const docTemplate = `{
                     "description": "Unix timestamp",
                     "type": "integer",
                     "example": 1705318200
+                }
+            }
+        },
+        "models.Timestamp": {
+            "description": "Timestamp in RFC3339 format",
+            "type": "object",
+            "properties": {
+                "time.Time": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UpdateProjectDatesRequest": {
+            "description": "Request body for updating project start and end dates",
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string",
+                    "example": "2024-12-31T00:00:00Z"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
                 }
             }
         }
