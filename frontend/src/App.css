@@ -177,7 +177,7 @@
 .folder-item {
   display: flex;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1.5rem;
   cursor: pointer;
   transition: background-color 0.2s;
   border-bottom: 1px solid #f0f0f0;
@@ -191,10 +191,60 @@
   background-color: #f8f9fa;
 }
 
+/* 特別なフォルダー（工事一覧）のスタイル */
+.folder-item--special {
+  background: #f8f9ff;
+  border-left: 4px solid #667eea;
+  border-radius: 6px;
+  position: relative;
+}
+
+.folder-item--special:hover {
+  background: #f0f1ff;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.folder-icon--special {
+  color: #667eea;
+  font-size: 1.6rem;
+}
+
+.folder-name--special {
+  color: #333;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.special-badge {
+  background: #667eea;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.folder-item--special .folder-meta {
+  color: #666;
+}
+
+.folder-item--special .folder-meta span {
+  color: #666;
+}
+
 .folder-icon {
   font-size: 1.5rem;
   margin-right: 1rem;
   min-width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transform: translateY(-14px);
+  position: relative;
 }
 
 .folder-info {

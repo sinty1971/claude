@@ -33,7 +33,7 @@ func (th *TimeHandler) ParseTime(c *fiber.Ctx) error {
 		})
 	}
 
-	parsedTime, err := utils.ParseDateTime(req.TimeString)
+	parsedTime, err := utils.Parse(req.TimeString)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":   "Failed to parse time",

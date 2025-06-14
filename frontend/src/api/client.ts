@@ -14,8 +14,8 @@ export type TimeParseRequest = components['schemas']['TimeParseRequest'];
 export type TimeParseResponse = components['schemas']['TimeParseResponse'];
 export type TimeFormat = components['schemas']['TimeFormat'];
 export type SupportedFormatsResponse = components['schemas']['SupportedFormatsResponse'];
-export type KoujiProject = components['schemas']['KoujiProject'];
-export type KoujiProjectListResponse = components['schemas']['KoujiProjectListResponse'];
+export type KoujiProject = components['schemas']['Kouji'];
+export type KoujiProjectListResponse = components['schemas']['KoujiListResponse'];
 
 // API methods
 export const folderApi = {

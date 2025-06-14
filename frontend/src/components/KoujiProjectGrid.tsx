@@ -20,14 +20,14 @@ const KoujiProjectGrid = () => {
       const response = await api.koujiProjects.getKoujiProjects(targetPath);
       
       // Sort projects by date in descending order (newest first)
-      const sortedProjects = (response.projects as unknown as KoujiProjectExtended[]).sort((a, b) => {
+      const sortedProjects = (response.kouji_list as unknown as KoujiProjectExtended[]).sort((a, b) => {
         const dateA = new Date(a.start_date || '');
         const dateB = new Date(b.start_date || '');
         return dateB.getTime() - dateA.getTime();
       });
       
       setProjects(sortedProjects);
-      setPath(response.path);
+      setPath(targetPath || ''); // Use the targetPath since response doesn't include path
       setTotalSize(response.total_size || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load kouji projects');

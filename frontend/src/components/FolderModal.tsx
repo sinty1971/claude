@@ -42,6 +42,11 @@ export const FolderModal: React.FC<FolderModalProps> = ({ folder, isOpen, onClos
           </div>
           
           <div className="info-row">
+            <span className="label">ID:</span>
+            <span className="value">{folder.id}</span>
+          </div>
+          
+          <div className="info-row">
             <span className="label">サイズ:</span>
             <span className="value">{formatSize(folder.size)}</span>
           </div>
@@ -51,12 +56,6 @@ export const FolderModal: React.FC<FolderModalProps> = ({ folder, isOpen, onClos
             <span className="value">{folder.path}</span>
           </div>
           
-          {folder.created_date && (
-            <div className="info-row">
-              <span className="label">作成日時:</span>
-              <span className="value">{formatDate(folder.created_date)}</span>
-            </div>
-          )}
           
           <div className="info-row">
             <span className="label">更新日時:</span>

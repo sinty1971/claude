@@ -1,27 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Folder } from '../types/folder';
 import { folderService } from '../services/api';
 import { FolderModal } from './FolderModal';
 
 export const FolderGrid: React.FC = () => {
+  const navigate = useNavigate();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState('~/penguin/豊田築炉/2-工事');
-  const [pathInput, setPathInput] = useState('~/penguin/豊田築炉/2-工事');
+  const [currentPath, setCurrentPath] = useState('~/penguin');
+  const [pathInput, setPathInput] = useState('~/penguin');
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 工事プロジェクトディレクトリかどうかをチェック
+  const isKoujiProjectPath = (path: string) => {
+    const normalizedPath = path.replace(/\\/g, '/');
+    return normalizedPath.includes('/豊田築炉/2-工事') || 
+           normalizedPath.endsWith('/2-工事') ||
+           normalizedPath.includes('2-工事');
+  };
+
   const loadFolders = async (path?: string) => {
+    const targetPath = path || '~/penguin';
+    
+    // 工事プロジェクトディレクトリの場合は工事プロジェクトページにリダイレクト
+    if (isKoujiProjectPath(targetPath)) {
+      navigate('/kouji');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Loading folders for path:', path || 'default');
+      console.log('Loading folders for path:', targetPath);
       const response = await folderService.getFolders(path);
       console.log('API Response:', response);
       setFolders(response.folders);
-      setCurrentPath(response.path);
+      setCurrentPath(targetPath);
     } catch (err) {
       console.error('Error loading folders:', err);
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
@@ -35,8 +53,23 @@ export const FolderGrid: React.FC = () => {
   }, []);
 
   const handleFolderClick = (folder: Folder) => {
-    setSelectedFolder(folder);
-    setIsModalOpen(true);
+    if (folder.is_directory) {
+      // ディレクトリの場合は移動
+      const newPath = folder.path;
+      
+      // 工事プロジェクトディレクトリの場合は工事プロジェクトページにリダイレクト
+      if (isKoujiProjectPath(newPath)) {
+        navigate('/kouji');
+        return;
+      }
+      
+      setPathInput(newPath);
+      loadFolders(newPath);
+    } else {
+      // ファイルの場合はモーダル表示
+      setSelectedFolder(folder);
+      setIsModalOpen(true);
+    }
   };
 
   const handlePathSubmit = (e: React.FormEvent) => {
@@ -44,9 +77,30 @@ export const FolderGrid: React.FC = () => {
     loadFolders(pathInput);
   };
 
+  const handleGoBack = () => {
+    // 親ディレクトリのパスを取得
+    const pathParts = currentPath.split('/');
+    if (pathParts.length > 1) {
+      const parentPath = pathParts.slice(0, -1).join('/');
+      const newPath = parentPath || '/';
+      setPathInput(newPath);
+      loadFolders(newPath);
+    }
+  };
+
+
+  // 特別なフォルダーかどうかをチェック
+  const isSpecialFolder = (folder: Folder) => {
+    if (!folder.is_directory) return false;
+    return isKoujiProjectPath(folder.path) || folder.name === '2-工事';
+  };
 
   const getFolderIcon = (folder: Folder) => {
     if (folder.is_directory) {
+      // 工事プロジェクトフォルダーの場合は特別なアイコン
+      if (isSpecialFolder(folder)) {
+        return '🏗️';
+      }
       return '📁';
     }
     const ext = folder.name.split('.').pop()?.toLowerCase();
@@ -71,6 +125,7 @@ export const FolderGrid: React.FC = () => {
         <h1>フォルダー管理システム</h1>
         
         <form onSubmit={handlePathSubmit} className="path-form">
+          <button type="button" onClick={handleGoBack} className="back-button">戻る</button>
           <input
             type="text"
             value={pathInput}
@@ -91,21 +146,27 @@ export const FolderGrid: React.FC = () => {
       {error && <div className="error">{error}</div>}
 
       <div className="folder-list">
-        {folders.map((folder, index) => (
-          <div
-            key={index}
-            className="folder-item"
-            onClick={() => handleFolderClick(folder)}
-          >
-            <div className="folder-icon">{getFolderIcon(folder)}</div>
-            <div className="folder-info">
-              <div className="folder-name">{folder.name}</div>
-              <div className="folder-meta">
-                <span>{folder.is_directory ? 'フォルダー' : 'ファイル'}</span>
-                {folder.created_date && (
+        {folders.map((folder, index) => {
+          const isSpecial = isSpecialFolder(folder);
+          return (
+            <div
+              key={index}
+              className={`folder-item ${isSpecial ? 'folder-item--special' : ''}`}
+              onClick={() => handleFolderClick(folder)}
+            >
+              <div className={`folder-icon ${isSpecial ? 'folder-icon--special' : ''}`}>
+                {getFolderIcon(folder)}
+              </div>
+              <div className="folder-info">
+                <div className={`folder-name ${isSpecial ? 'folder-name--special' : ''}`}>
+                  {folder.name}
+                  {isSpecial && <span className="special-badge">工事一覧</span>}
+                </div>
+                <div className="folder-meta">
+                  <span>{folder.is_directory ? 'フォルダー' : 'ファイル'}</span>
                   <span className="folder-date">
-                    {' · 作成: '}
-                    {new Date(folder.created_date).toLocaleDateString('ja-JP', {
+                    {' · 更新: '}
+                    {new Date(folder.modified_time).toLocaleDateString('ja-JP', {
                       year: 'numeric',
                       month: '2-digit',
                       day: '2-digit',
@@ -113,11 +174,11 @@ export const FolderGrid: React.FC = () => {
                       minute: '2-digit'
                     })}
                   </span>
-                )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <FolderModal

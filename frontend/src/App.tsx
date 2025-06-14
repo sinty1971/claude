@@ -23,7 +23,7 @@ function Navigation() {
             to="/kouji" 
             className={location.pathname === '/kouji' ? 'nav-link active' : 'nav-link'}
           >
-            工事プロジェクト
+            工事一覧
           </Link>
         </div>
       </div>

@@ -2,14 +2,13 @@ package services
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"os/user"
 	"path/filepath"
 	"penguin-backend/internal/models"
+	"penguin-backend/internal/utils"
 	"strings"
 	"syscall"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,24 +47,34 @@ func (fss *FileSystemService) GetFolders(targetPath string) (*models.FolderListR
 		}
 		stat := info.Sys().(*syscall.Stat_t)
 
+		// Check if entry is a directory
+		// For symlinks, check the target's type
+		isDirectory := entry.IsDir()
+		entryPath := filepath.Join(absPath, entry.Name())
+		
+		// If it's a symlink, check what it points to
+		if info.Mode()&os.ModeSymlink != 0 {
+			targetInfo, err := os.Stat(entryPath) // Follow the symlink
+			if err == nil {
+				isDirectory = targetInfo.IsDir()
+			}
+		}
+
 		folder := models.Folder{
 			Id:           stat.Ino,
 			Name:         entry.Name(),
-			Path:         filepath.Join(absPath, entry.Name()),
-			IsDirectory:  entry.IsDir(),
+			Path:         entryPath,
+			IsDirectory:  isDirectory,
 			Size:         info.Size(),
 			ModifiedTime: info.ModTime(),
 		}
 		folders = append(folders, folder)
 	}
 
-	response := &models.FolderListResponse{
+	return &models.FolderListResponse{
 		Folders: folders,
 		Count:   len(folders),
-		Path:    absPath,
-	}
-
-	return response, nil
+	}, nil
 }
 
 // LoadKoujiProjectsFromYAML は工事プロジェクト情報をYAMLファイルから読み込む
@@ -106,40 +115,22 @@ func (fss *FileSystemService) LoadKoujiProjectsFromYAML(databasePath string) ([]
 		return nil, err
 	}
 
-	var dbProjects []models.Kouji
-	if err := yaml.Unmarshal(yamlData, &dbProjects); err != nil {
+	var dbKoujiYamlList []models.KoujiYAML
+	if err := yaml.Unmarshal(yamlData, &dbKoujiYamlList); err != nil {
 		return nil, err
 	}
 
 	// Convert to KoujiProject structures
-	fsProjects := make([]models.Kouji, len(dbProjects))
-	for i, yf := range dbProjects {
-		// 日付データを正規化
-		startDate, err := parseTimeWithValidation(yf.StartDate)
+	dbKoujiList := make([]models.Kouji, len(dbKoujiYamlList))
+	for i, yaml := range dbKoujiYamlList {
+		kouji, err := utils.ConvertToKouji(&yaml)
 		if err != nil {
 			return nil, err
 		}
-		endDate, err := parseTimeWithValidation(yf.EndDate)
-		if err != nil {
-			return nil, err
-		}
-
-		fsProjects[i] = models.Kouji{
-			Folder:       yf.Folder,
-			Id:           yf.Id,
-			CompanyName:  yf.CompanyName,
-			LocationName: yf.LocationName,
-			Status:       yf.Status,
-			StartDate:    startDate,
-			EndDate:      endDate,
-			Description:  yf.Description,
-			Tags:         yf.Tags,
-			FileCount:    yf.FileCount,
-			SubdirCount:  yf.SubdirCount,
-		}
+		dbKoujiList[i] = kouji
 	}
 
-	return fsProjects, nil
+	return dbKoujiList, nil
 }
 
 // @TODO: この関数は内部で使用するだけで、外部に公開する必要はない
@@ -147,7 +138,7 @@ func (fss *FileSystemService) LoadKoujiProjectsFromYAML(databasePath string) ([]
 // @param targetPath: 保存先パス
 // @param koujiProjects: 保存する工事プロジェクト情報
 // @return error: エラー
-func (fs *FileSystemService) SaveKoujiProjectsToYAML(targetPath string, koujiProjects []models.Kouji) error {
+func (fs *FileSystemService) SaveKoujiListToYAML(targetPath string, koujilist []models.Kouji) error {
 	// Expand ~ to home directory
 	if strings.HasPrefix(targetPath, "~/") {
 		usr, err := user.Current()
@@ -168,38 +159,9 @@ func (fs *FileSystemService) SaveKoujiProjectsToYAML(targetPath string, koujiPro
 		return err
 	}
 
-	// Create Inside data with custom formatting for time fields
-	type DatabaseKoujiProject struct {
-		ProjectID    string        `yaml:"projectid"`
-		ProjectName  string        `yaml:"projectname"`
-		CompanyName  string        `yaml:"companyname"`
-		LocationName string        `yaml:"locationname"`
-		Status       string        `yaml:"status"`
-		StartDate    string        `yaml:"startdate"`
-		EndDate      string        `yaml:"enddate"`
-		Description  string        `yaml:"description"`
-		Tags         []string      `yaml:"tags"`
-		FileCount    int           `yaml:"filecount"`
-		SubdirCount  int           `yaml:"subdircount"`
-		Folder       models.Folder `yaml:"folder"`
-	}
-
-	insideProjects := make([]DatabaseKoujiProject, len(koujiProjects))
-	for i, kf := range koujiProjects {
-		insideProjects[i] = DatabaseKoujiProject{
-			Folder:       kf.Folder,
-			ProjectID:    kf.Id,
-			ProjectName:  kf.KoujiName,
-			CompanyName:  kf.CompanyName,
-			LocationName: kf.LocationName,
-			Status:       kf.Status,
-			StartDate:    formatTimeForYAML(kf.StartDate),
-			EndDate:      formatTimeForYAML(kf.EndDate),
-			Description:  kf.Description,
-			Tags:         kf.Tags,
-			FileCount:    kf.FileCount,
-			SubdirCount:  kf.SubdirCount,
-		}
+	koujiYamlList := make([]models.KoujiYAML, len(koujilist))
+	for i, kf := range koujilist {
+		koujiYamlList[i] = utils.ConvertToKoujiYAML(&kf)
 	}
 
 	// Convert to YAML format
@@ -207,65 +169,10 @@ func (fs *FileSystemService) SaveKoujiProjectsToYAML(targetPath string, koujiPro
 	encoder := yaml.NewEncoder(&buf)
 	encoder.SetIndent(2)
 
-	if err := encoder.Encode(insideProjects); err != nil {
+	if err := encoder.Encode(koujiYamlList); err != nil {
 		return err
 	}
 
 	// Write to file
 	return os.WriteFile(absPath, buf.Bytes(), 0644)
-}
-
-// parseTimeWithValidation は時刻文字列をパースし、異常値を検出する
-// @param timeStr: パースする時刻文字列
-// @return time.Time: パースされた時刻
-func parseTimeWithValidation(timeStr string) (time.Time, error) {
-	if timeStr == "" {
-		return time.Time{}, errors.New("timeStr is empty") // 空文字列の場合はエラーを返す
-	}
-
-	parsedTime, err := time.Parse(time.RFC3339, timeStr)
-	if err != nil {
-		// パースエラーの場合はゼロ値を返す
-		return time.Time{}, err
-	}
-
-	// 異常値を検出する包括的なチェック
-	if isInvalidParsedTime(parsedTime) {
-		return time.Time{}, errors.New("invalid parsed time")
-	}
-
-	return parsedTime, nil
-}
-
-// formatTimeForYAML は時刻をYAML保存用にフォーマットする
-func formatTimeForYAML(t time.Time) string {
-	if t.IsZero() {
-		return "" // ゼロ値の場合は空文字列を返す
-	}
-	return t.In(time.Local).Format(time.RFC3339)
-}
-
-// isInvalidParsedTime は解析済み時刻が異常値かどうかをチェックする
-func isInvalidParsedTime(t time.Time) bool {
-	// ゼロ値
-	if t.IsZero() {
-		return true
-	}
-
-	// 0001年（Go言語のゼロ値に近い異常値）
-	if t.Year() == 1 {
-		return true
-	}
-
-	// 不合理な将来日付（1年以上先）
-	if t.After(time.Now().AddDate(1, 0, 0)) {
-		return true
-	}
-
-	// 不合理な過去日付（2000年より前）
-	if t.Before(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)) {
-		return true
-	}
-
-	return false
 }
