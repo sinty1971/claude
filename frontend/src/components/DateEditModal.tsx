@@ -70,7 +70,7 @@ const DateEditModal = ({
       const startDateStr = `${startDate}T00:00:00`;
       const endDateStr = `${endDate}T23:59:59`;
       
-      await api.koujiProjects.updateKoujiProjectDates(projectId, startDateStr, endDateStr);
+      await api.koujiEntries.updateKoujiEntryDates(projectId, startDateStr, endDateStr);
       onSuccess();
       onClose();
     } catch (err) {

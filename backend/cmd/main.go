@@ -14,9 +14,9 @@ import (
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
-// @title Penguin Folder Management API
+// @title Penguin FileSystem Management API
 // @version 1.0.0
-// @description API for managing and browsing folders
+// @description API for managing and browsing file entries
 // @host localhost:8080
 // @BasePath /api
 func main() {
@@ -42,24 +42,30 @@ func main() {
 	// Swagger documentation
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	// Create services
-	fileSystemService := services.NewFileSystemService()
+	// ファイルシステムサービスを作成
+	fileSystemService, err := services.NewFileSystemService("~/penguin")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 工事サービスを作成
+	koujiService, err := services.NewKoujiService(fileSystemService, "豊田築炉/2-工事")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create handlers
-	folderHandler := handlers.NewFileSystemHandler()
-	koujiHandler := handlers.NewKoujiHandler(fileSystemService)
+	fileSystemHandler := handlers.NewFileSystemHandler(fileSystemService)
+	koujiHandler := handlers.NewKoujiHandler(fileSystemService, koujiService)
 	timeHandler := handlers.NewTimeHandler()
 
 	api := app.Group("/api")
 
-	// Folder routes
-	api.Get("/folders", folderHandler.GetFolders)
+	// File entries routes
+	api.Get("/file-entries", fileSystemHandler.GetFileEntries)
 
 	// Kouji routes
-	api.Get("/kouji-list", koujiHandler.GetKoujiList)
-	api.Post("/kouji-list/save", koujiHandler.SaveKoujiListToDatabase)
-	api.Put("/kouji-projects/:project_id/dates", koujiHandler.UpdateKoujiProjectDates)
-	api.Post("/kouji-projects/cleanup", koujiHandler.CleanupInvalidTimeData)
+	api.Get("/kouji-entries", koujiHandler.GetKoujiEntries)
+	api.Post("/kouji-entries/save", koujiHandler.SaveKoujiEntries)
 	api.Post("/time/parse", timeHandler.ParseTime)
 	api.Get("/time/formats", timeHandler.GetSupportedFormats)
 

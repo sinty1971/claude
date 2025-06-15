@@ -1,43 +1,43 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import type { KoujiProjectExtended } from '../types/kouji';
+import type { KoujiEntryExtended } from '../types/kouji';
 import DateEditModal from './DateEditModal';
 
-const KoujiProjectGrid = () => {
-  const [projects, setProjects] = useState<KoujiProjectExtended[]>([]);
+const KoujiEntriesGrid = () => {
+  const [projects, setProjects] = useState<KoujiEntryExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [path, setPath] = useState('');
   const [totalSize, setTotalSize] = useState<number>(0);
-  const [editingProject, setEditingProject] = useState<KoujiProjectExtended | null>(null);
+  const [editingProject, setEditingProject] = useState<KoujiEntryExtended | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const loadKoujiProjects = async (targetPath?: string) => {
+  const loadKoujiEntries = async (targetPath?: string) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await api.koujiProjects.getKoujiProjects(targetPath);
+      const response = await api.koujiEntries.getKoujiEntries(targetPath);
       
-      // Sort projects by date in descending order (newest first)
-      const sortedProjects = (response.kouji_list as unknown as KoujiProjectExtended[]).sort((a, b) => {
+      // Sort entries by date in descending order (newest first)
+      const sortedEntries = (response.folders as unknown as KoujiEntryExtended[]).sort((a, b) => {
         const dateA = new Date(a.start_date || '');
         const dateB = new Date(b.start_date || '');
         return dateB.getTime() - dateA.getTime();
       });
       
-      setProjects(sortedProjects);
-      setPath(targetPath || ''); // Use the targetPath since response doesn't include path
+      setProjects(sortedEntries);
+      setPath(response.path || targetPath || '');
       setTotalSize(response.total_size || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load kouji projects');
+      setError(err instanceof Error ? err.message : 'Failed to load kouji entries');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadKoujiProjects();
+    loadKoujiEntries();
   }, []);
 
   const getStatusColor = (status?: string) => {
@@ -67,14 +67,14 @@ const KoujiProjectGrid = () => {
     return date.toLocaleDateString('ja-JP');
   };
 
-  const handleEditDates = (project: KoujiProjectExtended) => {
+  const handleEditDates = (project: KoujiEntryExtended) => {
     setEditingProject(project);
     setIsModalOpen(true);
   };
 
   const handleDateUpdateSuccess = () => {
-    // Reload projects to get updated data
-    loadKoujiProjects();
+    // Reload entries to get updated data
+    loadKoujiEntries();
   };
 
   const closeModal = () => {
@@ -90,7 +90,7 @@ const KoujiProjectGrid = () => {
     return (
       <div className="error">
         <p>エラー: {error}</p>
-        <button onClick={() => loadKoujiProjects()}>再試行</button>
+        <button onClick={() => loadKoujiEntries()}>再試行</button>
       </div>
     );
   }
@@ -205,4 +205,4 @@ const KoujiProjectGrid = () => {
   );
 };
 
-export default KoujiProjectGrid;
+export default KoujiEntriesGrid;

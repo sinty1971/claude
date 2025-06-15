@@ -32,18 +32,18 @@ go run cmd/main.go   # サーバーを起動 (http://localhost:8080)
 
 ### バックエンド構造
 - `cmd/main.go`: エントリーポイント、CORSを持つFiberサーバーをセットアップ
-- `internal/handlers/`: HTTPリクエストハンドラー (folder_handler.go)
-- `internal/services/`: ビジネスロジック (folder_service.go)
-- `internal/models/`: データモデル (folder.go, kouji_project.go, id.go)
+- `internal/handlers/`: HTTPリクエストハンドラー (filesystem.go, kouji.go, time.go)
+- `internal/services/`: ビジネスロジック (filesystem.go, kouji.go)
+- `internal/models/`: データモデル (fileentry.go, kouji.go, id.go, time.go, timestamp.go)
 
 バックエンドは `http://localhost:8080/api` でREST APIを提供し、主要なエンドポイントは以下です：
-- `GET /api/folders?path=<オプション-パス>` - フォルダーの内容を返す
-- `GET /api/kouji-projects?path=<オプション-パス>` - 工事プロジェクトの一覧を返す
-- `POST /api/kouji-projects/save` - 工事プロジェクト情報をYAMLファイルに保存
+- `GET /api/file-entries?path=<オプション-パス>` - フォルダーの内容を返す
+- `GET /api/kouji-entries?path=<オプション-パス>` - 工事プロジェクトの一覧を返す
+- `POST /api/kouji-entries/save` - 工事プロジェクト情報をYAMLファイルに保存
 
 ### フロントエンド構造
 - `src/App.tsx`: ルーティング機能を持つメインアプリコンポーネント
-- `src/components/`: UIコンポーネント (FolderGrid, FolderModal, KoujiProjectGrid, KoujiProjectPage)
+- `src/components/`: UIコンポーネント (FileEntryGrid, FileEntryModal, KoujiEntryGrid, KoujiEntryPage)
 - `src/api/client.ts`: バックエンドAPIクライアント
 - `src/types/`: TypeScript型定義 (kouji.ts)
 

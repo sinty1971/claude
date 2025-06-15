@@ -1,3 +1,4 @@
+// Package utils 汎用的なユーティリティ関数を提供します
 package utils
 
 import (
@@ -9,15 +10,19 @@ import (
 	"time"
 )
 
-// Formats and regexps with timezone information (try these first)
+// DefaultTimestampRegexpsWithTZ タイムゾーン情報を含む日時フォーマットの正規表現マップ
 var DefaultTimestampRegexpsWithTZ = make(map[string]regexp.Regexp, len(DefaultTimestampFormatsWithTZ))
+
+// DefaultTimestampFormatsWithTZ タイムゾーン情報を含む日時フォーマットのリスト（優先順位順）
 var DefaultTimestampFormatsWithTZ = []string{
 	time.RFC3339Nano,
 	time.RFC3339,
 }
 
-// Formats and regexps without timezone information (use local timezone)
+// DefaultTimestampRegexpsWithoutTZ タイムゾーン情報を含まない日時フォーマットの正規表現マップ
 var DefaultTimestampRegexpsWithoutTZ = make(map[string]regexp.Regexp, len(DefaultTimestampFormatsWithoutTZ))
+
+// DefaultTimestampFormatsWithoutTZ タイムゾーン情報を含まない日時フォーマットのリスト（ローカルタイムゾーンを使用）
 var DefaultTimestampFormatsWithoutTZ = []string{
 	"2006-01-02T15:04:05.999999999",
 	"2006-01-02T15:04:05",
@@ -31,7 +36,7 @@ var DefaultTimestampFormatsWithoutTZ = []string{
 	"2006.1.2",
 }
 
-// 置換ルール定義
+// TimestampParseReplaceRule 日時フォーマットを正規表現パターンに変換するための置換ルール
 var TimestampParseReplaceRule = map[string]string{
 	"2006":      `\d{4}`,                 // 年
 	"01":        `\d{2}`,                 // 月
@@ -45,7 +50,7 @@ var TimestampParseReplaceRule = map[string]string{
 	"Z07":       `(?:Z|[+-]\d{2})`,       // タイムゾーン（時間のみ）
 }
 
-// init initializes the default patterns
+// init パッケージ初期化時に日時フォーマットを正規表現に変換
 func init() {
 	formatToRegex := func(format string) regexp.Regexp {
 		// 順序を考慮して置換を実行
@@ -76,14 +81,15 @@ func init() {
 	}
 }
 
-// ParseTime parses various date/time string formats and returns a time.Time
-// When no timezone is specified, it uses the server's local timezone
+// ParseTime 様々な日時フォーマットの文字列をパースしてtime.Timeを返します
+// タイムゾーンが指定されていない場合はサーバーのローカルタイムゾーンを使用します
 func ParseTime(s string) (time.Time, error) {
 	ts, _, err := ParseTimeAndRest(s)
 	return ts, err
 }
 
-// 日時文字列の抽出と、日時文字列から日付文字列をどり除いた文字列を返す
+// findTimeStringAndRest 正規表現を使用して文字列から日時部分を抽出し、
+// 日時部分とそれ以外の文字列を分離して返します
 func findTimeStringAndRest(re *regexp.Regexp, s string) (*string, *string) {
 	matches := re.FindStringIndex(s)
 	if matches == nil {
@@ -106,7 +112,8 @@ func findTimeStringAndRest(re *regexp.Regexp, s string) (*string, *string) {
 	return &dateStr, &restStr
 }
 
-// 文字列をパースし、戻り値はtime.Timeと、日付文字列から日付文字列をどり除いた文字列を返す
+// ParseTimeAndRest 文字列から日時をパースし、time.Time型と残りの文字列を返します
+// 例: "2025-0618 豊田築炉 名和工場" → time.Time(2025-06-18), "豊田築炉 名和工場"
 func ParseTimeAndRest(s string) (time.Time, string, error) {
 	// タイムゾーン付きのフォーマットを試行（配列順序で）
 	for _, format := range DefaultTimestampFormatsWithTZ {
@@ -136,7 +143,8 @@ func ParseTimeAndRest(s string) (time.Time, string, error) {
 	return time.Time{}, s, fmt.Errorf("unable to parse date/time in the string: %s", s)
 }
 
-// RFC3339Nano で文字列をパースする
+// ParseRFC3339Nano RFC3339Nano形式の日時文字列をパースしてtime.Timeを返します
+// 文字列内の任意の位置にある日時を抽出可能です
 func ParseRFC3339Nano(s string) (time.Time, error) {
 	re := DefaultTimestampRegexpsWithTZ[time.RFC3339Nano]
 	dateStr, _ := findTimeStringAndRest(&re, s)

@@ -9,21 +9,38 @@ import (
 	"syscall"
 )
 
-type FileSystemService struct{}
-
-func NewFileSystemService() *FileSystemService {
-	return &FileSystemService{}
+// FileSystemService is a service for managing the file system
+type FileSystemService struct {
+	// Root is the root directory of the file system
+	Root string `json:"root" yaml:"root" example:"/home/<user>/penguin"`
 }
 
-func (fs *FileSystemService) GetFolders(fsPath string) (*models.FolderListResponse, error) {
+// NewFileSystemService creates a new FileSystemService
+func NewFileSystemService(root string) (*FileSystemService, error) {
 	// Expand ~ to home directory
-	if strings.HasPrefix(fsPath, "~/") {
+	if strings.HasPrefix(root, "~/") {
 		usr, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
-		fsPath = filepath.Join(usr.HomeDir, fsPath[2:])
+		root = filepath.Join(usr.HomeDir, root[2:])
 	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FileSystemService{
+		Root: absPath,
+	}, nil
+}
+
+// GetFileEntries gets the file entries from the file system
+func (s *FileSystemService) GetFileEntries(fsPath string) (*models.FileEntriesListResponse, error) {
+	// Expand ~ to home directory
+	fsPath = filepath.Join(s.Root, fsPath)
 
 	absPath, err := filepath.Abs(fsPath)
 	if err != nil {
@@ -35,7 +52,9 @@ func (fs *FileSystemService) GetFolders(fsPath string) (*models.FolderListRespon
 		return nil, err
 	}
 
-	var folders []models.FileEntry
+	var fileEntries []models.FileEntry
+	var folderCount int
+	var fileCount int
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
@@ -56,19 +75,25 @@ func (fs *FileSystemService) GetFolders(fsPath string) (*models.FolderListRespon
 			}
 		}
 
-		folder := models.FileEntry{
+		fileEntries = append(fileEntries, models.FileEntry{
 			Id:           stat.Ino,
 			Name:         entry.Name(),
 			Path:         entryPath,
 			IsDirectory:  isDirectory,
 			Size:         info.Size(),
 			ModifiedTime: models.NewTimestamp(info.ModTime()),
+		})
+
+		if isDirectory {
+			folderCount++
+		} else {
+			fileCount++
 		}
-		folders = append(folders, folder)
 	}
 
-	return &models.FolderListResponse{
-		Folders: folders,
-		Count:   len(folders),
+	return &models.FileEntriesListResponse{
+		FileEntries: fileEntries,
+		FolderCount: folderCount,
+		FileCount:   fileCount,
 	}, nil
 }

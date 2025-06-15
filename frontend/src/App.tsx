@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { FolderGrid } from './components/FolderGrid';
+import { FileEntryGrid } from './components/FileEntryGrid';
 import KoujiProjectPage from './components/KoujiProjectPage';
 import './App.css';
 
@@ -38,7 +38,7 @@ function App() {
         <Navigation />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<FolderGrid />} />
+            <Route path="/" element={<FileEntryGrid />} />
             <Route path="/kouji" element={<KoujiProjectPage />} />
           </Routes>
         </main>

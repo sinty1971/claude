@@ -3,31 +3,44 @@
 Go + Fiber製のフォルダー管理API
 
 ## 機能
-- `~/penguin/2-工事`内のフォルダー一覧取得
+- ファイルエントリー（フォルダー・ファイル）の一覧取得
+- 工事プロジェクトの管理
+- 日時文字列のパース機能
 - CORS対応でフロントエンドとの連携
+- Swagger APIドキュメント
 
 ## エンドポイント
 
-### GET /api/folders
-フォルダー一覧を取得
+### GET /api/file-entries
+ファイルエントリー（フォルダー・ファイル）一覧を取得
 
 **クエリパラメータ:**
-- `path` (optional): 対象パス (デフォルト: `~/penguin/2-工事`)
+- `path` (optional): 対象パス (デフォルト: `~/penguin`)
+
+### GET /api/kouji-list
+工事プロジェクト一覧を取得
+
+**クエリパラメータ:**
+- `path` (optional): 対象パス (デフォルト: `~/penguin/豊田築炉/2-工事`)
+
+### POST /api/kouji-list/save
+工事プロジェクト情報をYAMLファイルに保存
 
 **レスポンス例:**
 ```json
 {
   "folders": [
     {
+      "id": "12345678",
       "name": "プロジェクトA",
-      "path": "/home/user/penguin/2-工事/プロジェクトA",
+      "path": "/home/user/penguin/プロジェクトA",
       "is_directory": true,
       "size": 4096,
       "modified_time": "2024-01-01T12:00:00Z"
     }
   ],
   "count": 1,
-  "path": "/home/user/penguin/2-工事"
+  "path": "/home/user/penguin"
 }
 ```
 
@@ -45,24 +58,25 @@ go run cmd/main.go
 
 ### 基本的な使用方法
 
-1. **デフォルトパスのフォルダー取得**:
+1. **ファイルエントリー一覧の取得**:
    ```bash
-   curl "http://localhost:8080/api/folders"
+   curl "http://localhost:8080/api/file-entries"
    ```
 
-2. **カスタムパスの指定**:
+2. **工事プロジェクト一覧の取得**:
    ```bash
-   curl "http://localhost:8080/api/folders?path=~/Documents"
+   curl "http://localhost:8080/api/kouji-list"
    ```
 
-3. **ブラウザでアクセス**:
-   - `http://localhost:8080/api/folders` をブラウザで開く
+3. **Swaggerドキュメント**:
+   - `http://localhost:8080/swagger/index.html` をブラウザで開く
 
 ### レスポンスの説明
-- `folders`: フォルダー/ファイルの配列
+- `folders`: ファイルエントリーの配列
 - `count`: 取得された項目数
 - `path`: 実際に読み取られたパス
-- 各フォルダーオブジェクト:
+- 各ファイルエントリー:
+  - `id`: 一意のID（Unix inode）
   - `name`: ファイル/フォルダー名
   - `path`: フルパス
   - `is_directory`: ディレクトリかどうかのフラグ

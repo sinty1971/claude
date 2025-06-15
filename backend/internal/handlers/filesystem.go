@@ -10,26 +10,26 @@ type FileSystemHandler struct {
 	FileSystemService *services.FileSystemService
 }
 
-func NewFileSystemHandler() *FileSystemHandler {
+func NewFileSystemHandler(fsService *services.FileSystemService) *FileSystemHandler {
 	return &FileSystemHandler{
-		FileSystemService: services.NewFileSystemService(),
+		FileSystemService: fsService,
 	}
 }
 
-// GetFolders godoc
+// GetFileEntries godoc
 // @Summary      Get folders
 // @Description  Retrieve a list of folders from the specified path
-// @Tags         folders
+// @Tags         file-entries
 // @Accept       json
 // @Produce      json
 // @Param        path query string false "Path to the directory to list" default(~/penguin)
 // @Success      200 {object} models.FolderListResponse "Successful response"
 // @Failure      500 {object} map[string]string "Internal server error"
-// @Router       /folders [get]
-func (h *FileSystemHandler) GetFolders(c *fiber.Ctx) error {
+// @Router       /file-entries [get]
+func (h *FileSystemHandler) GetFileEntries(c *fiber.Ctx) error {
 	fsPath := c.Query("path", "~/penguin")
 
-	folders, err := h.FileSystemService.GetFolders(fsPath)
+	fileEntries, err := h.FileSystemService.GetFileEntries(fsPath)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":   "Failed to read directory",
@@ -37,5 +37,5 @@ func (h *FileSystemHandler) GetFolders(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(folders)
+	return c.JSON(fileEntries)
 }

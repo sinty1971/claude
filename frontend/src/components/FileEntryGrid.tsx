@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Folder } from '../types/folder';
 import { folderService } from '../services/api';
-import { FolderModal } from './FolderModal';
+import { FileEntryModal } from './FileEntryModal';
 
-export const FolderGrid: React.FC = () => {
+export const FileEntryGrid: React.FC = () => {
   const navigate = useNavigate();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -197,7 +197,7 @@ export const FolderGrid: React.FC = () => {
         })}
       </div>
 
-      <FolderModal
+      <FileEntryModal
         folder={selectedFolder}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

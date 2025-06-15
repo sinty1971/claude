@@ -1,7 +1,7 @@
 package models
 
-// FileEntry represents a file or directory
-// @Description File or directory information
+// FileEntry はファイルまたはディレクトリを表す
+// @Description ファイルまたはディレクトリの情報
 type FileEntry struct {
 	Id uint64 `json:"id" yaml:"id" example:"123456"`
 	// Name of the file or folder
@@ -16,11 +16,13 @@ type FileEntry struct {
 	ModifiedTime Timestamp `json:"modified_time" yaml:"modified_time"`
 }
 
-// FolderListResponse represents the response for folder listing
-// @Description Response containing list of folders
-type FolderListResponse struct {
-	// List of folders
-	Folders []FileEntry `json:"folders"`
-	// Total number of folders returned
-	Count int `json:"count" example:"10"`
+// FileEntriesListResponse はファイルエントリ一覧のレスポンスを表す
+// @Description ファイルエントリ一覧を含むレスポンス
+type FileEntriesListResponse struct {
+	// File entries
+	FileEntries []FileEntry `json:"file_entries" yaml:"file_entries"`
+	// Folder number of file entries
+	FolderCount int `json:"folder_count" example:"10"`
+	// File number of file entries
+	FileCount int `json:"file_count" example:"10"`
 }

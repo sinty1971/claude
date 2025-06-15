@@ -108,12 +108,18 @@ components:
     Folder:
       type: object
       required:
+        - id
         - name
         - path
         - is_directory
         - size
         - modified_time
       properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the file or folder
+          example: 123456
         name:
           type: string
           description: Name of the file or folder
@@ -230,12 +236,18 @@ components:
     KoujiFolder:
       type: object
       required:
+        - id
         - name
         - path
         - is_directory
         - size
         - modified_time
       properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the file or folder
+          example: 123456
         name:
           type: string
           description: Name of the file or folder

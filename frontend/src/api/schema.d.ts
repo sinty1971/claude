@@ -90,6 +90,12 @@ export interface components {
     schemas: {
         Folder: {
             /**
+             * Format: int64
+             * @description Unique identifier for the file or folder
+             * @example 123456
+             */
+            id: number;
+            /**
              * @description Name of the file or folder
              * @example documents
              */
@@ -195,6 +201,12 @@ export interface components {
             example: string;
         };
         KoujiFolder: {
+            /**
+             * Format: int64
+             * @description Unique identifier for the file or folder
+             * @example 123456
+             */
+            id: number;
             /**
              * @description Name of the file or folder
              * @example documents

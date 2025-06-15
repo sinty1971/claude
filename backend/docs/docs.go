@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/folders": {
+        "/file-entries": {
             "get": {
                 "description": "Retrieve a list of folders from the specified path",
                 "consumes": [
@@ -25,7 +25,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "folders"
+                    "file-entries"
                 ],
                 "summary": "Get folders",
                 "parameters": [
@@ -56,9 +56,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/kouji-list": {
+        "/kouji-entries": {
             "get": {
-                "description": "Retrieve a list of construction project folders from the specified path",
+                "description": "指定されたパスから工事プロジェクトフォルダーの一覧を取得します。\n各工事プロジェクトには会社名、現場名、工事開始日などの詳細情報が含まれます。",
                 "consumes": [
                     "application/json"
                 ],
@@ -66,23 +66,67 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "kouji-list"
+                    "工事管理"
                 ],
-                "summary": "Get kouji list",
+                "summary": "工事プロジェクト一覧の取得",
                 "parameters": [
                     {
                         "type": "string",
                         "default": "~/penguin/豊田築炉/2-工事",
-                        "description": "Path to the directory to list",
+                        "description": "工事フォルダーのパス",
                         "name": "path",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful response",
+                        "description": "工事プロジェクト一覧",
                         "schema": {
-                            "$ref": "#/definitions/models.KoujiListResponse"
+                            "$ref": "#/definitions/models.KoujiEntriesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "サーバーエラー",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/kouji-entries/cleanup": {
+            "post": {
+                "description": "Remove kouji entries with invalid time data (like 0001-01-01T09:26:51+09:18) from YAML",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "kouji-entries"
+                ],
+                "summary": "Cleanup invalid time data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "~/penguin/豊田築炉/2-工事/.inside.yaml",
+                        "description": "Path to the YAML file",
+                        "name": "yaml_path",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success message with cleanup details",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
@@ -97,9 +141,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/kouji-list/save": {
+        "/kouji-entries/save": {
             "post": {
-                "description": "Save kouji project information to a YAML file",
+                "description": "Save kouji entries information to a YAML file",
                 "consumes": [
                     "application/json"
                 ],
@@ -107,9 +151,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "kouji-list"
+                    "kouji-entries"
                 ],
-                "summary": "Save kouji projects to YAML",
+                "summary": "Save kouji entries to YAML",
                 "parameters": [
                     {
                         "type": "string",
@@ -148,51 +192,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/kouji-projects/cleanup": {
-            "post": {
-                "description": "Remove projects with invalid time data (like 0001-01-01T09:26:51+09:18) from YAML",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "kouji-projects"
-                ],
-                "summary": "Cleanup invalid time data",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "~/penguin/豊田築炉/2-工事/.inside.yaml",
-                        "description": "Path to the YAML file",
-                        "name": "yaml_path",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success message with cleanup details",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/kouji-projects/{project_id}/dates": {
+        "/kouji-entries/{project_id}/dates": {
             "put": {
                 "description": "Update start and end dates for a specific kouji project",
                 "consumes": [
@@ -202,7 +202,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "kouji-projects"
+                    "kouji-entries"
                 ],
                 "summary": "Update kouji project dates",
                 "parameters": [
@@ -219,7 +219,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UpdateProjectDatesRequest"
+                            "$ref": "#/definitions/models.UpdateKoujiEntryDatesRequest"
                         }
                     }
                 ],
@@ -378,8 +378,28 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Kouji": {
-            "description": "Construction project folder information with extended attributes",
+        "models.KoujiEntriesResponse": {
+            "description": "Response containing list of construction kouji folders",
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "kouji_entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KoujiEntry"
+                    }
+                },
+                "total_size": {
+                    "type": "integer",
+                    "example": 1073741824
+                }
+            }
+        },
+        "models.KoujiEntry": {
+            "description": "Construction kouji folder information with extended attributes",
             "type": "object",
             "properties": {
                 "company_name": {
@@ -454,26 +474,6 @@ const docTemplate = `{
                         " '豊田築炉'",
                         " '名和工場']"
                     ]
-                }
-            }
-        },
-        "models.KoujiListResponse": {
-            "description": "Response containing list of construction project folders",
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer",
-                    "example": 10
-                },
-                "kouji_list": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Kouji"
-                    }
-                },
-                "total_size": {
-                    "type": "integer",
-                    "example": 1073741824
                 }
             }
         },
@@ -562,8 +562,8 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UpdateProjectDatesRequest": {
-            "description": "Request body for updating project start and end dates",
+        "models.UpdateKoujiEntryDatesRequest": {
+            "description": "Request body for updating kouji start and end dates",
             "type": "object",
             "properties": {
                 "end_date": {
@@ -585,8 +585,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "Penguin Folder Management API",
-	Description:      "API for managing and browsing folders",
+	Title:            "Penguin FileSystem Management API",
+	Description:      "API for managing and browsing file entries",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

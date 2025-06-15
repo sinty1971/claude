@@ -1,13 +1,13 @@
 import React from 'react';
 import type { Folder } from '../types/folder';
 
-interface FolderModalProps {
+interface FileEntryModalProps {
   folder: Folder | null;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const FolderModal: React.FC<FolderModalProps> = ({ folder, isOpen, onClose }) => {
+export const FileEntryModal: React.FC<FileEntryModalProps> = ({ folder, isOpen, onClose }) => {
   if (!isOpen || !folder) return null;
 
   const formatSize = (bytes: number): string => {

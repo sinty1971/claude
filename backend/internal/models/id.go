@@ -42,7 +42,7 @@ func NewIDFromTime(t time.Time) *ID {
 }
 
 // NewIDFromStateInfo フォルダー名からIDを生成
-func NewIDFromKoujiProject(koujiProject Kouji) *ID {
+func NewIDFromKoujiProject(koujiProject KoujiEntry) *ID {
 	// フォルダー名で一意性を確保
 	data := fmt.Sprintf("%d%s%s", koujiProject.FileEntry.Id, koujiProject.CompanyName, koujiProject.LocationName)
 	return NewIDFromString(data)

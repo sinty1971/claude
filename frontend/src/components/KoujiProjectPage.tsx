@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import KoujiProjectGrid from './KoujiProjectGrid';
+import KoujiEntriesGrid from './KoujiProjectGrid';
 import { api } from '../api/client';
 
 const KoujiProjectPage = () => {
@@ -8,16 +8,16 @@ const KoujiProjectPage = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSaveKoujiProjects = async () => {
+  const handleSaveKoujiEntries = async () => {
     setIsSaving(true);
     setSaveMessage(null);
     setError(null);
     
     try {
-      const response = await api.koujiProjects.saveKoujiProjects();
+      const response = await api.koujiEntries.saveKoujiEntries();
       setSaveMessage(`${response.message}`);
     } catch (err) {
-      console.error('Error saving kouji projects:', err);
+      console.error('Error saving kouji entries:', err);
       setError(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
       setIsSaving(false);
@@ -31,7 +31,7 @@ const KoujiProjectPage = () => {
         <div className="header-actions">
           <button 
             type="button" 
-            onClick={handleSaveKoujiProjects}
+            onClick={handleSaveKoujiEntries}
             disabled={isSaving}
             className="save-button"
           >
@@ -67,7 +67,7 @@ const KoujiProjectPage = () => {
       {error && <div className="error">{error}</div>}
       {saveMessage && <div className="success">{saveMessage}</div>}
 
-      <KoujiProjectGrid />
+      <KoujiEntriesGrid />
     </div>
   );
 };

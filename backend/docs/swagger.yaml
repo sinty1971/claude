@@ -40,8 +40,22 @@ definitions:
           $ref: '#/definitions/models.FileEntry'
         type: array
     type: object
-  models.Kouji:
-    description: Construction project folder information with extended attributes
+  models.KoujiEntriesResponse:
+    description: Response containing list of construction kouji folders
+    properties:
+      count:
+        example: 10
+        type: integer
+      kouji_entries:
+        items:
+          $ref: '#/definitions/models.KoujiEntry'
+        type: array
+      total_size:
+        example: 1073741824
+        type: integer
+    type: object
+  models.KoujiEntry:
+    description: Construction kouji folder information with extended attributes
     properties:
       company_name:
         example: 豊田築炉
@@ -96,20 +110,6 @@ definitions:
         items:
           type: string
         type: array
-    type: object
-  models.KoujiListResponse:
-    description: Response containing list of construction project folders
-    properties:
-      count:
-        example: 10
-        type: integer
-      kouji_list:
-        items:
-          $ref: '#/definitions/models.Kouji'
-        type: array
-      total_size:
-        example: 1073741824
-        type: integer
     type: object
   models.SupportedFormatsResponse:
     description: List of all supported date/time formats
@@ -174,8 +174,8 @@ definitions:
       time.Time:
         type: string
     type: object
-  models.UpdateProjectDatesRequest:
-    description: Request body for updating project start and end dates
+  models.UpdateKoujiEntryDatesRequest:
+    description: Request body for updating kouji start and end dates
     properties:
       end_date:
         example: "2024-12-31T00:00:00Z"
@@ -187,11 +187,11 @@ definitions:
 host: localhost:8080
 info:
   contact: {}
-  description: API for managing and browsing folders
-  title: Penguin Folder Management API
+  description: API for managing and browsing file entries
+  title: Penguin FileSystem Management API
   version: 1.0.0
 paths:
-  /folders:
+  /file-entries:
     get:
       consumes:
       - application/json
@@ -217,16 +217,17 @@ paths:
             type: object
       summary: Get folders
       tags:
-      - folders
-  /kouji-list:
+      - file-entries
+  /kouji-entries:
     get:
       consumes:
       - application/json
-      description: Retrieve a list of construction project folders from the specified
-        path
+      description: |-
+        指定されたパスから工事プロジェクトフォルダーの一覧を取得します。
+        各工事プロジェクトには会社名、現場名、工事開始日などの詳細情報が含まれます。
       parameters:
       - default: ~/penguin/豊田築炉/2-工事
-        description: Path to the directory to list
+        description: 工事フォルダーのパス
         in: query
         name: path
         type: string
@@ -234,23 +235,94 @@ paths:
       - application/json
       responses:
         "200":
-          description: Successful response
+          description: 工事プロジェクト一覧
           schema:
-            $ref: '#/definitions/models.KoujiListResponse'
+            $ref: '#/definitions/models.KoujiEntriesResponse'
+        "500":
+          description: サーバーエラー
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 工事プロジェクト一覧の取得
+      tags:
+      - 工事管理
+  /kouji-entries/{project_id}/dates:
+    put:
+      consumes:
+      - application/json
+      description: Update start and end dates for a specific kouji project
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Updated dates
+        in: body
+        name: dates
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateKoujiEntryDatesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal server error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get kouji list
+      summary: Update kouji project dates
       tags:
-      - kouji-list
-  /kouji-list/save:
+      - kouji-entries
+  /kouji-entries/cleanup:
     post:
       consumes:
       - application/json
-      description: Save kouji project information to a YAML file
+      description: Remove kouji entries with invalid time data (like 0001-01-01T09:26:51+09:18)
+        from YAML
+      parameters:
+      - default: ~/penguin/豊田築炉/2-工事/.inside.yaml
+        description: Path to the YAML file
+        in: query
+        name: yaml_path
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message with cleanup details
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cleanup invalid time data
+      tags:
+      - kouji-entries
+  /kouji-entries/save:
+    post:
+      consumes:
+      - application/json
+      description: Save kouji entries information to a YAML file
       parameters:
       - default: ~/penguin/豊田築炉/2-工事
         description: Path to the directory to scan
@@ -277,80 +349,9 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Save kouji projects to YAML
+      summary: Save kouji entries to YAML
       tags:
-      - kouji-list
-  /kouji-projects/{project_id}/dates:
-    put:
-      consumes:
-      - application/json
-      description: Update start and end dates for a specific kouji project
-      parameters:
-      - description: Project ID
-        in: path
-        name: project_id
-        required: true
-        type: string
-      - description: Updated dates
-        in: body
-        name: dates
-        required: true
-        schema:
-          $ref: '#/definitions/models.UpdateProjectDatesRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success message
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Update kouji project dates
-      tags:
-      - kouji-projects
-  /kouji-projects/cleanup:
-    post:
-      consumes:
-      - application/json
-      description: Remove projects with invalid time data (like 0001-01-01T09:26:51+09:18)
-        from YAML
-      parameters:
-      - default: ~/penguin/豊田築炉/2-工事/.inside.yaml
-        description: Path to the YAML file
-        in: query
-        name: yaml_path
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success message with cleanup details
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Cleanup invalid time data
-      tags:
-      - kouji-projects
+      - kouji-entries
   /time/formats:
     get:
       consumes:

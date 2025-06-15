@@ -1,5 +1,5 @@
-// Extended KoujiProject type with company and location names
-export interface KoujiProjectExtended {
+// Extended KoujiEntry type with company and location names
+export interface KoujiEntryExtended {
   name: string;
   path: string;
   is_directory: boolean;
@@ -19,8 +19,8 @@ export interface KoujiProjectExtended {
   subdir_count?: number;
 }
 
-export interface KoujiProjectListResponseExtended {
-  projects: KoujiProjectExtended[];
+export interface KoujiEntriesResponseExtended {
+  entries: KoujiEntryExtended[];
   count: number;
   path: string;
   total_size?: number;
