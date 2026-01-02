@@ -24,7 +24,7 @@ func NewKoji() *Koji {
 
 	koji := &Koji{}
 	koji.Koji = grpcv1.Koji_builder{}.Build()
-	koji.Pathist = core.NewPathist(koji, core.ConfigMap["KojiPersistFilename"])
+	koji.Pathist = core.NewPathist(koji, core.ServerConfiguration["KojiPersistFilename"])
 
 	return koji
 }

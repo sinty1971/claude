@@ -1,7 +1,8 @@
-package services
+package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -16,10 +17,10 @@ import (
 	"connectrpc.com/connect"
 )
 
-// CompanyService の実装
-type CompanyService struct {
+// Company の実装
+type Company struct {
 	// services は任意のgrpcサービスハンドラーへの参照
-	services *Services
+	services *PersistHub
 
 	// Embed the unimplemented handler for forward compatibility
 	grpcv1connect.UnimplementedCompanyServiceHandler
@@ -34,16 +35,21 @@ type CompanyService struct {
 	watcher *core.Watcher
 }
 
+// Name はサービス名を返します
+func (srv *Company) Name() string {
+	return "Company"
+}
+
 // Start は CompanyService を初期化して開始します
-func (srv *CompanyService) Start(services *Services, options *map[string]string) error {
+func (srv *Company) Start(services *PersistHub, options *map[string]string) error {
 
 	// 既存インスタンスに値をセット（再代入しないこと）
 	srv.services = services
 
 	// サービスフォルダーの設定
-	optFolder, exists := (*options)["CompanyServiceFolder"]
+	optFolder, exists := (*options)["CompanyListFolder"]
 	if !exists {
-		return errors.New("CompanyServiceFolder option is required")
+		return errors.New("CompanyListFolder option is required")
 	}
 
 	// パスをの取得と正規化
@@ -67,13 +73,13 @@ func (srv *CompanyService) Start(services *Services, options *map[string]string)
 	maxDepth, err := strconv.Atoi(optMaxDepth)
 
 	// オプションが存在する場合は数値に変換
-	watcher, err := core.NewWatcher(srv.serviceFolder, maxDepth)
+	watcher, err := core.NewWatcher()
 	if err != nil {
 		return err
 	}
 	srv.watcher = watcher
 
-	if err = srv.watcher.Start(); err != nil {
+	if err = srv.watcher.Start(srv.serviceFolder, maxDepth); err != nil {
 		return err
 	}
 
@@ -83,14 +89,19 @@ func (srv *CompanyService) Start(services *Services, options *map[string]string)
 	return nil
 }
 
-func (srv *CompanyService) Cleanup() {
+func (srv *Company) Cleanup() {
 	if srv.watcher != nil {
 		srv.watcher.Close()
 	}
 }
 
+// SyncToDB は会社データを SQLite に同期する。
+func (srv *Company) SyncToDB(db *sql.DB) error {
+	return srv.persistCompanies(db)
+}
+
 // consumeWatcherEvents はファイルシステム監視イベントを処理します
-func (srv *CompanyService) consumeWatcherEvents() {
+func (srv *Company) consumeWatcherEvents() {
 	for {
 		select {
 		case event, ok := <-srv.watcher.Events():
@@ -114,7 +125,7 @@ func (srv *CompanyService) consumeWatcherEvents() {
 }
 
 // UpdateCompanies 会社のキャッシュデータを更新します
-func (srv *CompanyService) UpdateCompanies() error {
+func (srv *Company) UpdateCompanies() error {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.serviceFolder)
 	if err != nil {
@@ -133,9 +144,19 @@ func (srv *CompanyService) UpdateCompanies() error {
 		}
 	}
 
-	// 会社の内部情報の取得
+	if err := srv.loadCompanyPersists(); err != nil {
+		return err
+	}
+	if srv.services != nil {
+		if err := srv.persistCompanies(srv.services.DB()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (srv *Company) loadCompanyPersists() error {
 	for _, company := range srv.companies {
-		// persist情報の読み込み
 		if err := company.Pathist.LoadPersists(); err != nil {
 			log.Printf("Failed to load persist info for company ShortName %s: %v", company.GetShortName(), err)
 		}
@@ -143,10 +164,48 @@ func (srv *CompanyService) UpdateCompanies() error {
 	return nil
 }
 
-// UpdateCompanyCache は指定 id のキャッシュ情報を新しい会社情報で更新します
+func (srv *Company) persistCompanies(db *sql.DB) error {
+	if db == nil {
+		return errors.New("company persist db is nil")
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM companies`); err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO companies (id, short_name, category_index, pathist_folder, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, company := range srv.companies {
+		if _, err := stmt.Exec(
+			company.GetId(),
+			company.GetShortName(),
+			company.GetCategoryIndex(),
+			company.GetPathistFolder(),
+		); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// UpdateNewCompany は指定 id のキャッシュ情報を新しい会社情報で更新します
 // prevId: 更新対象の会社ID、存在しない場合は追加
 // newCompany: 更新後の会社情報
-func (srv *CompanyService) UpdateNewCompany(prevId string, newCompany *models.Company) (*models.Company, error) {
+func (srv *Company) UpdateNewCompany(prevId string, newCompany *models.Company) (*models.Company, error) {
 	// Idから更新前の会社情報を取得
 	prevCompany, exist := srv.companies[prevId]
 
@@ -183,7 +242,7 @@ func (srv *CompanyService) UpdateNewCompany(prevId string, newCompany *models.Co
 
 // GetCompanies は管理されている会社情報の一覧を取得します
 // gRPCサービスの実装です
-func (srv *CompanyService) GetCompanies(
+func (srv *Company) GetCompanies(
 	ctx context.Context, req *grpcv1.GetCompaniesRequest) (
 	*grpcv1.GetCompaniesResponse, error) {
 
@@ -210,7 +269,7 @@ func (srv *CompanyService) GetCompanies(
 
 // GetCompany は会社IDから会社情報を取得します
 // gRPCサービスの実装です
-func (srv *CompanyService) GetCompany(
+func (srv *Company) GetCompany(
 	ctx context.Context,
 	req *grpcv1.GetCompanyRequest) (
 	res *grpcv1.GetCompanyResponse,
@@ -240,7 +299,7 @@ func (srv *CompanyService) GetCompany(
 // 既存の Id の会社情報を更新します。そのため Id の変更の可能性があります。
 // また、フォルダーの移動も発生する可能性があります。
 // Company.Id 更新対象の会社Id
-func (srv *CompanyService) UpdateCompany(
+func (srv *Company) UpdateCompany(
 	_ context.Context, req *grpcv1.UpdateCompanyRequest) (
 	*grpcv1.UpdateCompanyResponse, error) {
 
@@ -261,7 +320,7 @@ func (srv *CompanyService) UpdateCompany(
 }
 
 // GetCompanyCategories は業種カテゴリーの一覧を取得します
-func (srv *CompanyService) GetCompanyCategories(
+func (srv *Company) GetCompanyCategories(
 	_ context.Context, _ *grpcv1.GetCompanyCategoriesRequest) (
 	*grpcv1.GetCompanyCategoriesResponse, error) {
 

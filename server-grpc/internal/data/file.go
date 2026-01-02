@@ -1,7 +1,8 @@
-package services
+package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"os"
@@ -23,13 +24,18 @@ type FileService struct {
 	grpcConnect.UnimplementedFileServiceHandler
 
 	// services は任意のgrpcサービスハンドラーへの参照
-	services *Services
+	services *PersistHub
 
 	// PathistFolder はファイルサービスの絶対パスフォルダー
 	PathistFolder string `json:"pathistFolder" yaml:"pathist_folder" example:"/penguin/豊田築炉"`
 }
 
-func (srv *FileService) Start(services *Services, options *map[string]string) error {
+// Name はサービス名を返します
+func (srv *FileService) Name() string {
+	return "FileService"
+}
+
+func (srv *FileService) Start(services *PersistHub, options *map[string]string) error {
 	// オプションの取得
 	optTarget, exists := (*options)["FileServiceTarget"]
 	if !exists {
@@ -50,6 +56,11 @@ func (srv *FileService) Start(services *Services, options *map[string]string) er
 
 func (s *FileService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
+}
+
+// SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
+func (s *FileService) SyncToDB(_ *sql.DB) error {
+	return nil
 }
 
 func (s *FileService) GetFileBasePath(

@@ -18,6 +18,7 @@ message File {
 }
 
 // Company represents a company entity with inside information
+// @persist table name: companies
 message Company {
   string id = 1;
   string pathist_folder = 2;
@@ -39,6 +40,7 @@ message CompanyCategory {
 }
 
 // Koji represents a construction project with inside information
+// @persist table name: kojies
 message Koji {
   string id = 1;
   string status = 2;

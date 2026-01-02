@@ -1,7 +1,8 @@
-package services
+package data
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/fsnotify/fsnotify"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // KojiService bridges existing KojiService logic to Connect handlers.
@@ -24,7 +26,7 @@ type KojiService struct {
 	grpcv1connect.UnimplementedKojiServiceHandler
 
 	// services は任意のgrpcサービスハンドラーへの参照
-	services *Services
+	services *PersistHub
 
 	// target はこのサービスが管理する工事データのルートフォルダー
 	target string
@@ -36,14 +38,19 @@ type KojiService struct {
 	kojies map[string]*models.Koji
 }
 
-func (s *KojiService) Start(services *Services, options *map[string]string) error {
+// Name はサービス名を返します
+func (s *KojiService) Name() string {
+	return "KojiService"
+}
+
+func (s *KojiService) Start(services *PersistHub, options *map[string]string) error {
 	// オプションの取得
-	optTarget, exists := (*options)["KojiServiceTarget"]
+	optFolder, exists := (*options)["KojiListFolder"]
 	if !exists {
-		return errors.New("KojiServiceTarget option is required")
+		return errors.New("KojiListFolder option is required")
 	}
 	// パスを正規化
-	target, err := core.NormalizeAbsPath(optTarget)
+	target, err := core.NormalizeAbsPath(optFolder)
 	if err != nil {
 		return err
 	}
@@ -68,6 +75,11 @@ func (s *KojiService) Start(services *Services, options *map[string]string) erro
 
 func (s *KojiService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
+}
+
+// SyncToDB は工事データを SQLite に同期する。
+func (s *KojiService) SyncToDB(db *sql.DB) error {
+	return s.persistKojies(db)
 }
 
 // watchTarget starts watching the provided target for changes.
@@ -166,11 +178,14 @@ func (s *KojiService) UpdateKojies() error {
 		close(results)
 	}()
 
-	// 結果を収集（最大サイズで確保し、後でスライス）
 	for result := range results {
 		if result != nil {
 			s.kojies[result.GetId()] = result
 		}
+	}
+
+	if s.services != nil {
+		return s.persistKojies(s.services.DB())
 	}
 
 	return nil
@@ -253,6 +268,54 @@ func (s *KojiService) UpdateKoji(
 	res.SetPrevKoji(prevKoji.Koji)
 
 	return res, nil
+}
+
+func (s *KojiService) persistKojies(db *sql.DB) error {
+	if db == nil {
+		return errors.New("koji persist db is nil")
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM kojies`); err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO kojies (id, status, pathist_folder, start_at, company_name, location_name, end_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, koji := range s.kojies {
+		if _, err := stmt.Exec(
+			koji.GetId(),
+			koji.GetStatus(),
+			koji.GetPathistFolder(),
+			timestampValue(koji.GetStart()),
+			koji.GetCompanyName(),
+			koji.GetLocationName(),
+			timestampValue(koji.GetPersistEnd()),
+		); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func timestampValue(ts *timestamppb.Timestamp) any {
+	if ts == nil || !ts.IsValid() {
+		return nil
+	}
+	return ts.AsTime()
 }
 
 // RenameStandardFile は標準ファイルの名前を変更し、工事データも更新する

@@ -1,4 +1,4 @@
-package services
+package data
 
 // ConfigFunc はサービス登録時のオプション設定用の関数型です
 type ConfigFunc func(*Config)

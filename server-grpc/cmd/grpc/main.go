@@ -20,7 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"server-grpc/internal/services"
+	"server-grpc/internal/core"
+	"server-grpc/internal/data"
 
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
@@ -37,22 +38,40 @@ var (
 )
 
 func main() {
+	// サーバーのデフォルト設定を定義します。
+	core.ServerConfiguration = map[string]string{
+		"FileServiceTarget":          "{ROOT}",
+		"CompanyListFolder":          "{ROOT}/1 会社",
+		"CompanyPersistFilename":     "@company.yaml",
+		"CompanyPollIntervalMillSec": "3000",
+		"KojiListFolder":             "{ROOT}/2 工事",
+		"KojiPersistFilename":        "@koji.yaml",
+		"MemberPersistFilename":      "@member.yaml",
+		"PersistDBPath":              "{USERPROFILE}/.persist/@persist.db",
+	}
+	core.WorkerConfiguration = map[string]int{
+		"MinumWorkers":   2,
+		"MaximumWorkers": 16,
+		"CpuMultiplier":  2,
+	}
+	core.ParseConfiguration()
+
 	// コマンドライン引数の解析
 	flag.Parse()
 
 	// サービスコレクションの初期化
-	srvCollection := services.NewServices()
+	srvCollection := data.NewPersistHub()
 	defer srvCollection.CleanupAll()
 
 	// 各サービスの初期化
-	fileService := &services.FileService{}
-	companyService := &services.CompanyService{}
-	kojiService := &services.KojiService{}
+	fileService := &data.FileService{}
+	companyService := &data.Company{}
+	kojiService := &data.KojiService{}
 
 	// サービスをサービスコレクションに追加
-	srvCollection.AddService("FileService", fileService)
-	srvCollection.AddService("CompanyService", companyService)
-	srvCollection.AddService("KojiService", kojiService)
+	srvCollection.AddService(fileService)
+	srvCollection.AddService(companyService)
+	srvCollection.AddService(kojiService)
 
 	// サービスの起動
 	if err := srvCollection.StartAll(); err != nil {

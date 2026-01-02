@@ -4,6 +4,7 @@ import platform
 import urllib.request
 from pathlib import Path
 
+# Detect system architecture
 def detect_arch():
     machine = platform.machine().lower()
     if "arm64" in machine or "aarch64" in machine:

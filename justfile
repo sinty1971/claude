@@ -43,6 +43,11 @@ server-grpc-update:
 generate-grpc:
     @echo "Generating gRPC stubs..."
     @ {{buf}} generate
+
+# Generate persist migrations from proto definitions
+generate-persist-migrations:
+    @echo "Generating persist migrations..."
+    python scripts/migrate_persist_messages.py --output server-grpc/gen/sqlite/migrations/
     
 # Generate Connect-Web stubs for the frontend
 frontend-generate-grpc: generate-grpc
@@ -87,7 +92,7 @@ dev:
     @echo "Run 'just server-grpc' in one terminal and 'just frontend' in another"
 
 # Generate both server-grpc and frontend gRPC stubs
-generate-all: generate-grpc generate-types fe-bun-generate
+generate-all: generate-grpc generate-types fe-bun-generate generate-persist-migrations
 
 # Install server-grpc dependencies
 server-grpc-deps:

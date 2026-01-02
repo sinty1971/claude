@@ -28,7 +28,7 @@ func NewCompany() *Company {
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
-	company.Pathist = core.NewPathist(company, core.ConfigMap["CompanyPersistFilename"])
+	company.Pathist = core.NewPathist(company, core.ServerConfiguration["CompanyPersistFilename"])
 
 	return company
 }

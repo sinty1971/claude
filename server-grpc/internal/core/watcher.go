@@ -9,15 +9,13 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+// Watcher は指定されたディレクトリツリーを監視し、ファイルシステムの変更イベントを通知します
 type Watcher struct {
-	// rootPath は監視対象のルートディレクトリ
-	rootPath string
-
 	// watcher は fsnotify の監視オブジェクト
 	watcher *fsnotify.Watcher
 
-	// watchedDirs は監視登録済みディレクトリの集合
-	watchedDirs map[string]struct{}
+	// rootPath は監視対象のルートディレクトリ
+	rootPath string
 
 	// maxDepth は監視するディレクトリの最大深度
 	maxDepth int
@@ -25,25 +23,26 @@ type Watcher struct {
 	// events は監視イベントを通知するチャネル
 	events chan fsnotify.Event
 
-	// errors はエラーを通知するチャネル
-	errors chan error
+	// watchedDirs は監視登録済みディレクトリの集合
+	watchedDirs map[string]struct{}
 
 	// done は監視ループを終了するためのチャネル
 	done chan struct{}
+
+	// errors はエラーを通知するチャネル
+	errors chan error
 }
 
 // NewWatcher は新しい Watcher インスタンスを作成します
-func NewWatcher(rootPath string, maxDepth int) (*Watcher, error) {
+func NewWatcher() (*Watcher, error) {
 	fsWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Watcher{
-		rootPath:    rootPath,
 		watcher:     fsWatcher,
 		watchedDirs: make(map[string]struct{}),
-		maxDepth:    maxDepth,
 		events:      make(chan fsnotify.Event),
 		errors:      make(chan error),
 		done:        make(chan struct{}),
@@ -51,7 +50,13 @@ func NewWatcher(rootPath string, maxDepth int) (*Watcher, error) {
 }
 
 // Start は監視を開始します
-func (w *Watcher) Start() error {
+//
+//	rootPath は監視対象のルートディレクトリ、maxDepth は監視するディレクトリの最大深度を指定します
+//	maxDepth が 0 の場合、rootPath のみが監視されます
+func (w *Watcher) Start(rootPath string, maxDepth int) error {
+	w.rootPath = rootPath
+	w.maxDepth = maxDepth
+
 	if err := w.addWatchersRecursively(w.rootPath, 0); err != nil {
 		return err
 	}
@@ -76,6 +81,7 @@ func (w *Watcher) Errors() <-chan error {
 	return w.errors
 }
 
+// loop は fsnotify からのイベントを監視し、内部処理と外部への通知を行います
 func (w *Watcher) loop() {
 	for {
 		select {
@@ -107,6 +113,7 @@ func (w *Watcher) loop() {
 	}
 }
 
+// handleInternalEvent は内部的なイベント処理（ディレクトリ監視の追加・削除など）を行います
 func (w *Watcher) handleInternalEvent(event fsnotify.Event) {
 	if event.Name == "" {
 		return
@@ -125,6 +132,7 @@ func (w *Watcher) handleInternalEvent(event fsnotify.Event) {
 	}
 }
 
+// addWatchIfDirectory は指定されたパスがディレクトリであれば監視対象に追加します
 func (w *Watcher) addWatchIfDirectory(path string) error {
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
@@ -139,6 +147,7 @@ func (w *Watcher) addWatchIfDirectory(path string) error {
 	return w.addWatchersRecursively(path, depth)
 }
 
+// addWatchersRecursively は指定されたディレクトリとそのサブディレクトリを再帰的に監視対象に追加します
 func (w *Watcher) addWatchersRecursively(dir string, depth int) error {
 	if depth > w.maxDepth {
 		return nil
@@ -170,6 +179,7 @@ func (w *Watcher) addWatchersRecursively(dir string, depth int) error {
 	return nil
 }
 
+// registerWatcher は指定されたディレクトリを fsnotify の監視対象に登録します
 func (w *Watcher) registerWatcher(target string) error {
 	if _, watched := w.watchedDirs[target]; watched {
 		return nil
@@ -183,6 +193,7 @@ func (w *Watcher) registerWatcher(target string) error {
 	return nil
 }
 
+// unregisterWatcherTree は指定されたディレクトリとその配下の監視を解除します
 func (w *Watcher) unregisterWatcherTree(target string) {
 	cleanPath := filepath.Clean(target)
 	if _, ok := w.relativeDepth(cleanPath); !ok {
@@ -206,6 +217,7 @@ func (w *Watcher) unregisterWatcherTree(target string) {
 	}
 }
 
+// relativeDepth はルートパスからの相対的な深さを計算します
 func (w *Watcher) relativeDepth(target string) (int, bool) {
 	rel, err := filepath.Rel(w.rootPath, target)
 	if err != nil {

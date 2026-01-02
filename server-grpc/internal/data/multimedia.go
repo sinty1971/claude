@@ -1,4 +1,4 @@
-package services
+package data
 
 // このファイルは将来のMediaDataService実装時の参考例です
 
