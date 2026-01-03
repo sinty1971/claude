@@ -39,7 +39,7 @@ var (
 
 func main() {
 	// サーバーのデフォルト設定を定義します。
-	core.ServerConfiguration = map[string]string{
+	core.Config = map[string]string{
 		"FileServiceTarget":          "{ROOT}",
 		"CompanyListFolder":          "{ROOT}/1 会社",
 		"CompanyPersistFilename":     "@company.yaml",
@@ -54,27 +54,27 @@ func main() {
 		"MaximumWorkers": 16,
 		"CpuMultiplier":  2,
 	}
-	core.ParseConfiguration()
+	core.ParseConfigValue()
 
 	// コマンドライン引数の解析
 	flag.Parse()
 
 	// サービスコレクションの初期化
-	srvCollection := data.NewPersistHub()
+	srvCollection := data.NewPersistManager()
 	defer srvCollection.CleanupAll()
 
 	// 各サービスの初期化
-	fileService := &data.FileService{}
-	companyService := &data.Company{}
-	kojiService := &data.KojiService{}
+	fileService := &data.FileStorage{}
+	companyService := &data.CompanyStorage{}
+	kojiService := &data.KojiStorage{}
 
 	// サービスをサービスコレクションに追加
-	srvCollection.AddService(fileService)
-	srvCollection.AddService(companyService)
-	srvCollection.AddService(kojiService)
+	srvCollection.AddPersister(fileService)
+	srvCollection.AddPersister(companyService)
+	srvCollection.AddPersister(kojiService)
 
 	// サービスの起動
-	if err := srvCollection.StartAll(); err != nil {
+	if err := srvCollection.Start(); err != nil {
 		log.Fatalf("Failed to start services: %v", err)
 	}
 	defer srvCollection.CleanupAll()

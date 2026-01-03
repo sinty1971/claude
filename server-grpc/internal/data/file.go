@@ -16,26 +16,26 @@ import (
 	"server-grpc/internal/models"
 )
 
-// FileService の実装
+// FileStorage の実装
 
-// FileService exposes FileService operations via Connect handlers.
-type FileService struct {
+// FileStorage exposes FileStorage operations via Connect handlers.
+type FileStorage struct {
 	// Embed the unimplemented handler for forward compatibility
 	grpcConnect.UnimplementedFileServiceHandler
 
-	// services は任意のgrpcサービスハンドラーへの参照
-	services *PersistHub
+	// manager はStorageManagerへの参照
+	manager *StorageManager
 
-	// PathistFolder はファイルサービスの絶対パスフォルダー
-	PathistFolder string `json:"pathistFolder" yaml:"pathist_folder" example:"/penguin/豊田築炉"`
+	// StoragePath はファイルサービスの絶対パスフォルダー
+	StoragePath string `json:"storagePath" yaml:"storage_path" example:"/penguin/豊田築炉"`
 }
 
 // Name はサービス名を返します
-func (srv *FileService) Name() string {
-	return "FileService"
+func (srv *FileStorage) Name() string {
+	return "FileStorage"
 }
 
-func (srv *FileService) Start(services *PersistHub, options *map[string]string) error {
+func (srv *FileStorage) Start(services *StorageManager, options *map[string]string) error {
 	// オプションの取得
 	optTarget, exists := (*options)["FileServiceTarget"]
 	if !exists {
@@ -48,22 +48,22 @@ func (srv *FileService) Start(services *PersistHub, options *map[string]string) 
 		return err
 	}
 
-	srv.services = services
-	srv.PathistFolder = target
+	srv.manager = services
+	srv.StoragePath = target
 
 	return nil
 }
 
-func (s *FileService) Cleanup() {
+func (s *FileStorage) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
 // SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
-func (s *FileService) SyncToDB(_ *sql.DB) error {
+func (s *FileStorage) SyncToDB(_ *sql.DB) error {
 	return nil
 }
 
-func (s *FileService) GetFileBasePath(
+func (s *FileStorage) GetFileBasePath(
 	ctx context.Context, req *grpc.GetFilePathistFolderRequest) (
 	*grpc.GetFilePathistFolderResponse, error) {
 	// コンテキストを無視
@@ -71,12 +71,12 @@ func (s *FileService) GetFileBasePath(
 	_ = req
 
 	res := grpc.GetFilePathistFolderResponse_builder{}.Build()
-	res.SetPathistFolder(s.PathistFolder)
+	res.SetPathistFolder(s.StoragePath)
 	return res, nil
 }
 
 // GetFiles は指定されたパスのファイル情報一覧を返す
-func (s *FileService) GetFiles(
+func (s *FileStorage) GetFiles(
 	ctx context.Context, req *grpc.GetFilesRequest) (
 	*grpc.GetFilesResponse, error) {
 
@@ -152,19 +152,19 @@ func (s *FileService) GetFiles(
 }
 
 // GetAbsPathFrom BasePathに引数の相対パスを追加した絶対パスを返す
-func (s *FileService) GetAbsPathFrom(relPath string) (res string, err error) {
+func (s *FileStorage) GetAbsPathFrom(relPath string) (res string, err error) {
 	// 絶対パスがある場合はエラーを返す
 	if strings.HasPrefix(relPath, "~/") || filepath.IsAbs(relPath) {
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(s.PathistFolder, relPath)
+	res = filepath.Join(s.StoragePath, relPath)
 
 	return // naked return
 }
 
 // CopyFile はファイルまたはディレクトリをコピーする
-func (s *FileService) CopyFile(relSrc, relDst string) (err error) {
+func (s *FileStorage) CopyFile(relSrc, relDst string) (err error) {
 	var absSrc, absDst string
 
 	// relSrcがパスチェック及び絶対パス変換
@@ -197,7 +197,7 @@ func (s *FileService) CopyFile(relSrc, relDst string) (err error) {
 }
 
 // absCopyFile はファイルをコピーする内部関数
-func (s *FileService) absCopyFile(absSrc, absDst string) (err error) {
+func (s *FileStorage) absCopyFile(absSrc, absDst string) (err error) {
 	// コピー元ファイルを開く
 	srcFile, err := os.Open(absSrc)
 	if err != nil {
@@ -232,7 +232,7 @@ func (s *FileService) absCopyFile(absSrc, absDst string) (err error) {
 }
 
 // absCopyDir はディレクトリを再帰的にコピーする内部関数
-func (s *FileService) absCopyDir(absSrc, absDst string) error {
+func (s *FileStorage) absCopyDir(absSrc, absDst string) error {
 	// コピー元ディレクトリの情報を取得
 	srcInfo, err := os.Stat(absSrc)
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *FileService) absCopyDir(absSrc, absDst string) error {
 }
 
 // MoveFile はファイルを移動する
-func (s *FileService) MoveFile(relSrc, relDst string) error {
+func (s *FileStorage) MoveFile(relSrc, relDst string) error {
 	absSrc, err := s.GetAbsPathFrom(relSrc)
 	if err != nil {
 		return err
@@ -297,7 +297,7 @@ func (s *FileService) MoveFile(relSrc, relDst string) error {
 }
 
 // DeleteFile はファイルを削除する
-func (s *FileService) DeleteFile(relPath string) error {
+func (s *FileStorage) DeleteFile(relPath string) error {
 	absPath, err := s.GetAbsPathFrom(relPath)
 	if err != nil {
 		return err

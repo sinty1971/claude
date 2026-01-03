@@ -13,17 +13,14 @@ func DecideNumWorkers(itemCount int) int {
 		return 0
 	}
 
-	// ワーカーの環境変数を取得
-	cpuMultiplier := WorkerConfiguration["CpuMultiplier"]
-	minWorkers := WorkerConfiguration["MinumWorkers"]
-	maxWorkers := WorkerConfiguration["MaximumWorkers"]
-
 	// CPU数ベースでワーカー数を計算
 	numCPU := runtime.NumCPU()
-	idealWorkers := numCPU * cpuMultiplier
+	idealWorkers := numCPU * Config.CpuMultiplier
 
 	// 最小値と最大値の範囲内に収める
-	numWorkers := max(minWorkers, min(maxWorkers, idealWorkers))
+	numWorkers := max(
+		Config.MinumWorkers,
+		min(Config.MaximumWorkers, idealWorkers))
 
 	// 要素数が少ない場合はワーカー数を調整
 	if itemCount < numWorkers {

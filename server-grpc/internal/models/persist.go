@@ -1,4 +1,4 @@
-package core
+package models
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"server-grpc/internal/core"
 	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -14,16 +15,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Pathist はPathist共通フィールドを提供します。
-type Pathist struct {
+// Persist はPersist共通フィールドを提供します。
+type Persist struct {
 	// pathistableModel はPathistable インターフェイスを満たすモデルです。
 	pathistableModel Pathistable
 
 	// persistFilename は永続化ファイル名を保持します、変更不可です。
 	persistFilename string
 
-	// modelNameId は proto メッセージ名の一意な識別子です、指定及び変更不可です。
-	modelNameId string
+	// protoMessageId は proto メッセージ名の一意な識別子です、指定及び変更不可です。
+	protoMessageId string
 }
 
 // Pathistable は共通フィールドを持つモデルのインターフェースを定義します。
@@ -42,10 +43,10 @@ type Pathistable interface {
 }
 
 // NewPathist は Pathist インスタンスを作成します。
-func NewPathist(model Pathistable, persistFilename string) *Pathist {
+func NewPathist(model Pathistable, persistFilename string) *Persist {
 	// モデルのフルネームから一意なIDを生成
 	fullname := model.GetProtoMessage().ProtoReflect().Descriptor().FullName()
-	id := GenerateIdFromString(string(fullname))
+	id := core.GenerateIdFromString(string(fullname))
 
 	// persistFilename が空文字列の場合はパニックを発生させる
 	filename := strings.TrimSpace(persistFilename)
@@ -54,29 +55,29 @@ func NewPathist(model Pathistable, persistFilename string) *Pathist {
 	}
 
 	// インスタンス作成
-	return &Pathist{
+	return &Persist{
 		pathistableModel: model,
 		persistFilename:  filename,
-		modelNameId:      id,
+		protoMessageId:   id,
 	}
 }
 
-// G GenerateId はメッセージのIdを設定します。
+// GenerateId はメッセージのIdを設定します。
 //
 // インスタンスの PathistFolderフィールドが事前に設定されている必要があります。
-func (p *Pathist) GenerateId() (string, error) {
+func (p *Persist) GenerateId() (string, error) {
 	//
 	if p.pathistableModel.GetPathistFolder() == "" {
 		return "", errors.New("pathist_folder is not set")
 	}
 	// ID 生成用テキストを作成してIDを生成
-	text := p.modelNameId + filepath.Base(p.pathistableModel.GetPathistFolder())
-	return GenerateIdFromString(text), nil
+	text := p.protoMessageId + filepath.Base(p.pathistableModel.GetPathistFolder())
+	return core.GenerateIdFromString(text), nil
 }
 
 // LoadPersists は永続化ファイルから永続化データのみを読み込みます。
 // ファイル形式は YAML です。
-func (p *Pathist) LoadPersists() error {
+func (p *Persist) LoadPersists() error {
 	// YAMLファイルからテキストデータを読み込む
 	yamltext, err := os.ReadFile(p.getPersistPath())
 	if err != nil {
@@ -100,7 +101,7 @@ func (p *Pathist) LoadPersists() error {
 
 // Save はデータを永続化ファイルに保存します。
 // ファイル形式は YAML です。
-func (p *Pathist) SavePersists() error {
+func (p *Persist) SavePersists() error {
 	// JSONマップの取得
 	jsonmap, err := p.GetPersistJsonMap()
 	if err != nil {
@@ -118,19 +119,19 @@ func (p *Pathist) SavePersists() error {
 }
 
 // getPersistPath は永続化ファイルのフルパスを取得します。
-func (p *Pathist) getPersistPath() string {
+func (p *Persist) getPersistPath() string {
 	return filepath.Join(p.pathistableModel.GetPathistFolder(), p.persistFilename)
 }
 
 // ImportPersists は別の Persist インスタンスから persist_ フィールドのみ取り込みます。
-func (p *Pathist) ImportPersists(src *Pathist) error {
+func (p *Persist) ImportPersists(src *Persist) error {
 	// 引数チェック
 	if src == nil {
 		return errors.New("Pathistable src is nil")
 	}
 
 	// モデル名チェック
-	if p.modelNameId != src.modelNameId {
+	if p.protoMessageId != src.protoMessageId {
 		return errors.New("model name mismatch in src Pathistable")
 	}
 
@@ -150,7 +151,7 @@ func (p *Pathist) ImportPersists(src *Pathist) error {
 }
 
 // GetPersistJsonMap は永続化用のフィールド値をJSONマップに変換します
-func (p *Pathist) GetPersistJsonMap() (*map[string]any, error) {
+func (p *Persist) GetPersistJsonMap() (*map[string]any, error) {
 	// camelCase キーで JSON にマーシャル
 	jsonbytes, err := protojson.MarshalOptions{
 		UseProtoNames:     true,
@@ -174,7 +175,7 @@ func (p *Pathist) GetPersistJsonMap() (*map[string]any, error) {
 }
 
 // SetPersistsFrom はJSONマップを永続化用のフィールドに設定します
-func (p *Pathist) SetPersistsFrom(jsonmap *map[string]any) error {
+func (p *Persist) SetPersistsFrom(jsonmap *map[string]any) error {
 
 	// JSONマップをバイトデータに変換
 	bytes, err := json.Marshal(*jsonmap)

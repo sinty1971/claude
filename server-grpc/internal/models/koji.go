@@ -12,11 +12,11 @@ import (
 )
 
 type Koji struct {
+	// 共通モデルフィールド
+	Pathist *Persist
+
 	// Koji メッセージ本体
 	*grpcv1.Koji
-
-	// Common 共通モデルフィールド
-	Pathist *core.Pathist
 }
 
 // NewKoji FolderNameからKojiを作成します（高速化版）
@@ -24,7 +24,7 @@ func NewKoji() *Koji {
 
 	koji := &Koji{}
 	koji.Koji = grpcv1.Koji_builder{}.Build()
-	koji.Pathist = core.NewPathist(koji, core.ServerConfiguration["KojiPersistFilename"])
+	koji.Pathist = NewPathist(koji, core.Config[core.KojiPersistFilename].(string))
 
 	return koji
 }

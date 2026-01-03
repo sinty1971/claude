@@ -15,11 +15,11 @@ import (
 
 // Company は gRPC grpc.v1.Company メッセージの拡張版です。
 type Company struct {
+	// 共通モデルフィールド
+	Pathist *Persist
+
 	// Company メッセージ本体
 	*grpcv1.Company
-
-	// Model Pathist 共通モデル
-	Pathist *core.Pathist
 }
 
 // NewCompany インスタンス作成と初期化を行います
@@ -28,7 +28,7 @@ func NewCompany() *Company {
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
-	company.Pathist = core.NewPathist(company, core.ServerConfiguration["CompanyPersistFilename"])
+	company.Pathist = NewPathist(company, core.Config[core.CompanyPersistFilename].(string))
 
 	return company
 }
