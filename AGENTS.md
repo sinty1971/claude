@@ -6,14 +6,14 @@
 
 ## プロジェクト構成とモジュール
 
-- `server-grpc/` は Connect ベースの gRPC API で、`cmd/grpc/main.go` がエントリポイント、`internal/{models,rpc,services,utils}` にドメインロジックを集約しています。CLI ツールは `cmd/fileclient/` にまとまっています。
-- `frontend/` は React Router v7 + TypeScript 構成です。画面ルートは `app/routes/`、UI コンポーネントは `app/components/`、API 型は `app/api/` に生成され、スタイル共通化は `app/styles/` で管理します。
+- `web-api/` は Connect ベースの gRPC API で、`cmd/server/main.go` がエントリポイント、`internal/{models,rpc,services,utils}` にドメインロジックを集約しています。CLI ツールは `cmd/fileclient/` にまとまっています。
+- `web/` は React Router v7 + TypeScript 構成です。画面ルートは `app/routes/`、UI コンポーネントは `app/components/`、API 型は `app/api/` に生成され、スタイル共通化は `app/styles/` で管理します。
 - `proto/` には gRPC サービス定義があり、バックエンド／フロントエンドのスタブ生成はこれを基に行います。横断的な開発コマンドはリポジトリ直下の `justfile` にまとまっています。
 
 ## ビルド・テスト・開発コマンド
 
-- `just server-grpc` で gRPC サーバー（HTTP/2 over h2c）、`just server-grpc-tls` で TLS 有効のサーバーを起動できます。必要に応じてフラグでポートや証明書を上書きしてください。
-- `just frontend` で開発サーバー、`just frontend-build` で本番ビルド、`just frontend-preview` で生成物の確認ができます。
+- `just api` で gRPC サーバー（HTTP/2 over h2c）、`just api-tls` で TLS 有効のサーバーを起動できます。必要に応じてフラグでポートや証明書を上書きしてください。
+- `just web` で開発サーバー、`just web-build` で本番ビルド、`just web-preview` で生成物の確認ができます。
 - バックエンドテストは `go test ./...`、ベンチマークは `go test -bench . ./...`。gRPC スタブは `just generate-grpc`、フロント向け Connect スタブは `just generate-types`、ルート図は `just generate-routes` で再生成します。
 
 ## コーディングスタイルと命名規則
@@ -38,7 +38,7 @@
 
 - HTTP/2 を使う場合は `just generate-cert` でローカル証明書を再生成し、配布リポジトリにはコミットしないでください。運用環境では実証済みの証明書を `-cert` と `-key` フラグで指定します。
 - バックエンドはデフォルトで `~/penguin` 以下のファイルツリーを参照します。別ディレクトリを使用する場合はサービス初期化ロジックを更新し、アクセス権限とバックアップ方針を事前に決めてください。
-- gRPC サーバーで TLS を使う場合は `just server-grpc-tls` を利用し、運用環境では `-cert` と `-key` フラグで実証済み証明書を指定してください。H2C 利用時でも必ず内部ネットワークでのアクセス制御を行ってください。
+- gRPC サーバーで TLS を使う場合は `just api-tls` を利用し、運用環境では `-cert` と `-key` フラグで実証済み証明書を指定してください。H2C 利用時でも必ず内部ネットワークでのアクセス制御を行ってください。
 
 ##
 

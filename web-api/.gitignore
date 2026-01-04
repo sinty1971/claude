@@ -1,0 +1,46 @@
+# Go build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go cache
+.cache/
+.gocache/
+.gobuild/
+
+# Dependencies
+vendor/
+
+# Generated code
+gen/
+!gen/.gitkeep
+
+# SQLite databases (development)
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Certificates (development)
+*.pem
+*.crt
+*.key
+!*-example.*
+
+# Logs
+*.log
+
+# Environment
+.env.local
+.env.*.local

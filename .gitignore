@@ -1,0 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+*:Zone.Identifier
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build outputs
+dist/
+build/
+out/
+
+# Environment
+.env.local
+.env.*.local
+
+# Certificates (generated)
+*.pem
+*.crt
+*.key
+!*-example.*
+
+# Experiments (optional to track or not)
+# Uncomment if you want to ignore completely
+# _experiments/

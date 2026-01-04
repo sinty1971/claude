@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: server-grpc/gen   # ← Go の import 先プレフィックスを合わせる
+      value: web-api/gen   # ← Go の import 先プレフィックスを合わせる
 plugins:
   # ドキュメント生成プラグインはEditions 2023対応待ち
   # - local: protoc-gen-doc
@@ -11,19 +11,19 @@ plugins:
   #   opt:
   #     - markdown,apis.md:Penguin API ドキュメント
   - remote: buf.build/protocolbuffers/go   # protoc-gen-go 相当
-    out: server-grpc/gen
+    out: web-api/gen
     opt:
       - paths=source_relative
   - remote: buf.build/connectrpc/gosimple  # protoc-gen-connect-go の推奨リモート版
-    out: server-grpc/gen
+    out: web-api/gen
     opt:
       - paths=source_relative
       - simple
   
-  # fe-bun (React Router v7) 向け Connect-ES クライアント生成
+  # web (React Router v7) 向け Connect-ES クライアント生成
   # Editions 2023 対応版 (codegenv2)
   - remote: buf.build/bufbuild/es:v2.9.0
-    out: fe-bun/app/gen
+    out: web/src/gen
     opt:
       - target=ts
 
