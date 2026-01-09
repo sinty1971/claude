@@ -8,27 +8,21 @@ import (
 
 // 環境設定を定義します。
 var Config = struct {
-	FileServiceTarget          string
-	CompanyTargetFolder        string
-	CompanyPersistFilename     string
+	FolderServiceFolder        string
+	CompanyServiceFolder       string
 	CompanyWatcherMaxDepth     int
 	CompanyPollIntervalMillSec int
-	KojiTargetFolder           string
-	KojiPersistFilename        string
-	MemberPersistFilename      string
+	KojiServiceFolder          string
 	PersistDBPath              string
 	MinumWorkers               int
 	MaximumWorkers             int
 	CpuMultiplier              int
 }{
-	FileServiceTarget:          "{ROOT}",
-	CompanyTargetFolder:        "{ROOT}/1 会社",
-	CompanyPersistFilename:     "@company.yaml",
+	FolderServiceFolder:        "{ROOT}",
+	CompanyServiceFolder:       "{ROOT}/1 会社",
 	CompanyWatcherMaxDepth:     2,
 	CompanyPollIntervalMillSec: 3000,
-	KojiTargetFolder:           "{ROOT}/2 工事",
-	KojiPersistFilename:        "@koji.yaml",
-	MemberPersistFilename:      "@member.yaml",
+	KojiServiceFolder:          "{ROOT}/2 工事",
 	PersistDBPath:              "{USERPROFILE}/.persist/@persist.db",
 	MinumWorkers:               2,
 	MaximumWorkers:             16,

@@ -42,7 +42,7 @@ func (srv *CompanyStorage) Start(manager *StorageManager) error {
 	srv.manager = manager
 
 	// パスをの取得と正規化
-	folder, err := core.NormalizeAbsPath(core.Config.CompanyTargetFolder)
+	folder, err := core.NormalizeAbsPath(core.Config.CompanyServiceFolder)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (srv *CompanyStorage) LoadAllCompanies() error {
 
 	// Persist情報の読み込み
 	for _, company := range companies {
-		if err := company.Pathist.LoadPersists(); err != nil {
+		if err := company.Persist.LoadPersists(); err != nil {
 			log.Printf("Failed to load persist info for company ShortName %s: %v", company.GetShortName(), err)
 		}
 	}
@@ -212,7 +212,7 @@ func (srv *CompanyStorage) UpdateNewCompany(prevId string, newCompany *models.Co
 	srv.companies[newCompany.GetId()] = newCompany
 
 	// persist情報の書き込み
-	if err := newCompany.Pathist.SavePersists(); err != nil {
+	if err := newCompany.Persist.SavePersists(); err != nil {
 		log.Printf("Failed to save persist info for company ShortName %s: %v", newCompany.GetShortName(), err)
 	}
 

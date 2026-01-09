@@ -14,7 +14,7 @@ type Member struct {
 	JoinDate     *time.Time `json:"joinDate,omitempty" yaml:"join_date" example:"2020-04-01T00:00:00Z"`
 
 	// 補助ファイルフィールド
-	Assets []File `json:"assets" yaml:"assets"`
+	Assets []Folder `json:"assets" yaml:"assets"`
 }
 
 // PersistFolder は属性ファイルを格納するフォルダーのパスを返します。

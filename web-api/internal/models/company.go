@@ -15,11 +15,11 @@ import (
 
 // Company は gRPC grpc.v1.Company メッセージの拡張版です。
 type Company struct {
-	// 共通モデルフィールド
-	Pathist *Persist
-
 	// Company メッセージ本体
 	*grpcv1.Company
+
+	// ManifestProvider は Manifestデータの永続化設定を管理します
+	*core.ManifestProvider
 }
 
 // NewCompany インスタンス作成と初期化を行います
@@ -28,19 +28,21 @@ func NewCompany() *Company {
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
-	company.Pathist = NewPathist(company, core.Config[core.CompanyPersistFilename].(string))
+	company.ManifestProvider = core.NewManifestProvider(company)
 
 	return company
 }
 
+// GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
+func (m *Company) GetManifestFolder() string {
+	return m.GetFolderPath()
+}
+
 func (m *Company) GetProtoMessage() proto.Message {
-	if m == nil {
-		return nil
-	}
 	return m.Company
 }
 
-// ParseFromTarget は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
+// ParseFrom は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
 // 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
 func (m *Company) ParseFrom(pathistFolder ...string) error {
@@ -84,12 +86,12 @@ func (m *Company) ParseFrom(pathistFolder ...string) error {
 	}
 
 	// Target,Category,ShortNameの設定
-	m.SetPathistFolder(folder)
+	m.SetFolderPath(folder)
 	m.SetCategoryIndex(int32(catIndex))
 	m.SetShortName(shortName)
 
 	// IDの設定、targetの設定が終了した後に実行
-	id, err := m.Pathist.GenerateId()
+	id, err := m.GenerateId()
 	if err != nil {
 		return err
 	}
@@ -97,40 +99,40 @@ func (m *Company) ParseFrom(pathistFolder ...string) error {
 	return nil
 }
 
-// ImportFrom は会社情報を更新します
+// Update は会社情報を更新します
 // 必要に応じて管理フォルダー名の変更も行います
-func (m *Company) ImportFrom(src *Company) error {
+func (m *Company) Update(source *Company) error {
 
 	// 引数チェック
-	if src == nil {
-		return errors.New("src Company is nil")
+	if source == nil {
+		return errors.New("source Company is nil")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	newPathistFolder := GenerateCompanyPathistFolder(
-		filepath.Dir(m.GetPathistFolder()),
-		src.GetCategoryIndex(),
-		src.GetShortName(),
+	newFolderPath := GenerateCompanyPath(
+		filepath.Dir(m.GetFolderPath()),
+		source.GetCategoryIndex(),
+		source.GetShortName(),
 	)
 
 	// ファイル名変更の必要がある場合は管理フォルダー名を更新
-	if newPathistFolder != m.GetPathistFolder() {
+	if newFolderPath != m.GetFolderPath() {
 
 		// フォルダー名変更
-		if err := os.Rename(m.GetPathistFolder(), newPathistFolder); err != nil {
+		if err := os.Rename(m.GetFolderPath(), newFolderPath); err != nil {
 			return err
 		}
 	}
 
 	// Persist情報の更新
-	return m.Pathist.ImportPersists(src.Pathist)
+	return m.ManifestProvider.Update(source.ManifestProvider)
 }
 
-// GenerateCompanyTarget はパラメータをもとに管理フォルダー名変更します
+// GenerateCompanyPath はパラメータをもとに管理フォルダー名変更します
 // base: 基本パス(原則として　O:/.../1 会社 などの親フォルダー)
 // idx: カテゴリーインデックス
 // name: 省略会社名
-func GenerateCompanyPathistFolder(base string, idx int32, name string) string {
+func GenerateCompanyPath(base string, idx int32, name string) string {
 	folderName := strconv.Itoa(int(idx)) + " " + name
 	return filepath.Join(base, folderName)
 }

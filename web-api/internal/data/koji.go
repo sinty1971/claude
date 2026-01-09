@@ -8,8 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"web-api/internal/core"
 	"sync"
+	"web-api/internal/core"
 
 	grpcv1 "web-api/gen/grpc/v1"
 	grpcv1connect "web-api/gen/grpc/v1/grpcv1connect"
@@ -42,7 +42,7 @@ func (s *KojiStorage) Name() string {
 
 func (s *KojiStorage) Start(sm *StorageManager) error {
 	// パスの取得と正規化
-	target, err := core.NormalizeAbsPath(core.Config.KojiTargetFolder)
+	target, err := core.NormalizeAbsPath(core.Config.KojiServiceFolder)
 	if err != nil {
 		return err
 	}

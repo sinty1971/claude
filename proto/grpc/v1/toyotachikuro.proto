@@ -9,28 +9,28 @@ option features.(pb.go).api_level = API_OPAQUE;
 option features.field_presence = IMPLICIT;
 option go_package = "server-grpc/gen/grpc/v1;grpcv1";
 
-// File represents information about a file or directory
-message File {
+// Folder represents information about a directory
+message Folder {
   string id = 1;
-  string pathist_folder = 2;
-  int64 size = 3;
-  google.protobuf.Timestamp modified_time = 4;
+  int64 size = 2;
+  google.protobuf.Timestamp modified_time = 3;
+  string folder_path = 4;
 }
 
 // Company represents a company entity with inside information
 // @persist table name: companies
 message Company {
   string id = 1;
-  string pathist_folder = 2;
-  string short_name = 3;
-  int32 category_index = 4;
-  string persist_long_name = 5;
-  string persist_postal_code = 6;
-  string persist_address = 7;
-  string persist_tel = 8;
-  string persist_fax = 9;
-  string persist_email = 10;
-  string persist_website = 11;
+  string short_name = 2;
+  int32 category_index = 3;
+  string folder_path = 4;
+  string mf_long_name = 5;
+  string mf_postal_code = 6;
+  string mf_address = 7;
+  string mf_tel = 8;
+  string mf_fax = 9;
+  string mf_email = 10;
+  string mf_website = 11;
 }
 
 // CompanyCategory represents a company category with index and label
@@ -44,17 +44,16 @@ message CompanyCategory {
 message Koji {
   string id = 1;
   string status = 2;
-  string pathist_folder = 3;
-  google.protobuf.Timestamp start = 4;
-  string company_name = 5;
-  string location_name = 6;
-  google.protobuf.Timestamp persist_end = 7;
+  google.protobuf.Timestamp start = 3;
+  string company_name = 4;
+  string location_name = 5;
+  string folder_path = 6;
+  google.protobuf.Timestamp mf_end = 7;
 }
 
-// FileService provides operations for file management
-service FileService {
+// FolderService provides operations for folder management
+service FolderService {
   rpc GetFiles(GetFilesRequest) returns (GetFilesResponse);
-  rpc GetFilePathistFolder(GetFilePathistFolderRequest) returns (GetFilePathistFolderResponse);
 }
 
 // CompanyService provides operations for managing companies
@@ -72,19 +71,13 @@ service KojiService {
   rpc UpdateKoji(UpdateKojiRequest) returns (UpdateKojiResponse);
 }
 
-// FileService messages
+// FolderService messages
 message GetFilesRequest {
-  string pathist_folder = 1;
+  string relative_path = 1;
 }
 
 message GetFilesResponse {
-  repeated File files = 1;
-}
-
-message GetFilePathistFolderRequest {}
-
-message GetFilePathistFolderResponse {
-  string pathist_folder = 1;
+  repeated string file_paths = 1;
 }
 
 // CompanyService messages

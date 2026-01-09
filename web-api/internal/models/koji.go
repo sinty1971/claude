@@ -3,17 +3,17 @@ package models
 import (
 	"errors"
 	"path/filepath"
-	grpcv1 "web-api/gen/grpc/v1"
-	"web-api/internal/core"
 	"strings"
 	"time"
+	grpcv1 "web-api/gen/grpc/v1"
+	"web-api/internal/core"
 
 	"google.golang.org/protobuf/proto"
 )
 
 type Koji struct {
-	// 共通モデルフィールド
-	Pathist *Persist
+	// Persist共通モデルフィールド
+	Persist *Persist
 
 	// Koji メッセージ本体
 	*grpcv1.Koji
@@ -24,7 +24,7 @@ func NewKoji() *Koji {
 
 	koji := &Koji{}
 	koji.Koji = grpcv1.Koji_builder{}.Build()
-	koji.Pathist = NewPathist(koji, core.Config[core.KojiPersistFilename].(string))
+	koji.Persist = NewPersist(koji, core.Config.KojiPersistFilename)
 
 	return koji
 }
@@ -68,13 +68,13 @@ func (m *Koji) ParseFrom(pathistFolder string) error {
 		companyName = dateRemoved
 	}
 
-	m.SetPathistFolder(pathistFolder)
+	m.SetPersistFolder(pathistFolder)
 	m.SetStart(start.Timestamp)
 	m.SetCompanyName(companyName)
 	m.SetLocationName(locationName)
 
 	// IDの設定
-	id, err := m.Pathist.GenerateId()
+	id, err := m.Persist.GenerateId(m)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (m *Koji) ImportFrom(src *Koji) (*Koji, error) {
 	}
 
 	// 管理フォルダーは変更しない
-	src.SetPathistFolder(m.GetPathistFolder())
+	src.SetPersistFolder(m.GetPersistFolder())
 
 	// 永続化サービスの設定を引き継ぐ
 	// updatedKoji.PersistFilename = obj.PersistFilename
@@ -153,13 +153,13 @@ func (m *Koji) UpdateFolderPath(src *Koji) bool {
 	builder.WriteByte(' ')
 	builder.WriteString(locationName)
 
-	dir := filepath.Dir(m.GetPathistFolder())
+	dir := filepath.Dir(m.GetPersistFolder())
 	if dir == "." {
 		return false
 	}
-	prevTarget := m.GetPathistFolder()
+	prevTarget := m.GetPersistFolder()
 	target := builder.String()
-	src.SetPathistFolder(filepath.Join(dir, target))
+	src.SetPersistFolder(filepath.Join(dir, target))
 
 	return prevTarget != target
 }

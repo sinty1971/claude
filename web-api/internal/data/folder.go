@@ -21,7 +21,7 @@ import (
 // FileStorage exposes FileStorage operations via Connect handlers.
 type FileStorage struct {
 	// Embed the unimplemented handler for forward compatibility
-	grpcConnect.UnimplementedFileServiceHandler
+	grpcConnect.UnimplementedFolderServiceHandler
 
 	// manager はStorageManagerへの参照
 	manager *StorageManager
@@ -32,18 +32,13 @@ type FileStorage struct {
 
 // Name はサービス名を返します
 func (srv *FileStorage) Name() string {
-	return "FileStorage"
+	return "FolderService"
 }
 
-func (srv *FileStorage) Start(services *StorageManager, options *map[string]string) error {
-	// オプションの取得
-	optTarget, exists := (*options)["FileServiceTarget"]
-	if !exists {
-		return errors.New("FileServiceTarget option is required")
-	}
+func (srv *FileStorage) Start(services *StorageManager) error {
 
 	// パスを正規化
-	target, err := core.NormalizeAbsPath(optTarget)
+	target, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
 	if err != nil {
 		return err
 	}
