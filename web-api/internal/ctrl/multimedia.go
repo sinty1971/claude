@@ -1,4 +1,4 @@
-package data
+package ctrl
 
 // このファイルは将来のMediaDataService実装時の参考例です
 

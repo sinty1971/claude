@@ -1,4 +1,4 @@
-package data
+package ctrl
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"connectrpc.com/connect"
 )
 
-// CompanyStorage の実装
-type CompanyStorage struct {
+// CompanyListManager の実装
+type CompanyListManager struct {
 	// folderPath は会社一覧フォルダーパス
 	folderPath string
 
@@ -31,12 +31,12 @@ type CompanyStorage struct {
 }
 
 // Name はデータサービス名を返します
-func (srv *CompanyStorage) Name() string {
+func (srv *CompanyListManager) Name() string {
 	return "Company"
 }
 
-// Start は CompanyService を初期化して開始します
-func (srv *CompanyStorage) Start(manager *StorageManager) error {
+// Start は CompanyListManager を初期化して開始します
+func (srv *CompanyListManager) Start(manager *StorageManager) error {
 
 	// 既存インスタンスに値をセット（再代入しないこと）
 	srv.manager = manager
@@ -72,14 +72,14 @@ func (srv *CompanyStorage) Start(manager *StorageManager) error {
 	return nil
 }
 
-func (srv *CompanyStorage) Cleanup() {
+func (srv *CompanyListManager) Cleanup() {
 	if srv.watcher != nil {
 		srv.watcher.Close()
 	}
 }
 
 // consumeWatcherEvents はファイルシステム監視イベントを処理します
-func (srv *CompanyStorage) consumeWatcherEvents() {
+func (srv *CompanyListManager) consumeWatcherEvents() {
 	for {
 		select {
 		case event, ok := <-srv.watcher.Events():
@@ -103,7 +103,7 @@ func (srv *CompanyStorage) consumeWatcherEvents() {
 }
 
 // LoadAllCompanies は全ての会社情報をデータベースに取り込みます
-func (srv *CompanyStorage) LoadAllCompanies() error {
+func (srv *CompanyListManager) LoadAllCompanies() error {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.folderPath)
 	if err != nil {
@@ -136,7 +136,7 @@ func (srv *CompanyStorage) LoadAllCompanies() error {
 	return nil
 }
 
-func (srv *CompanyStorage) importToDB() error {
+func (srv *CompanyListManager) importToDB() error {
 	// ストレージマネージャーの確認
 	if srv.manager == nil {
 		return errors.New("storage manager is nil")
@@ -184,7 +184,7 @@ func (srv *CompanyStorage) importToDB() error {
 // UpdateNewCompany は指定 id のキャッシュ情報を新しい会社情報で更新します
 // prevId: 更新対象の会社ID、存在しない場合は追加
 // newCompany: 更新後の会社情報
-func (srv *CompanyStorage) UpdateNewCompany(prevId string, newCompany *models.Company) (*models.Company, error) {
+func (srv *CompanyListManager) UpdateNewCompany(prevId string, newCompany *models.Company) (*models.Company, error) {
 	// Idから更新前の会社情報を取得
 	prevCompany, exist := srv.companies[prevId]
 
@@ -221,7 +221,7 @@ func (srv *CompanyStorage) UpdateNewCompany(prevId string, newCompany *models.Co
 
 // GetCompanies は管理されている会社情報の一覧を取得します
 // gRPCサービスの実装です
-func (srv *CompanyStorage) GetCompanies(
+func (srv *CompanyListManager) GetCompanies(
 	ctx context.Context, req *grpcv1.GetCompaniesRequest) (
 	*grpcv1.GetCompaniesResponse, error) {
 
@@ -248,7 +248,7 @@ func (srv *CompanyStorage) GetCompanies(
 
 // GetCompany は会社IDから会社情報を取得します
 // gRPCサービスの実装です
-func (srv *CompanyStorage) GetCompany(
+func (srv *CompanyListManager) GetCompany(
 	ctx context.Context,
 	req *grpcv1.GetCompanyRequest) (
 	res *grpcv1.GetCompanyResponse,
@@ -278,7 +278,7 @@ func (srv *CompanyStorage) GetCompany(
 // 既存の Id の会社情報を更新します。そのため Id の変更の可能性があります。
 // また、フォルダーの移動も発生する可能性があります。
 // Company.Id 更新対象の会社Id
-func (srv *CompanyStorage) UpdateCompany(
+func (srv *CompanyListManager) UpdateCompany(
 	_ context.Context, req *grpcv1.UpdateCompanyRequest) (
 	*grpcv1.UpdateCompanyResponse, error) {
 
@@ -299,7 +299,7 @@ func (srv *CompanyStorage) UpdateCompany(
 }
 
 // GetCompanyCategories は業種カテゴリーの一覧を取得します
-func (srv *CompanyStorage) GetCompanyCategories(
+func (srv *CompanyListManager) GetCompanyCategories(
 	_ context.Context, _ *grpcv1.GetCompanyCategoriesRequest) (
 	*grpcv1.GetCompanyCategoriesResponse, error) {
 

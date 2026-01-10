@@ -14,7 +14,7 @@ message Folder {
   string id = 1;
   int64 size = 2;
   google.protobuf.Timestamp modified_time = 3;
-  string folder_path = 4;
+  string dir_path = 4;
 }
 
 // Company represents a company entity with inside information
@@ -23,7 +23,7 @@ message Company {
   string id = 1;
   string short_name = 2;
   int32 category_index = 3;
-  string folder_path = 4;
+  string dir_path = 4;
   string mf_long_name = 5;
   string mf_postal_code = 6;
   string mf_address = 7;
@@ -47,13 +47,13 @@ message Koji {
   google.protobuf.Timestamp start = 3;
   string company_name = 4;
   string location_name = 5;
-  string folder_path = 6;
+  string dir_path = 6;
   google.protobuf.Timestamp mf_end = 7;
 }
 
-// FolderService provides operations for folder management
-service FolderService {
-  rpc GetFiles(GetFilesRequest) returns (GetFilesResponse);
+// DirectoryService provides operations for folder management
+service DirectoryService {
+  rpc GetPathList(GetPathListRequest) returns (GetPathListResponse);
 }
 
 // CompanyService provides operations for managing companies
@@ -71,13 +71,13 @@ service KojiService {
   rpc UpdateKoji(UpdateKojiRequest) returns (UpdateKojiResponse);
 }
 
-// FolderService messages
-message GetFilesRequest {
+// DirectoryService messages
+message GetPathListRequest {
   string relative_path = 1;
 }
 
-message GetFilesResponse {
-  repeated string file_paths = 1;
+message GetPathListResponse {
+  repeated string path_list = 1;
 }
 
 // CompanyService messages

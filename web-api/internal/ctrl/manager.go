@@ -1,4 +1,4 @@
-package data
+package ctrl
 
 import (
 	"database/sql"

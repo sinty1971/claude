@@ -1,4 +1,4 @@
-package data
+package ctrl
 
 import (
 	"context"
@@ -16,26 +16,26 @@ import (
 	"web-api/internal/models"
 )
 
-// FileStorage の実装
+// FolderManager の実装
 
-// FileStorage exposes FileStorage operations via Connect handlers.
-type FileStorage struct {
+// DirectoryManager exposes DirectoryManager operations via Connect handlers.
+type DirectoryManager struct {
 	// Embed the unimplemented handler for forward compatibility
 	grpcConnect.UnimplementedFolderServiceHandler
 
 	// manager はStorageManagerへの参照
 	manager *StorageManager
 
-	// StoragePath はファイルサービスの絶対パスフォルダー
-	StoragePath string `json:"storagePath" yaml:"storage_path" example:"/penguin/豊田築炉"`
+	// DirPath はファイルサービスの絶対パスフォルダー
+	DirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
 }
 
 // Name はサービス名を返します
-func (srv *FileStorage) Name() string {
-	return "FolderService"
+func (srv *DirectoryManager) Name() string {
+	return "DirectoryService"
 }
 
-func (srv *FileStorage) Start(services *StorageManager) error {
+func (srv *DirectoryManager) Start(services *StorageManager) error {
 
 	// パスを正規化
 	target, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
@@ -44,34 +44,22 @@ func (srv *FileStorage) Start(services *StorageManager) error {
 	}
 
 	srv.manager = services
-	srv.StoragePath = target
+	srv.DirPath = target
 
 	return nil
 }
 
-func (s *FileStorage) Cleanup() {
+func (s *DirectoryManager) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
 // SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
-func (s *FileStorage) SyncToDB(_ *sql.DB) error {
+func (s *DirectoryManager) SyncToDB(_ *sql.DB) error {
 	return nil
 }
 
-func (s *FileStorage) GetFileBasePath(
-	ctx context.Context, req *grpc.GetFilePathistFolderRequest) (
-	*grpc.GetFilePathistFolderResponse, error) {
-	// コンテキストを無視
-	_ = ctx
-	_ = req
-
-	res := grpc.GetFilePathistFolderResponse_builder{}.Build()
-	res.SetPathistFolder(s.StoragePath)
-	return res, nil
-}
-
 // GetFiles は指定されたパスのファイル情報一覧を返す
-func (s *FileStorage) GetFiles(
+func (s *DirectoryManager) GetFiles(
 	ctx context.Context, req *grpc.GetFilesRequest) (
 	*grpc.GetFilesResponse, error) {
 
@@ -147,19 +135,19 @@ func (s *FileStorage) GetFiles(
 }
 
 // GetAbsPathFrom BasePathに引数の相対パスを追加した絶対パスを返す
-func (s *FileStorage) GetAbsPathFrom(relPath string) (res string, err error) {
+func (s *DirectoryManager) GetAbsPathFrom(relPath string) (res string, err error) {
 	// 絶対パスがある場合はエラーを返す
 	if strings.HasPrefix(relPath, "~/") || filepath.IsAbs(relPath) {
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(s.StoragePath, relPath)
+	res = filepath.Join(s.DirPath, relPath)
 
 	return // naked return
 }
 
 // CopyFile はファイルまたはディレクトリをコピーする
-func (s *FileStorage) CopyFile(relSrc, relDst string) (err error) {
+func (s *DirectoryManager) CopyFile(relSrc, relDst string) (err error) {
 	var absSrc, absDst string
 
 	// relSrcがパスチェック及び絶対パス変換
@@ -192,7 +180,7 @@ func (s *FileStorage) CopyFile(relSrc, relDst string) (err error) {
 }
 
 // absCopyFile はファイルをコピーする内部関数
-func (s *FileStorage) absCopyFile(absSrc, absDst string) (err error) {
+func (s *DirectoryManager) absCopyFile(absSrc, absDst string) (err error) {
 	// コピー元ファイルを開く
 	srcFile, err := os.Open(absSrc)
 	if err != nil {
@@ -227,7 +215,7 @@ func (s *FileStorage) absCopyFile(absSrc, absDst string) (err error) {
 }
 
 // absCopyDir はディレクトリを再帰的にコピーする内部関数
-func (s *FileStorage) absCopyDir(absSrc, absDst string) error {
+func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
 	// コピー元ディレクトリの情報を取得
 	srcInfo, err := os.Stat(absSrc)
 	if err != nil {
@@ -267,7 +255,7 @@ func (s *FileStorage) absCopyDir(absSrc, absDst string) error {
 }
 
 // MoveFile はファイルを移動する
-func (s *FileStorage) MoveFile(relSrc, relDst string) error {
+func (s *DirectoryManager) MoveFile(relSrc, relDst string) error {
 	absSrc, err := s.GetAbsPathFrom(relSrc)
 	if err != nil {
 		return err
@@ -292,7 +280,7 @@ func (s *FileStorage) MoveFile(relSrc, relDst string) error {
 }
 
 // DeleteFile はファイルを削除する
-func (s *FileStorage) DeleteFile(relPath string) error {
+func (s *DirectoryManager) DeleteFile(relPath string) error {
 	absPath, err := s.GetAbsPathFrom(relPath)
 	if err != nil {
 		return err
