@@ -1,4 +1,4 @@
-package ctrl
+package services
 
 import (
 	"context"
@@ -18,24 +18,24 @@ import (
 
 // FolderManager の実装
 
-// DirectoryManager exposes DirectoryManager operations via Connect handlers.
-type DirectoryManager struct {
+// DirectoryService exposes DirectoryService operations via Connect handlers.
+type DirectoryService struct {
 	// Embed the unimplemented handler for forward compatibility
-	grpcConnect.UnimplementedFolderServiceHandler
+	grpcConnect.UnimplementedDirectoryServiceHandler
 
 	// manager はStorageManagerへの参照
-	manager *StorageManager
+	manager *ServiceContainer
 
-	// DirPath はファイルサービスの絶対パスフォルダー
-	DirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
+	// dirPath はファイルサービスの絶対パスフォルダー
+	dirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
 }
 
 // Name はサービス名を返します
-func (srv *DirectoryManager) Name() string {
+func (srv *DirectoryService) Name() string {
 	return "DirectoryService"
 }
 
-func (srv *DirectoryManager) Start(services *StorageManager) error {
+func (srv *DirectoryService) Start(services *ServiceContainer) error {
 
 	// パスを正規化
 	target, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
@@ -44,22 +44,22 @@ func (srv *DirectoryManager) Start(services *StorageManager) error {
 	}
 
 	srv.manager = services
-	srv.DirPath = target
+	srv.dirPath = target
 
 	return nil
 }
 
-func (s *DirectoryManager) Cleanup() {
+func (s *DirectoryService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
 // SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
-func (s *DirectoryManager) SyncToDB(_ *sql.DB) error {
+func (s *DirectoryService) SyncToDB(_ *sql.DB) error {
 	return nil
 }
 
 // GetFiles は指定されたパスのファイル情報一覧を返す
-func (s *DirectoryManager) GetFiles(
+func (s *DirectoryService) GetFiles(
 	ctx context.Context, req *grpc.GetFilesRequest) (
 	*grpc.GetFilesResponse, error) {
 
@@ -135,19 +135,19 @@ func (s *DirectoryManager) GetFiles(
 }
 
 // GetAbsPathFrom BasePathに引数の相対パスを追加した絶対パスを返す
-func (s *DirectoryManager) GetAbsPathFrom(relPath string) (res string, err error) {
+func (s *DirectoryService) GetAbsPathFrom(relPath string) (res string, err error) {
 	// 絶対パスがある場合はエラーを返す
 	if strings.HasPrefix(relPath, "~/") || filepath.IsAbs(relPath) {
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(s.DirPath, relPath)
+	res = filepath.Join(s.dirPath, relPath)
 
 	return // naked return
 }
 
 // CopyFile はファイルまたはディレクトリをコピーする
-func (s *DirectoryManager) CopyFile(relSrc, relDst string) (err error) {
+func (s *DirectoryService) CopyFile(relSrc, relDst string) (err error) {
 	var absSrc, absDst string
 
 	// relSrcがパスチェック及び絶対パス変換
@@ -180,7 +180,7 @@ func (s *DirectoryManager) CopyFile(relSrc, relDst string) (err error) {
 }
 
 // absCopyFile はファイルをコピーする内部関数
-func (s *DirectoryManager) absCopyFile(absSrc, absDst string) (err error) {
+func (s *DirectoryService) absCopyFile(absSrc, absDst string) (err error) {
 	// コピー元ファイルを開く
 	srcFile, err := os.Open(absSrc)
 	if err != nil {
@@ -215,7 +215,7 @@ func (s *DirectoryManager) absCopyFile(absSrc, absDst string) (err error) {
 }
 
 // absCopyDir はディレクトリを再帰的にコピーする内部関数
-func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
+func (s *DirectoryService) absCopyDir(absSrc, absDst string) error {
 	// コピー元ディレクトリの情報を取得
 	srcInfo, err := os.Stat(absSrc)
 	if err != nil {
@@ -255,7 +255,7 @@ func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
 }
 
 // MoveFile はファイルを移動する
-func (s *DirectoryManager) MoveFile(relSrc, relDst string) error {
+func (s *DirectoryService) MoveFile(relSrc, relDst string) error {
 	absSrc, err := s.GetAbsPathFrom(relSrc)
 	if err != nil {
 		return err
@@ -280,7 +280,7 @@ func (s *DirectoryManager) MoveFile(relSrc, relDst string) error {
 }
 
 // DeleteFile はファイルを削除する
-func (s *DirectoryManager) DeleteFile(relPath string) error {
+func (s *DirectoryService) DeleteFile(relPath string) error {
 	absPath, err := s.GetAbsPathFrom(relPath)
 	if err != nil {
 		return err

@@ -18,7 +18,7 @@ message Folder {
 }
 
 // Company represents a company entity with inside information
-// @persist table name: companies
+// @manifest table name: companies
 message Company {
   string id = 1;
   string short_name = 2;
@@ -40,7 +40,7 @@ message CompanyCategory {
 }
 
 // Koji represents a construction project with inside information
-// @persist table name: kojies
+// @manifest table name: kojies
 message Koji {
   string id = 1;
   string status = 2;

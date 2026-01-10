@@ -21,7 +21,7 @@ import (
 	"web-api/gen/grpc/v1/grpcv1connect"
 
 	"web-api/internal/core"
-	"web-api/internal/ctrl"
+	"web-api/internal/services"
 
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
@@ -59,13 +59,13 @@ func main() {
 	flag.Parse()
 
 	// サービスコレクションの初期化
-	srvCollection := ctrl.NewStorageManager()
+	srvCollection := services.NewStorageManager()
 	defer srvCollection.CleanupAll()
 
 	// 各サービスの初期化
-	fileService := &ctrl.DirectoryManager{}
-	companyService := &ctrl.CompanyListManager{}
-	kojiService := &ctrl.KojiStorage{}
+	fileService := &services.DirectoryService{}
+	companyService := &services.CompanyService{}
+	kojiService := &services.KojiService{}
 
 	// サービスをサービスコレクションに追加
 	srvCollection.AddStorager(fileService)

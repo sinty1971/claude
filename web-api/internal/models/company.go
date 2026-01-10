@@ -35,27 +35,35 @@ func NewCompany() *Company {
 
 // GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
 func (m *Company) GetManifestFolder() string {
-	return m.GetFolderPath()
+	return m.GetDirPath()
 }
 
 func (m *Company) GetProtoMessage() proto.Message {
 	return m.Company
 }
 
+// GetId は会社の一意なIDを生成します
+// IDは会社フォルダー名から生成されます
+func (m *Company) GenerateId() string {
+
+	text := filepath.Base(m.GetDirPath())
+	return core.GenerateIdFromString(text)
+}
+
 // ParseFrom は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
 // 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
-func (m *Company) ParseFrom(pathistFolder ...string) error {
+func (m *Company) ParseFrom(paths ...string) error {
 
 	// パスを結合
-	folder := filepath.Join(pathistFolder...)
+	dirPath := filepath.Join(paths...)
 
 	// 引数 target からフォルダー名取得とチェック
 	// "[0-9] [会社名]"の解析
-	folderName := filepath.Base(folder)
-	if len(folderName) < 3 {
+	dirName := filepath.Base(dirPath)
+	if len(dirName) < 3 {
 		return errors.New("targetのファイル名形式が無効です（長さが短い）")
-	} else if folderName[1] != ' ' {
+	} else if dirName[1] != ' ' {
 		// 2番目の文字がスペースかチェック
 		return errors.New("targetaのファイル名形式が無効です")
 	}
@@ -64,7 +72,7 @@ func (m *Company) ParseFrom(pathistFolder ...string) error {
 	var catIndex int
 	var err error
 
-	if catIndex, err = strconv.Atoi(string(folderName[0])); err != nil {
+	if catIndex, err = strconv.Atoi(string(dirName[0])); err != nil {
 		return err
 	}
 	if err := ErrorCompanyCategoryIndex(catIndex); err != nil {
@@ -72,7 +80,7 @@ func (m *Company) ParseFrom(pathistFolder ...string) error {
 	}
 
 	// 会社フォルダー名の解析
-	nameParts := strings.Split(folderName[2:], " ")
+	nameParts := strings.Split(dirName[2:], " ")
 	if len(nameParts) == 0 || nameParts[0] == "" {
 		return errors.New("会社名が取得できません")
 	}
@@ -86,16 +94,12 @@ func (m *Company) ParseFrom(pathistFolder ...string) error {
 	}
 
 	// Target,Category,ShortNameの設定
-	m.SetFolderPath(folder)
+	m.SetDirPath(dirPath)
 	m.SetCategoryIndex(int32(catIndex))
 	m.SetShortName(shortName)
 
 	// IDの設定、targetの設定が終了した後に実行
-	id, err := m.GenerateId()
-	if err != nil {
-		return err
-	}
-	m.SetId(id)
+	m.SetId(m.GenerateId())
 	return nil
 }
 
@@ -109,17 +113,17 @@ func (m *Company) Update(source *Company) error {
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	newFolderPath := GenerateCompanyPath(
-		filepath.Dir(m.GetFolderPath()),
+	newDirPath := GenerateCompanyDirPath(
+		filepath.Dir(m.GetDirPath()),
 		source.GetCategoryIndex(),
 		source.GetShortName(),
 	)
 
 	// ファイル名変更の必要がある場合は管理フォルダー名を更新
-	if newFolderPath != m.GetFolderPath() {
+	if newDirPath != m.GetDirPath() {
 
 		// フォルダー名変更
-		if err := os.Rename(m.GetFolderPath(), newFolderPath); err != nil {
+		if err := os.Rename(m.GetDirPath(), newDirPath); err != nil {
 			return err
 		}
 	}
@@ -128,11 +132,11 @@ func (m *Company) Update(source *Company) error {
 	return m.ManifestProvider.Update(source.ManifestProvider)
 }
 
-// GenerateCompanyPath はパラメータをもとに管理フォルダー名変更します
-// base: 基本パス(原則として　O:/.../1 会社 などの親フォルダー)
+// GenerateCompanyDirPath はパラメータをもとに管理フォルダー名変更します
+// parentPath: 基本パス(原則として　O:/.../1 会社 などの親ディレクトリパス)
 // idx: カテゴリーインデックス
 // name: 省略会社名
-func GenerateCompanyPath(base string, idx int32, name string) string {
-	folderName := strconv.Itoa(int(idx)) + " " + name
-	return filepath.Join(base, folderName)
+func GenerateCompanyDirPath(parentPath string, idx int32, name string) string {
+	DirName := strconv.Itoa(int(idx)) + " " + name
+	return filepath.Join(parentPath, DirName)
 }

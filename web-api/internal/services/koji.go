@@ -1,4 +1,4 @@
-package ctrl
+package services
 
 import (
 	"context"
@@ -20,27 +20,27 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// KojiStorage bridges existing KojiStorage logic to Connect handlers.
-type KojiStorage struct {
+// KojiService bridges existing KojiService logic to Connect handlers.
+type KojiService struct {
 	// Embed the unimplemented handler for forward compatibility
 	grpcv1connect.UnimplementedKojiServiceHandler
 
 	// manager は任意のgrpcサービスハンドラーへの参照
-	manager *StorageManager
+	manager *ServiceContainer
 
-	// folderPath はこのサービスが管理する工事データのルートフォルダー
-	folderPath string
+	// dirPath はこのサービスが管理する工事データのルートフォルダー
+	dirPath string
 
 	// watcher は target のファイルシステム監視オブジェクト
 	watcher *fsnotify.Watcher
 }
 
 // Name はサービス名を返します
-func (s *KojiStorage) Name() string {
+func (s *KojiService) Name() string {
 	return "KojiService"
 }
 
-func (s *KojiStorage) Start(sm *StorageManager) error {
+func (s *KojiService) Start(sm *ServiceContainer) error {
 	// パスの取得と正規化
 	target, err := core.NormalizeAbsPath(core.Config.KojiServiceFolder)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s *KojiStorage) Start(sm *StorageManager) error {
 
 	// 情報の初期化
 	s.manager = sm
-	s.folderPath = target
+	s.dirPath = target
 
 	// kojiesByIdの情報を取得
 	if err = s.UpdateKojies(); err != nil {
@@ -64,19 +64,19 @@ func (s *KojiStorage) Start(sm *StorageManager) error {
 	return nil
 }
 
-func (s *KojiStorage) Cleanup() {
+func (s *KojiService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
 // SyncToDB は工事データを SQLite に同期する。
-func (s *KojiStorage) SyncToDB(db *sql.DB) error {
+func (s *KojiService) SyncToDB(db *sql.DB) error {
 	return s.persistKojies(db)
 }
 
 // watchTarget starts watching the provided target for changes.
 // Add callbacks or channels as needed to propagate events to your services.
-func (s *KojiStorage) watchTarget() error {
-	absPath, err := filepath.Abs(s.folderPath)
+func (s *KojiService) watchTarget() error {
+	absPath, err := filepath.Abs(s.dirPath)
 	if err != nil {
 		return err
 	}
@@ -120,9 +120,9 @@ func (s *KojiStorage) watchTarget() error {
 	return nil
 }
 
-func (s *KojiStorage) UpdateKojies() error {
+func (s *KojiService) UpdateKojies() error {
 	// ファイルシステムから工事フォルダー一覧を取得
-	entries, err := os.ReadDir(s.folderPath)
+	entries, err := os.ReadDir(s.dirPath)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (s *KojiStorage) UpdateKojies() error {
 		go func() {
 			defer wg.Done()
 			for idx := range jobs {
-				folder := path.Join(s.folderPath, entries[idx].Name())
+				folder := path.Join(s.dirPath, entries[idx].Name())
 				koji := models.NewKoji()
 				if err := koji.ParseFrom(folder); err == nil {
 					results <- koji
@@ -183,7 +183,7 @@ func (s *KojiStorage) UpdateKojies() error {
 }
 
 // GetKojies は管理されている工事データ一覧を返す
-func (s *KojiStorage) GetKojies(
+func (s *KojiService) GetKojies(
 	ctx context.Context,
 	req *grpcv1.GetKojiesRequest) (
 	res *grpcv1.GetKojiesResponse,
@@ -201,7 +201,7 @@ func (s *KojiStorage) GetKojies(
 }
 
 // GetKojiById は指定されたIDの工事データを返す
-func (s *KojiStorage) GetKojiById(
+func (s *KojiService) GetKojiById(
 	ctx context.Context,
 	req *grpcv1.GetKojiRequest) (
 	res *grpcv1.GetKojiResponse,
@@ -223,7 +223,7 @@ func (s *KojiStorage) GetKojiById(
 	return
 }
 
-func (s *KojiStorage) UpdateKoji(
+func (s *KojiService) UpdateKoji(
 	_ context.Context, req *grpcv1.UpdateKojiRequest) (
 	*grpcv1.UpdateKojiResponse, error) {
 
@@ -261,7 +261,7 @@ func (s *KojiStorage) UpdateKoji(
 	return res, nil
 }
 
-func (s *KojiStorage) persistKojies(db *sql.DB) error {
+func (s *KojiService) persistKojies(db *sql.DB) error {
 	if db == nil {
 		return errors.New("koji persist db is nil")
 	}

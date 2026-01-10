@@ -35,6 +35,9 @@ type Manifestable interface {
 
 	// GetProtoMessage はモデルの protobuf メッセージを取得します。
 	GetProtoMessage() proto.Message
+
+	// GetId はモデルの一意なIDを取得します。
+	GenerateId() string
 }
 
 // NewManifestProvider は ManifestProvider のインスタンスを作成します。
@@ -43,17 +46,6 @@ func NewManifestProvider(target Manifestable) *ManifestProvider {
 	return &ManifestProvider{
 		Manifestable: target,
 	}
-}
-
-// GenerateId はモデルインスタンスの一意なID生成を提供します
-func (p *ManifestProvider) GenerateId() (string, error) {
-	if p.GetManifestFolder() == "" {
-		return "", errors.New("manifest folder is not set")
-	}
-	// ID 生成用テキストを作成してIDを生成
-
-	text := p.GetMessageFullName() + p.GetManifestFolder()
-	return GenerateIdFromString(text), nil
 }
 
 // GetMessageFullName はモデルの protobuf メッセージの完全修飾名を取得します。

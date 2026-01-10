@@ -1,4 +1,4 @@
-package ctrl
+package services
 
 import (
 	"database/sql"
@@ -11,36 +11,36 @@ import (
 	"web-api/internal/core"
 )
 
-// StorageManager はデータストレージサービスを管理します。
-type StorageManager struct {
-	PersisterMap map[string]*Storager
-	db           *sql.DB
-	migrations   []string
+// ServiceContainer はデータストレージサービスを管理します。
+type ServiceContainer struct {
+	db         *sql.DB
+	migrations []string
+	Services   map[string]*Service
 }
 
-// NewStorageManager は StorageManager の新しいインスタンスを作成します。
-func NewStorageManager() *StorageManager {
-	srv := &StorageManager{}
-	srv.PersisterMap = make(map[string]*Storager)
+// NewServiceContainer は ServiceContainer の新しいインスタンスを作成します。
+func NewServiceContainer() *ServiceContainer {
+	srv := &ServiceContainer{}
+	srv.Services = make(map[string]*Service)
 	srv.migrations = grpcv1migration.DefaultMigrations()
 	return srv
 }
 
-// Storager はファイルシステムとデータベースを橋渡しするインターフェースを定義します。
-type Storager interface {
+// Service はファイルシステムとデータベースを橋渡しするインターフェースを定義します。
+type Service interface {
 	Name() string
-	Start(*StorageManager) error
+	Start(*ServiceContainer) error
 	SyncToDB(*sql.DB) error
 	Cleanup()
 }
 
-// AddStorager はサービスを追加する
-func (sm *StorageManager) AddStorager(storager Storager) {
-	sm.PersisterMap[storager.Name()] = &storager
+// AddService はサービスを追加する
+func (sm *ServiceContainer) AddService(service Service) {
+	sm.Services[service.Name()] = &service
 }
 
 // Start はすべてのサービスを起動する
-func (sm *StorageManager) Start() error {
+func (sm *ServiceContainer) Start() error {
 	// データベース接続
 	if err := sm.openDB(); err != nil {
 		return err
@@ -48,7 +48,7 @@ func (sm *StorageManager) Start() error {
 	if err := sm.applyMigrations(); err != nil {
 		return err
 	}
-	for _, p := range sm.PersisterMap {
+	for _, p := range sm.Services {
 		if err := (*p).Start(sm); err != nil {
 			return err
 		}
@@ -60,8 +60,8 @@ func (sm *StorageManager) Start() error {
 }
 
 // CleanupAll はサービスをクリーンアップする
-func (sm *StorageManager) CleanupAll() {
-	for _, srv := range sm.PersisterMap {
+func (sm *ServiceContainer) CleanupAll() {
+	for _, srv := range sm.Services {
 		(*srv).Cleanup()
 	}
 	if sm.db != nil {
@@ -70,7 +70,7 @@ func (sm *StorageManager) CleanupAll() {
 }
 
 // openDB はデータベース接続を開く
-func (sm *StorageManager) openDB() error {
+func (sm *ServiceContainer) openDB() error {
 	if sm.db != nil {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (sm *StorageManager) openDB() error {
 	return nil
 }
 
-func (sm *StorageManager) applyMigrations() error {
+func (sm *ServiceContainer) applyMigrations() error {
 	if len(sm.migrations) == 0 {
 		return nil
 	}
@@ -99,6 +99,6 @@ func (sm *StorageManager) applyMigrations() error {
 	return nil
 }
 
-func (sm *StorageManager) DB() *sql.DB {
+func (sm *ServiceContainer) DB() *sql.DB {
 	return sm.db
 }

@@ -12,7 +12,7 @@ import (
 
 var (
 	messageStartRE     = regexp.MustCompile(`\bmessage\s+([A-Za-z0-9_]+)\s*\{`)
-	tableNameCommentRE = regexp.MustCompile(`//\s*@persist\s+table\s+name:\s*([A-Za-z0-9_]+)`)
+	tableNameCommentRE = regexp.MustCompile(`//\s*@manifest\s+table\s+name:\s*([A-Za-z0-9_]+)`)
 	packageNameRE      = regexp.MustCompile(`^package\s+([A-Za-z0-9_.]+)\s*;`)
 	fieldNameRE        = regexp.MustCompile(`^\s*((?:repeated\s+)?[\w.<>,]+)\s+([A-Za-z0-9_]+)\s*=`)
 )
@@ -110,7 +110,7 @@ func generateGoFile(matches []MessageMatch, packageName string) string {
 	lines = append(lines, "")
 	lines = append(lines, fmt.Sprintf("package %s", packageName))
 	lines = append(lines, "")
-	lines = append(lines, "// DefaultMigrations returns SQL migration statements for persist tables.")
+	lines = append(lines, "// DefaultMigrations returns SQL migration statements for manifest tables.")
 	lines = append(lines, "func DefaultMigrations() []string {")
 	lines = append(lines, "\treturn []string{")
 
@@ -150,7 +150,7 @@ type MessageMatch struct {
 	TableName string
 }
 
-// parseMessages は proto ファイルから persist_ フィールドを含むメッセージを解析します
+// parseMessages は proto ファイルから mf_ フィールドを含むメッセージを解析します
 func parseMessages(lines []string) []MessageMatch {
 	var stack []*MessageBlock
 	var matches []MessageMatch
@@ -186,7 +186,7 @@ func parseMessages(lines []string) []MessageMatch {
 		if match := fieldNameRE.FindStringSubmatch(line); match != nil {
 			fieldType := match[1]
 			fieldName := match[2]
-			if strings.HasPrefix(fieldName, "persist_") {
+			if strings.HasPrefix(fieldName, "mf_") {
 				block.Fields = append(block.Fields, FieldInfo{
 					Name: fieldName,
 					Type: fieldType,
@@ -245,7 +245,7 @@ func main() {
 	matches := parseMessages(lines)
 
 	if len(matches) == 0 {
-		fmt.Println("persist_ フィールドを持つメッセージは見つかりませんでした。")
+		fmt.Println("manifest_ フィールドを持つメッセージは見つかりませんでした。")
 		return
 	}
 
@@ -280,7 +280,7 @@ func main() {
 		fmt.Printf("Package: %s\n", packageName)
 	} else {
 		// 標準出力に表示
-		fmt.Printf("%s で persist_ フィールドを含むメッセージ: %d 件\n\n", *protoPath, len(matches))
+		fmt.Printf("%s で manifest_ フィールドを含むメッセージ: %d 件\n\n", *protoPath, len(matches))
 
 		for _, match := range matches {
 			sql := generateCreateTableSQL(match.Name, match.TableName, match.Fields)
