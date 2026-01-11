@@ -2,7 +2,7 @@ package models
 
 import (
 	"errors"
-	"path/filepath"
+	"os"
 	"strings"
 	"time"
 	grpcv1 "web-api/gen/grpc/v1"
@@ -12,11 +12,11 @@ import (
 )
 
 type Koji struct {
-	// Persist共通モデルフィールド
-	Persist *Persist
-
 	// Koji メッセージ本体
 	*grpcv1.Koji
+
+	// Persist共通モデルフィールド
+	Manifest *core.ManifestProvider
 }
 
 // NewKoji FolderNameからKojiを作成します（高速化版）
@@ -24,61 +24,63 @@ func NewKoji() *Koji {
 
 	koji := &Koji{}
 	koji.Koji = grpcv1.Koji_builder{}.Build()
-	koji.Persist = NewPersist(koji, core.Config.KojiPersistFilename)
+	koji.Manifest = core.NewManifestProvider(koji)
 
 	return koji
 }
 
-func (m *Koji) GetProtoMessage() proto.Message {
+// GetManifestDirectory は Manifest ファイルを保存先フルパスを取得します
+// Manifestable インターフェースの実装
+func (m *Koji) GetManifestDirectory() string {
+	return m.GetDirPath()
+}
+
+// GetManifestMessage は Koji の protobuf メッセージを取得します
+// Manifestable インターフェースの実装
+func (m *Koji) GetManifestMessage() proto.Message {
 	if m == nil {
 		return nil
 	}
 	return m.Koji
 }
 
-// ParseFrom は target から工事開始日・会社名・現場名を取得
-func (m *Koji) ParseFrom(pathistFolder string) error {
-
-	var (
-		start        = new(Timestamp)
-		companyName  string
-		locationName string
-	)
+// ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
+func (m *Koji) ParseFromDirPath(dirPath string) error {
 
 	// フォルダー名を取得
-	foldername := core.GetBaseName(pathistFolder)
+	dirName := core.GetBaseName(dirPath)
 
 	// ファイル名から工事開始日の取得と日付除外文字列の取得
-	dateRemoved, err := ParseTimestamp(foldername, start)
-	if err != nil {
-		return err
+	start := new(Timestamp)
+	dirNameRemovedDate, err := ParseTimestamp(dirName, start)
+	if err != nil || dirNameRemovedDate == "" {
+		return errors.New("工事フォルダー名から工事開始日が取得できません error: " + err.Error())
 	}
 
-	if dateRemoved == "" {
-		return errors.New("フォルダー名が工事フォルダーの書式に合致していません")
-	}
+	// 会社名と現場名の取得
+	var companyName string
+	var locationName string
 
 	// 最初のスペースで分割（最適化）
-	if idx := strings.Index(dateRemoved, " "); idx > 0 {
-		companyName = dateRemoved[:idx]
-		if idx+1 < len(dateRemoved) {
-			locationName = dateRemoved[idx+1:]
+	if idx := strings.Index(dirNameRemovedDate, " "); idx > 0 {
+		companyName = dirNameRemovedDate[:idx]
+		if idx+1 < len(dirNameRemovedDate) {
+			locationName = dirNameRemovedDate[idx+1:]
 		}
 	} else {
-		companyName = dateRemoved
+		return errors.New("工事フォルダー名から会社名及び現場名が得できません")
 	}
 
-	m.SetPersistFolder(pathistFolder)
+	// IDの生成
+	id := core.GenerateIdFromString(dirName)
+
+	// 各フィールドの設定
+	m.SetId(id)
+	m.SetDirPath(dirPath)
 	m.SetStart(start.Timestamp)
 	m.SetCompanyName(companyName)
 	m.SetLocationName(locationName)
 
-	// IDの設定
-	id, err := m.Persist.GenerateId(m)
-	if err != nil {
-		return err
-	}
-	m.SetId(id)
 	return nil
 }
 
@@ -101,65 +103,68 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 	}
 }
 
-func (m *Koji) ImportFrom(src *Koji) (*Koji, error) {
-	if m == nil || src == nil {
-		return nil, errors.New("koji or updatedKoji is nil")
+func (m *Koji) Update(src *Koji) error {
+	// 引数チェック
+	if src == nil {
+		return errors.New("更新情報 source の値が nil です")
 	}
 
-	// 管理フォルダーは変更しない
-	src.SetPersistFolder(m.GetPersistFolder())
+	// 新しいパラメータを元に管理フォルダーパスを生成
+	srcStart := Timestamp{Timestamp: src.GetStart()}
+	newDirPath, err := m.GenerateDirPath(
+		srcStart,
+		src.GetCompanyName(),
+		src.GetLocationName())
+	if err != nil {
+		return err
+	}
 
-	// 永続化サービスの設定を引き継ぐ
-	// updatedKoji.PersistFilename = obj.PersistFilename
+	// フォルダー名変更が必要な場合
+	if m.GetDirPath() != newDirPath {
+		err := os.Rename(m.GetDirPath(), newDirPath)
+		if err != nil {
+			return err
+		}
 
-	return src, nil
+		// マニフェスト以外の情報を更新
+		m.SetDirPath(newDirPath)
+		m.SetStart(src.GetStart())
+		m.SetCompanyName(src.GetCompanyName())
+		m.SetLocationName(src.GetLocationName())
+		m.GenerateId()
+
+	}
+
+	// Persist情報の更新
+	return m.Manifest.Update(src.Manifest)
 }
 
-// UpdateFolderPath は工事フォルダー名を更新します
-//
-// # Id 及び Target の情報は無視されます
-//
-// TODO: 不完全です、実際にはまだ更新処理していません
-func (m *Koji) UpdateFolderPath(src *Koji) bool {
-	if src == nil {
-		return false
-	}
+func (m *Koji) GenerateId() string {
+	dirName := core.GetBaseName(m.GetDirPath())
+	id := core.GenerateIdFromString(dirName)
+	m.SetId(id)
+	return id
+}
 
-	// 開始日が無効な場合の早期リターン
-	start := &Timestamp{Timestamp: src.GetStart()}
-	if !start.IsValid() {
-		return false
-	}
+func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, error) {
 
-	startString, err := start.FormatTime("2006-0102")
+	startText, err := st.FormatTime("2006-0102")
 	if err != nil {
-		return false
+		return "", err
 	}
-
-	companyName := src.GetCompanyName()
-	locationName := src.GetLocationName()
 
 	// 事前に容量を計算してstrings.Builderを初期化（再アロケーション回避）
 	// 日付(9文字) + スペース(1文字) + 会社名 + スペース(1文字) + 現場名 の概算
-	var builder strings.Builder
-	builder.Grow(len(startString) + 1 + len(companyName) + 1 + len(locationName))
+	var dirPathBuilder strings.Builder
+	dirPathBuilder.Grow(len(startText) + 1 + len(cn) + 1 + len(loc))
 
 	// 日付部分を手動構築（YYYY-MMDD形式）
-	builder.WriteString(startString)
+	dirPathBuilder.WriteString(startText)
 
 	// 会社名と現場名を追加
-	builder.WriteByte(' ')
-	builder.WriteString(companyName)
-	builder.WriteByte(' ')
-	builder.WriteString(locationName)
-
-	dir := filepath.Dir(m.GetPersistFolder())
-	if dir == "." {
-		return false
-	}
-	prevTarget := m.GetPersistFolder()
-	target := builder.String()
-	src.SetPersistFolder(filepath.Join(dir, target))
-
-	return prevTarget != target
+	dirPathBuilder.WriteByte(' ')
+	dirPathBuilder.WriteString(cn)
+	dirPathBuilder.WriteByte(' ')
+	dirPathBuilder.WriteString(loc)
+	return dirPathBuilder.String(), nil
 }

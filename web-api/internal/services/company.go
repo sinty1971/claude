@@ -122,9 +122,9 @@ func (srv *CompanyService) LoadAllCompanies() error {
 		}
 	}
 
-	// Persist情報の読み込み
+	// Manifest情報の読み込み
 	for _, company := range companies {
-		if err := company.Persist.LoadPersists(); err != nil {
+		if err := company.Load(); err != nil {
 			log.Printf("Failed to load persist info for company ShortName %s: %v", company.GetShortName(), err)
 		}
 	}

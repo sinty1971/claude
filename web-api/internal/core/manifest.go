@@ -29,12 +29,12 @@ type ManifestProvider struct {
 // Manifestable はmanifestフィールドをmanifestファイルに持つモデルのインターフェースを定義します。
 //   - protobuf メッセージを持っていることが前提となります。
 type Manifestable interface {
-	// GetManifestFolder は永続化ファイルを保存するフルパスを取得します。
+	// GetManifestDirectory は永続化ファイルを保存するフルパスを取得します。
 	//  - proto メッセージ内の mf_folder フィールドを返す実装が一般的です。
-	GetManifestFolder() string
+	GetManifestDirectory() string
 
-	// GetProtoMessage はモデルの protobuf メッセージを取得します。
-	GetProtoMessage() proto.Message
+	// GetManifestMessage はモデルの protobuf メッセージを取得します。
+	GetManifestMessage() proto.Message
 }
 
 // NewManifestProvider は ManifestProvider のインスタンスを作成します。
@@ -47,14 +47,14 @@ func NewManifestProvider(target Manifestable) *ManifestProvider {
 
 // GetMessageFullName はモデルの protobuf メッセージの完全修飾名を取得します。
 func (p *ManifestProvider) GetMessageFullName() string {
-	if p == nil || p.Manifestable.GetProtoMessage() == nil {
+	if p == nil || p.Manifestable.GetManifestMessage() == nil {
 		return ""
 	}
-	return string(p.Manifestable.GetProtoMessage().ProtoReflect().Descriptor().FullName())
+	return string(p.Manifestable.GetManifestMessage().ProtoReflect().Descriptor().FullName())
 }
 
 func (p *ManifestProvider) getManifestPath() string {
-	return filepath.Join(p.GetManifestFolder(), "@manifest.yaml")
+	return filepath.Join(p.GetManifestDirectory(), "@manifest.yaml")
 }
 
 // Load は Manifest ファイルから永続化データのみを読み込みます。
@@ -102,25 +102,25 @@ func (p *ManifestProvider) Save() error {
 
 // Update は Manifest データを更新します。
 //
-// source: ManifestProvider
-func (p *ManifestProvider) Update(source *ManifestProvider) error {
+// src: ManifestProvider
+func (p *ManifestProvider) Update(src *ManifestProvider) error {
 	// 引数チェック
 	if p.Manifestable == nil {
 		return errors.New("Target Manifestable target is nil")
 	}
-	if source == nil || source.Manifestable == nil {
-		return errors.New("Source Manifestable source is nil")
+	if src == nil || src.Manifestable == nil {
+		return errors.New("Source Manifestable src is nil")
 	}
 
 	// モデル名チェック
-	if p.GetMessageFullName() != source.GetMessageFullName() {
+	if p.GetMessageFullName() != src.GetMessageFullName() {
 		return errors.New("MessageFullName mismatch")
 	}
 
 	// Manifest フィールドのみを更新
-	targetRef := p.GetProtoMessage().ProtoReflect()
+	targetRef := p.GetManifestMessage().ProtoReflect()
 	fields := targetRef.Descriptor().Fields()
-	srcRef := source.GetProtoMessage().ProtoReflect()
+	srcRef := src.GetManifestMessage().ProtoReflect()
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
 		v := srcRef.Get(f)
@@ -140,7 +140,7 @@ func (p *ManifestProvider) ExportJson() (*map[string]any, error) {
 		UseProtoNames:     true,
 		EmitUnpopulated:   false,
 		EmitDefaultValues: true,
-	}.Marshal(p.GetProtoMessage())
+	}.Marshal(p.GetManifestMessage())
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
 	}
 
 	// 代入先メッセージの取得
-	targetRef := p.GetProtoMessage().ProtoReflect()
+	targetRef := p.GetManifestMessage().ProtoReflect()
 	fields := targetRef.Descriptor().Fields()
 
 	// JSONデータをアンマーシャルし、一時メッセージに格納

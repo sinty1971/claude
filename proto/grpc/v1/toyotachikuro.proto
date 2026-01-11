@@ -9,16 +9,14 @@ option features.(pb.go).api_level = API_OPAQUE;
 option features.field_presence = IMPLICIT;
 option go_package = "server-grpc/gen/grpc/v1;grpcv1";
 
-// Folder represents information about a directory
-message Folder {
+// Directory represents information about a directory
+message Directory {
   string id = 1;
-  int64 size = 2;
-  google.protobuf.Timestamp modified_time = 3;
   string dir_path = 4;
 }
 
 // Company represents a company entity with inside information
-// @persist table name: companies
+// @manifest table name: companies
 message Company {
   string id = 1;
   string short_name = 2;
@@ -40,7 +38,7 @@ message CompanyCategory {
 }
 
 // Koji represents a construction project with inside information
-// @persist table name: kojies
+// @manifest table name: kojies
 message Koji {
   string id = 1;
   string status = 2;

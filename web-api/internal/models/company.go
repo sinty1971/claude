@@ -18,7 +18,7 @@ type Company struct {
 	*grpcv1.Company
 
 	// ManifestProvider は Manifestデータの永続化設定を管理します
-	*core.ManifestProvider
+	Manifest *core.ManifestProvider
 }
 
 // NewCompany インスタンス作成と初期化を行います
@@ -27,20 +27,20 @@ func NewCompany() *Company {
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
-	company.ManifestProvider = core.NewManifestProvider(company)
+	company.Manifest = core.NewManifestProvider(company)
 
 	return company
 }
 
 // GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
 // Manifestable インターフェースの実装
-func (m *Company) GetManifestFolder() string {
+func (m *Company) GetManifestDirectory() string {
 	return m.GetDirPath()
 }
 
-// GetProtoMessage は Company の protobuf メッセージを取得します
+// GetManifestMessage は Company の protobuf メッセージを取得します
 // Manifestable インターフェースの実装
-func (m *Company) GetProtoMessage() proto.Message {
+func (m *Company) GetManifestMessage() proto.Message {
 	return m.Company
 }
 
@@ -53,7 +53,7 @@ func (m *Company) ParseFromPath(paths ...string) error {
 	dirPath := filepath.Join(paths...)
 
 	// ディレクトリ名の取得
-	dirName := filepath.Base(dirPath)
+	dirName := core.GetBaseName(dirPath)
 
 	// ディレクトリ名解析
 	ci, sn, err := m.parseDirName(dirName)
@@ -61,13 +61,11 @@ func (m *Company) ParseFromPath(paths ...string) error {
 		return err
 	}
 
-	id := core.GenerateIdFromString(dirName)
-
 	// 各フィールドの設定
-	m.SetId(id)
 	m.SetDirPath(dirPath)
 	m.SetCategoryIndex(int32(ci))
 	m.SetShortName(sn)
+	_ = m.GenerateId()
 
 	return nil
 }
@@ -91,11 +89,11 @@ func (m *Company) parseDirName(dirName string) (ci int32, sn string, err error) 
 	}
 
 	// CategoryIndexの取得
-	if idx, err := strconv.Atoi(string(dirName[0])); err != nil {
+	num, err := strconv.Atoi(string(dirName[0]))
+	if err != nil {
 		return -1, "", err
-	} else {
-		ci = int32(idx)
 	}
+	ci = int32(num)
 
 	// CategoryIndexの妥当性チェック
 	if err := ErrorCompanyCategoryIndex(ci); err != nil {
@@ -107,45 +105,57 @@ func (m *Company) parseDirName(dirName string) (ci int32, sn string, err error) 
 
 // Update は会社情報を更新します
 // 必要に応じて管理フォルダー名の変更も行います
-func (m *Company) Update(source *Company) error {
+func (m *Company) Update(src *Company) error {
 
 	// 引数チェック
-	if source == nil {
-		return errors.New("更新情報 source の値が nil です")
+	if src == nil {
+		return errors.New("更新情報 src の値が nil です")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	newDirPath := m.GenerateDirPath(
+	newDirPath, _ := m.GenerateDirPath(
 		filepath.Dir(m.GetDirPath()),
-		source.GetCategoryIndex(),
-		source.GetShortName(),
+		src.GetCategoryIndex(),
+		src.GetShortName(),
 	)
 
 	// ファイル名変更の必要がある場合は管理フォルダー名を更新
 	if m.GetDirPath() != newDirPath {
 
 		// フォルダー名変更
-		if err := os.Rename(m.GetDirPath(), newDirPath); err != nil {
+		err := os.Rename(m.GetDirPath(), newDirPath)
+		if err != nil {
 			return err
 		}
+
+		// マニフェスト以外の情報を更新
+		m.SetDirPath(newDirPath)
+		m.SetCategoryIndex(src.GetCategoryIndex())
+		m.SetShortName(src.GetShortName())
+		m.GenerateId()
 	}
 
 	// Persist情報の更新
-	return m.ManifestProvider.Update(source.ManifestProvider)
+	return m.Manifest.Update(src.Manifest)
 }
 
-// GenerateCompanyPath はパラメータをもとに管理フォルダー名変更します
+func (m *Company) GenerateId() string {
+	dirName := core.GetBaseName(m.GetDirPath())
+	id := core.GenerateIdFromString(dirName)
+	m.SetId(id)
+	return id
+}
+
+// GenerateDirPath はパラメータをもとに管理フォルダー名変更します
 //
-// 引数:
+//	引数： dir: 基本パス(原則として O:/.../1 会社 などの親フォルダー)
+//	 ci: カテゴリーインデックス
+//	 sn: 省略会社名
 //
-//	dir: 基本パス(原則として O:/.../1 会社 などの親フォルダー)
-//	ci: カテゴリーインデックス
-//	sn: 省略会社名
+//	 戻り値:
 //
-// 戻り値:
-//
-//	生成された管理フォルダーパス
-func (m *Company) GenerateDirPath(dir string, ci int32, sn string) string {
+//		生成された管理フォルダーパス
+func (m *Company) GenerateDirPath(dir string, ci int32, sn string) (string, error) {
 	dirName := strconv.Itoa(int(ci)) + " " + sn
-	return filepath.Join(dir, dirName)
+	return filepath.Join(dir, dirName), nil
 }
