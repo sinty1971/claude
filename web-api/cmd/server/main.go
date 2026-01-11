@@ -64,7 +64,7 @@ func main() {
 
 	// 各サービスの初期化
 	fileService := &ctrl.DirectoryManager{}
-	companyService := &ctrl.CompanyListManager{}
+	companyService := &ctrl.CompanyService{}
 	kojiService := &ctrl.KojiStorage{}
 
 	// サービスをサービスコレクションに追加

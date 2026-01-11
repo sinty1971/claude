@@ -22,17 +22,17 @@ import (
 
 // KojiStorage bridges existing KojiStorage logic to Connect handlers.
 type KojiStorage struct {
-	// Embed the unimplemented handler for forward compatibility
-	grpcv1connect.UnimplementedKojiServiceHandler
+	// DirPath はこのサービスが管理する工事データのルートフォルダー
+	DirPath string
 
-	// manager は任意のgrpcサービスハンドラーへの参照
-	manager *StorageManager
-
-	// folderPath はこのサービスが管理する工事データのルートフォルダー
-	folderPath string
+	// container は任意のgrpcサービスハンドラーへの参照
+	container *ContainerService
 
 	// watcher は target のファイルシステム監視オブジェクト
 	watcher *fsnotify.Watcher
+
+	// Embed the unimplemented handler for forward compatibility
+	grpcv1connect.UnimplementedKojiServiceHandler
 }
 
 // Name はサービス名を返します
@@ -40,7 +40,7 @@ func (s *KojiStorage) Name() string {
 	return "KojiService"
 }
 
-func (s *KojiStorage) Start(sm *StorageManager) error {
+func (s *KojiStorage) Start(cm *ContainerService) error {
 	// パスの取得と正規化
 	target, err := core.NormalizeAbsPath(core.Config.KojiServiceFolder)
 	if err != nil {
@@ -48,8 +48,8 @@ func (s *KojiStorage) Start(sm *StorageManager) error {
 	}
 
 	// 情報の初期化
-	s.manager = sm
-	s.folderPath = target
+	s.container = cm
+	s.DirPath = target
 
 	// kojiesByIdの情報を取得
 	if err = s.UpdateKojies(); err != nil {
@@ -76,7 +76,7 @@ func (s *KojiStorage) SyncToDB(db *sql.DB) error {
 // watchTarget starts watching the provided target for changes.
 // Add callbacks or channels as needed to propagate events to your services.
 func (s *KojiStorage) watchTarget() error {
-	absPath, err := filepath.Abs(s.folderPath)
+	absPath, err := filepath.Abs(s.DirPath)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *KojiStorage) watchTarget() error {
 
 func (s *KojiStorage) UpdateKojies() error {
 	// ファイルシステムから工事フォルダー一覧を取得
-	entries, err := os.ReadDir(s.folderPath)
+	entries, err := os.ReadDir(s.DirPath)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func (s *KojiStorage) UpdateKojies() error {
 		go func() {
 			defer wg.Done()
 			for idx := range jobs {
-				folder := path.Join(s.folderPath, entries[idx].Name())
+				folder := path.Join(s.DirPath, entries[idx].Name())
 				koji := models.NewKoji()
 				if err := koji.ParseFrom(folder); err == nil {
 					results <- koji
@@ -175,8 +175,8 @@ func (s *KojiStorage) UpdateKojies() error {
 		}
 	}
 
-	if s.manager != nil {
-		return s.persistKojies(s.manager.DB())
+	if s.container != nil {
+		return s.persistKojies(s.container.DB())
 	}
 
 	return nil

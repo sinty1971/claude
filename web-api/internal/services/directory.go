@@ -13,64 +13,63 @@ import (
 	grpc "web-api/gen/grpc/v1"
 	grpcConnect "web-api/gen/grpc/v1/grpcv1connect"
 	"web-api/internal/core"
-	"web-api/internal/models"
 )
 
 // FolderManager の実装
 
-// DirectoryManager exposes DirectoryManager operations via Connect handlers.
-type DirectoryManager struct {
-	// Embed the unimplemented handler for forward compatibility
-	grpcConnect.UnimplementedFolderServiceHandler
-
-	// manager はStorageManagerへの参照
-	manager *StorageManager
+// DirectoryService exposes DirectoryService operations via Connect handlers.
+type DirectoryService struct {
+	// CS はContainerServiceへの参照
+	CS *ContainerService
 
 	// DirPath はファイルサービスの絶対パスフォルダー
 	DirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
+
+	// Embed the unimplemented handler for forward compatibility
+	grpcConnect.UnimplementedDirectoryServiceHandler
 }
 
 // Name はサービス名を返します
-func (srv *DirectoryManager) Name() string {
+func (srv *DirectoryService) Name() string {
 	return "DirectoryService"
 }
 
-func (srv *DirectoryManager) Start(services *StorageManager) error {
+func (srv *DirectoryService) Start(cs *ContainerService) error {
 
 	// パスを正規化
-	target, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
+	dirPath, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
 	if err != nil {
 		return err
 	}
 
-	srv.manager = services
-	srv.DirPath = target
+	srv.CS = cs
+	srv.DirPath = dirPath
 
 	return nil
 }
 
-func (s *DirectoryManager) Cleanup() {
+func (srv *DirectoryService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
 // SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
-func (s *DirectoryManager) SyncToDB(_ *sql.DB) error {
+func (srv *DirectoryService) SyncToDB(_ *sql.DB) error {
 	return nil
 }
 
 // GetFiles は指定されたパスのファイル情報一覧を返す
-func (s *DirectoryManager) GetFiles(
-	ctx context.Context, req *grpc.GetFilesRequest) (
-	*grpc.GetFilesResponse, error) {
+func (srv *DirectoryService) GetFiles(
+	ctx context.Context, req *grpc.GetPathListRequest) (
+	*grpc.GetPathListResponse, error) {
 
 	// 無視する引数
 	_ = ctx
 
 	// リクエスト情報の取得
-	reqTarget := req.GetPathistFolder()
+	relPath := req.GetRelativePath()
 
 	// 絶対パスを取得
-	absPath, err := s.GetAbsPathFrom(reqTarget)
+	absPath, err := srv.GetAbsPathFrom(relPath)
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +81,11 @@ func (s *DirectoryManager) GetFiles(
 	}
 
 	// ファイルエントリが0の場合は空配列を返す
-	res := grpc.GetFilesResponse_builder{}.Build()
-	files := make([]*grpc.File, 0)
+	res := grpc.GetPathListResponse_builder{}.Build()
+	pathList := make([]string, 0)
 	dirsNum := len(dirs)
 	if dirsNum == 0 {
-		res.SetFiles(files)
+		res.SetPathList(pathList)
 		return res, nil
 	}
 
@@ -94,7 +93,7 @@ func (s *DirectoryManager) GetFiles(
 	workerNum := core.DecideNumWorkers(dirsNum)
 	var wg sync.WaitGroup
 	channelIn := make(chan int, dirsNum)
-	channelOut := make(chan *grpc.File, dirsNum)
+	channelOut := make(chan string, dirsNum)
 
 	// ワーカーを起動
 	for range workerNum {
@@ -102,11 +101,7 @@ func (s *DirectoryManager) GetFiles(
 			for idx := range channelIn {
 				dir := dirs[idx]
 				fullpath := filepath.Join(absPath, dir.Name())
-
-				fi := models.NewFile()
-				if err := fi.ParseFrom(fullpath); err == nil {
-					channelOut <- fi.File
-				}
+				channelOut <- fullpath
 			}
 		})
 	}
@@ -124,40 +119,40 @@ func (s *DirectoryManager) GetFiles(
 	}()
 
 	// 結果を収集
-	files = make([]*grpc.File, 0, len(dirs))
+	pathList = make([]string, 0, len(dirs))
 	for fi := range channelOut {
-		files = append(files, fi)
+		pathList = append(pathList, fi)
 	}
 
 	// レスポンスを更新して返す
-	res.SetFiles(files)
+	res.SetPathList(pathList)
 	return res, nil
 }
 
 // GetAbsPathFrom BasePathに引数の相対パスを追加した絶対パスを返す
-func (s *DirectoryManager) GetAbsPathFrom(relPath string) (res string, err error) {
+func (srv *DirectoryService) GetAbsPathFrom(relPath string) (res string, err error) {
 	// 絶対パスがある場合はエラーを返す
 	if strings.HasPrefix(relPath, "~/") || filepath.IsAbs(relPath) {
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(s.DirPath, relPath)
+	res = filepath.Join(srv.DirPath, relPath)
 
 	return // naked return
 }
 
 // CopyFile はファイルまたはディレクトリをコピーする
-func (s *DirectoryManager) CopyFile(relSrc, relDst string) (err error) {
+func (srv *DirectoryService) CopyFile(relSrc, relDst string) (err error) {
 	var absSrc, absDst string
 
 	// relSrcがパスチェック及び絶対パス変換
-	absSrc, err = s.GetAbsPathFrom(relSrc)
+	absSrc, err = srv.GetAbsPathFrom(relSrc)
 	if err != nil {
 		return
 	}
 
 	// relDstのパスチェック及び絶対パス変換
-	absDst, err = s.GetAbsPathFrom(relDst)
+	absDst, err = srv.GetAbsPathFrom(relDst)
 	if err != nil {
 		return
 	}
@@ -170,17 +165,17 @@ func (s *DirectoryManager) CopyFile(relSrc, relDst string) (err error) {
 
 	// ディレクトリの場合
 	if srcOsFi.IsDir() {
-		err = s.absCopyDir(absSrc, absDst)
+		err = srv.absCopyDir(absSrc, absDst)
 	} else {
 		// ファイルの場合
-		err = s.absCopyFile(absSrc, absDst)
+		err = srv.absCopyFile(absSrc, absDst)
 	}
 
 	return
 }
 
 // absCopyFile はファイルをコピーする内部関数
-func (s *DirectoryManager) absCopyFile(absSrc, absDst string) (err error) {
+func (srv *DirectoryService) absCopyFile(absSrc, absDst string) (err error) {
 	// コピー元ファイルを開く
 	srcFile, err := os.Open(absSrc)
 	if err != nil {
@@ -215,7 +210,7 @@ func (s *DirectoryManager) absCopyFile(absSrc, absDst string) (err error) {
 }
 
 // absCopyDir はディレクトリを再帰的にコピーする内部関数
-func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
+func (srv *DirectoryService) absCopyDir(absSrc, absDst string) error {
 	// コピー元ディレクトリの情報を取得
 	srcInfo, err := os.Stat(absSrc)
 	if err != nil {
@@ -240,12 +235,12 @@ func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
 
 		if entry.IsDir() {
 			// サブディレクトリの場合、再帰的にコピー
-			if err := s.absCopyDir(srcPath, dstPath); err != nil {
+			if err := srv.absCopyDir(srcPath, dstPath); err != nil {
 				return err
 			}
 		} else {
 			// ファイルの場合、ファイルをコピー
-			if err := s.absCopyFile(srcPath, dstPath); err != nil {
+			if err := srv.absCopyFile(srcPath, dstPath); err != nil {
 				return err
 			}
 		}
@@ -255,12 +250,12 @@ func (s *DirectoryManager) absCopyDir(absSrc, absDst string) error {
 }
 
 // MoveFile はファイルを移動する
-func (s *DirectoryManager) MoveFile(relSrc, relDst string) error {
-	absSrc, err := s.GetAbsPathFrom(relSrc)
+func (srv *DirectoryService) MoveFile(relSrc, relDst string) error {
+	absSrc, err := srv.GetAbsPathFrom(relSrc)
 	if err != nil {
 		return err
 	}
-	absDst, err := s.GetAbsPathFrom(relDst)
+	absDst, err := srv.GetAbsPathFrom(relDst)
 	if err != nil {
 		return err
 	}
@@ -280,8 +275,8 @@ func (s *DirectoryManager) MoveFile(relSrc, relDst string) error {
 }
 
 // DeleteFile はファイルを削除する
-func (s *DirectoryManager) DeleteFile(relPath string) error {
-	absPath, err := s.GetAbsPathFrom(relPath)
+func (srv *DirectoryService) DeleteFile(relPath string) error {
+	absPath, err := srv.GetAbsPathFrom(relPath)
 	if err != nil {
 		return err
 	}

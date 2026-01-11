@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -34,69 +33,76 @@ func NewCompany() *Company {
 }
 
 // GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
+// Manifestable インターフェースの実装
 func (m *Company) GetManifestFolder() string {
-	return m.GetFolderPath()
+	return m.GetDirPath()
 }
 
+// GetProtoMessage は Company の protobuf メッセージを取得します
+// Manifestable インターフェースの実装
 func (m *Company) GetProtoMessage() proto.Message {
 	return m.Company
 }
 
-// ParseFrom は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
+// ParseFromPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
 // 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
-func (m *Company) ParseFrom(pathistFolder ...string) error {
+func (m *Company) ParseFromPath(paths ...string) error {
 
 	// パスを結合
-	folder := filepath.Join(pathistFolder...)
+	dirPath := filepath.Join(paths...)
 
-	// 引数 target からフォルダー名取得とチェック
-	// "[0-9] [会社名]"の解析
-	folderName := filepath.Base(folder)
-	if len(folderName) < 3 {
-		return errors.New("targetのファイル名形式が無効です（長さが短い）")
-	} else if folderName[1] != ' ' {
-		// 2番目の文字がスペースかチェック
-		return errors.New("targetaのファイル名形式が無効です")
-	}
+	// ディレクトリ名の取得
+	dirName := filepath.Base(dirPath)
 
-	// カテゴリー情報の取得
-	var catIndex int
-	var err error
-
-	if catIndex, err = strconv.Atoi(string(folderName[0])); err != nil {
-		return err
-	}
-	if err := ErrorCompanyCategoryIndex(catIndex); err != nil {
-		return err
-	}
-
-	// 会社フォルダー名の解析
-	nameParts := strings.Split(folderName[2:], " ")
-	if len(nameParts) == 0 || nameParts[0] == "" {
-		return errors.New("会社名が取得できません")
-	}
-
-	// 会社名の解析（ハイフンで分割）
-	shortName := nameParts[0]
-	if idx := strings.Index(nameParts[0], "-"); idx > -1 {
-		// ハイフン以前の文字列を会社名とする
-		shortName = nameParts[0][:idx]
-		// ハイフン以降の文字列を関連文字列とする
-	}
-
-	// Target,Category,ShortNameの設定
-	m.SetFolderPath(folder)
-	m.SetCategoryIndex(int32(catIndex))
-	m.SetShortName(shortName)
-
-	// IDの設定、targetの設定が終了した後に実行
-	id, err := m.GenerateId()
+	// ディレクトリ名解析
+	ci, sn, err := m.parseDirName(dirName)
 	if err != nil {
 		return err
 	}
+
+	id := core.GenerateIdFromString(dirName)
+
+	// 各フィールドの設定
 	m.SetId(id)
+	m.SetDirPath(dirPath)
+	m.SetCategoryIndex(int32(ci))
+	m.SetShortName(sn)
+
 	return nil
+}
+
+// parseDirName は会社ディレクトリであろうディレクトリ名の解析
+//
+//	dirName: Directory Name
+//	ci: CategoryIndex
+//	sn: 会社名の略称
+//	err: エラー情報
+func (m *Company) parseDirName(dirName string) (ci int32, sn string, err error) {
+	// 3文字以上のdirNameかチェック
+	if len(dirName) < 3 || dirName[1] != ' ' {
+		return -1, "", errors.New("dirNameの形式が規定外です")
+	}
+
+	// 会社名部分の取得
+	sn = dirName[2:]
+	if sn == "" {
+		return -1, "", errors.New("会社名部分が取得できません")
+	}
+
+	// CategoryIndexの取得
+	if idx, err := strconv.Atoi(string(dirName[0])); err != nil {
+		return -1, "", err
+	} else {
+		ci = int32(idx)
+	}
+
+	// CategoryIndexの妥当性チェック
+	if err := ErrorCompanyCategoryIndex(ci); err != nil {
+		return -1, "", err
+	}
+
+	return ci, sn, nil
 }
 
 // Update は会社情報を更新します
@@ -105,21 +111,21 @@ func (m *Company) Update(source *Company) error {
 
 	// 引数チェック
 	if source == nil {
-		return errors.New("source Company is nil")
+		return errors.New("更新情報 source の値が nil です")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	newFolderPath := GenerateCompanyPath(
-		filepath.Dir(m.GetFolderPath()),
+	newDirPath := m.GenerateDirPath(
+		filepath.Dir(m.GetDirPath()),
 		source.GetCategoryIndex(),
 		source.GetShortName(),
 	)
 
 	// ファイル名変更の必要がある場合は管理フォルダー名を更新
-	if newFolderPath != m.GetFolderPath() {
+	if m.GetDirPath() != newDirPath {
 
 		// フォルダー名変更
-		if err := os.Rename(m.GetFolderPath(), newFolderPath); err != nil {
+		if err := os.Rename(m.GetDirPath(), newDirPath); err != nil {
 			return err
 		}
 	}
@@ -129,10 +135,17 @@ func (m *Company) Update(source *Company) error {
 }
 
 // GenerateCompanyPath はパラメータをもとに管理フォルダー名変更します
-// base: 基本パス(原則として　O:/.../1 会社 などの親フォルダー)
-// idx: カテゴリーインデックス
-// name: 省略会社名
-func GenerateCompanyPath(base string, idx int32, name string) string {
-	folderName := strconv.Itoa(int(idx)) + " " + name
-	return filepath.Join(base, folderName)
+//
+// 引数:
+//
+//	dir: 基本パス(原則として O:/.../1 会社 などの親フォルダー)
+//	ci: カテゴリーインデックス
+//	sn: 省略会社名
+//
+// 戻り値:
+//
+//	生成された管理フォルダーパス
+func (m *Company) GenerateDirPath(dir string, ci int32, sn string) string {
+	dirName := strconv.Itoa(int(ci)) + " " + sn
+	return filepath.Join(dir, dirName)
 }

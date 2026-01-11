@@ -45,17 +45,6 @@ func NewManifestProvider(target Manifestable) *ManifestProvider {
 	}
 }
 
-// GenerateId はモデルインスタンスの一意なID生成を提供します
-func (p *ManifestProvider) GenerateId() (string, error) {
-	if p.GetManifestFolder() == "" {
-		return "", errors.New("manifest folder is not set")
-	}
-	// ID 生成用テキストを作成してIDを生成
-
-	text := p.GetMessageFullName() + p.GetManifestFolder()
-	return GenerateIdFromString(text), nil
-}
-
 // GetMessageFullName はモデルの protobuf メッセージの完全修飾名を取得します。
 func (p *ManifestProvider) GetMessageFullName() string {
 	if p == nil || p.Manifestable.GetProtoMessage() == nil {
