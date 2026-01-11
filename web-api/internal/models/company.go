@@ -22,14 +22,23 @@ type Company struct {
 }
 
 // NewCompany インスタンス作成と初期化を行います
-func NewCompany() *Company {
+// Manifest は初期化をしますが Manifest ファイルの読み込みは行いません
+func NewCompany(dirPath string) (*Company, error) {
 
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
+
+	// dirPath から情報を解析して設定
+	err := company.ParseFromDirPath(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// ManifestProvider の初期化
 	company.Manifest = core.NewManifestProvider(company)
 
-	return company
+	return company, nil
 }
 
 // GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
@@ -44,19 +53,35 @@ func (m *Company) GetManifestMessage() proto.Message {
 	return m.Company
 }
 
-// ParseFromPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
+// ParseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
 // 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
-func (m *Company) ParseFromPath(paths ...string) error {
-
-	// パスを結合
-	dirPath := filepath.Join(paths...)
+func (m *Company) ParseFromDirPath(dirPath string) error {
 
 	// ディレクトリ名の取得
 	dirName := core.GetBaseName(dirPath)
 
 	// ディレクトリ名解析
-	ci, sn, err := m.parseDirName(dirName)
+	// 3文字以上のdirNameかチェック
+	if len(dirName) < 3 || dirName[1] != ' ' {
+		return errors.New("dirNameの形式が規定外です")
+	}
+
+	// 会社名の取得
+	sn := dirName[2:]
+	if sn == "" {
+		return errors.New("会社名部分が取得できません")
+	}
+
+	// CategoryIndexの取得
+	num, err := strconv.Atoi(string(dirName[0]))
+	if err != nil {
+		return err
+	}
+	ci := int32(num)
+
+	// CategoryIndexの妥当性チェック
+	err = ErrorCompanyCategoryIndex(ci)
 	if err != nil {
 		return err
 	}
@@ -68,39 +93,6 @@ func (m *Company) ParseFromPath(paths ...string) error {
 	_ = m.GenerateId()
 
 	return nil
-}
-
-// parseDirName は会社ディレクトリであろうディレクトリ名の解析
-//
-//	dirName: Directory Name
-//	ci: CategoryIndex
-//	sn: 会社名の略称
-//	err: エラー情報
-func (m *Company) parseDirName(dirName string) (ci int32, sn string, err error) {
-	// 3文字以上のdirNameかチェック
-	if len(dirName) < 3 || dirName[1] != ' ' {
-		return -1, "", errors.New("dirNameの形式が規定外です")
-	}
-
-	// 会社名部分の取得
-	sn = dirName[2:]
-	if sn == "" {
-		return -1, "", errors.New("会社名部分が取得できません")
-	}
-
-	// CategoryIndexの取得
-	num, err := strconv.Atoi(string(dirName[0]))
-	if err != nil {
-		return -1, "", err
-	}
-	ci = int32(num)
-
-	// CategoryIndexの妥当性チェック
-	if err := ErrorCompanyCategoryIndex(ci); err != nil {
-		return -1, "", err
-	}
-
-	return ci, sn, nil
 }
 
 // Update は会社情報を更新します

@@ -276,10 +276,12 @@ func (s *KojiStorage) persistKojies(db *sql.DB) error {
 		return err
 	}
 
-	stmt, err := tx.Prepare(`
-		INSERT INTO kojies (id, status, pathist_folder, start_at, company_name, location_name, end_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-	`)
+	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("kojies")
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
 		return err
 	}
@@ -288,11 +290,6 @@ func (s *KojiStorage) persistKojies(db *sql.DB) error {
 	for _, koji := range s.kojies {
 		if _, err := stmt.Exec(
 			koji.GetId(),
-			koji.GetStatus(),
-			koji.GetPathistFolder(),
-			timestampValue(koji.GetStart()),
-			koji.GetCompanyName(),
-			koji.GetLocationName(),
 			timestampValue(koji.GetPersistEnd()),
 		); err != nil {
 			return err

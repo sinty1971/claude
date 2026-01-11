@@ -20,13 +20,19 @@ type Koji struct {
 }
 
 // NewKoji FolderNameからKojiを作成します（高速化版）
-func NewKoji() *Koji {
+func NewKoji(dirPath string) (*Koji, error) {
 
 	koji := &Koji{}
 	koji.Koji = grpcv1.Koji_builder{}.Build()
+	err := koji.ParseFromDirPath(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// ManifestProvider の初期化
 	koji.Manifest = core.NewManifestProvider(koji)
 
-	return koji
+	return koji, nil
 }
 
 // GetManifestDirectory は Manifest ファイルを保存先フルパスを取得します

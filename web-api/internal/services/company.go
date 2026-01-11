@@ -2,6 +2,7 @@ package ctrl
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -42,14 +43,15 @@ func (srv *CompanyService) Start(cs *ContainerService) error {
 	srv.CS = cs
 
 	// パスをの取得と正規化
-	folder, err := core.NormalizeAbsPath(core.Config.CompanyServiceFolder)
+	dirPath, err := core.NormalizeAbsPath(core.Config.CompanyServiceFolder)
 	if err != nil {
 		return err
 	}
-	srv.DirPath = folder
+	srv.DirPath = dirPath
 
 	// 全ての会社情報をデータベースに取り込む
-	if err = srv.LoadAllCompanies(); err != nil {
+	err = srv.SyncAllToDb()
+	if err != nil {
 		return err
 	}
 
@@ -60,9 +62,9 @@ func (srv *CompanyService) Start(cs *ContainerService) error {
 	}
 	srv.watcher = watcher
 
-	if err = srv.watcher.Start(
-		srv.DirPath,
-		core.Config.CompanyWatcherMaxDepth); err != nil {
+	// 監視対象ディレクトリの設定
+	err = srv.watcher.Start(srv.DirPath, core.Config.CompanyWatcherMaxDepth)
+	if err != nil {
 		return err
 	}
 
@@ -88,8 +90,8 @@ func (srv *CompanyService) consumeWatcherEvents() {
 			}
 			log.Printf("CompanyService: File system event: %s", event)
 
-			// 会社キャッシュの更新
-			if err := srv.LoadAllCompanies(); err != nil {
+			// データベースへの同期
+			if err := srv.SyncAllToDb(); err != nil {
 				log.Printf("CompanyService: Failed to update company cache map: %v", err)
 			}
 
@@ -103,7 +105,7 @@ func (srv *CompanyService) consumeWatcherEvents() {
 }
 
 // LoadAllCompanies は全ての会社情報をデータベースに取り込みます
-func (srv *CompanyService) LoadAllCompanies() error {
+func (srv *CompanyService) SyncAllToDb() error {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.DirPath)
 	if err != nil {
@@ -111,40 +113,34 @@ func (srv *CompanyService) LoadAllCompanies() error {
 	}
 
 	// データの初期化
-	companies := make(map[string]*models.Company, len(entries))
+	cache := make(map[string]*models.Company, len(entries))
 
 	// 全てのCompanyインスタンスを作成
 	for _, entry := range entries {
 		// Companyインスタンスの作成と初期化
-		company := models.NewCompany()
-		if err := company.ParseFromPath(srv.DirPath, entry.Name()); err == nil {
-			companies[company.GetId()] = company
+		dirPath := filepath.Join(srv.DirPath, entry.Name())
+		company, err := models.NewCompany(dirPath)
+		if err == nil {
+			cache[company.GetId()] = company
 		}
 	}
 
 	// Manifest情報の読み込み
-	for _, company := range companies {
-		if err := company.Load(); err != nil {
-			log.Printf("Failed to load persist info for company ShortName %s: %v", company.GetShortName(), err)
+	for _, company := range cache {
+		err := company.Manifest.Load()
+		if err != nil {
+			log.Printf("マニフェストの永続化情報の読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
 		}
 	}
 
-	// データベースへインポート
-	if err := srv.importToDB(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (srv *CompanyService) importToDB() error {
-	// ストレージマネージャーの確認
+	// ContainerService の確認
 	if srv.CS == nil {
-		return errors.New("storage manager is nil")
+		return errors.New("ContainerService の値が nil です")
 	}
 
 	// DBハンドラーの確認
 	if srv.CS.DB() == nil {
-		return errors.New("company persist db is nil")
+		return errors.New("データベースハンドラの値が nil です")
 	}
 
 	// トランザクション開始
@@ -154,26 +150,34 @@ func (srv *CompanyService) importToDB() error {
 	}
 	defer tx.Rollback()
 
+	// 既存データの削除
 	if _, err := tx.Exec(`DELETE FROM companies`); err != nil {
 		return err
 	}
 
-	stmt, err := tx.Prepare(`
-		INSERT INTO companies (id, short_name, category_index, pathist_folder, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-	`)
+	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("companies")
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	for _, company := range srv.companies {
-		if _, err := stmt.Exec(
+	for _, company := range cache {
+		_, err := stmt.Exec(
 			company.GetId(),
-			company.GetShortName(),
-			company.GetCategoryIndex(),
-			company.GetPathistFolder(),
-		); err != nil {
+			company.GetMfLongName(),
+			company.GetMfPostalCode(),
+			company.GetMfAddress(),
+			company.GetMfTel(),
+			company.GetMfFax(),
+			company.GetMfEmail(),
+			company.GetMfWebsite(),
+		)
+		if err != nil {
 			return err
 		}
 	}
@@ -184,39 +188,143 @@ func (srv *CompanyService) importToDB() error {
 // UpdateNewCompany は指定 id のキャッシュ情報を新しい会社情報で更新します
 // prevId: 更新対象の会社ID、存在しない場合は追加
 // newCompany: 更新後の会社情報
-func (srv *CompanyService) UpdateNewCompany(prevId string, newCompany *models.Company) (*models.Company, error) {
-	// Idから更新前の会社情報を取得
-	prevCompany, exist := srv.companies[prevId]
-
-	// キャッシュから削除
-	if exist {
-		delete(srv.companies, prevId)
+func (srv *CompanyService) SyncToDB(ids []string) error {
+	// ファイルシステムから会社フォルダー一覧を取得
+	entries, err := os.ReadDir(srv.DirPath)
+	if err != nil {
+		return err
 	}
 
-	// 新しい会社情報の管理フォルダー名を生成
-	newTarget := models.GenerateCompanyPathistFolder(
-		filepath.Dir(newCompany.GetPathistFolder()),
-		newCompany.GetCategoryIndex(),
-		newCompany.GetShortName())
+	// データの初期化
+	cache := make(map[string]*models.Company, len(entries))
 
-	// 管理フォルダーの変更がある場合はフォルダー移動を実施
-	if exist && prevCompany.GetPathistFolder() != newCompany.GetPathistFolder() {
-		// 管理フォルダーの変更がある場合はフォルダー移動を実施
-		prevTarget := prevCompany.GetPathistFolder()
-		if err := os.Rename(prevTarget, newTarget); err != nil {
-			return nil, err
+	// 全てのCompanyインスタンスを作成
+	for _, entry := range entries {
+		// Companyインスタンスの作成と初期化
+		dirPath := filepath.Join(srv.DirPath, entry.Name())
+		company, err := models.NewCompany(dirPath)
+		if err == nil {
+			cache[company.GetId()] = company
 		}
 	}
 
-	// 既存の情報を更新
-	srv.companies[newCompany.GetId()] = newCompany
-
-	// persist情報の書き込み
-	if err := newCompany.Persist.SavePersists(); err != nil {
-		log.Printf("Failed to save persist info for company ShortName %s: %v", newCompany.GetShortName(), err)
+	// Manifest情報の読み込み
+	for _, company := range cache {
+		err := company.Manifest.Load()
+		if err != nil {
+			log.Printf("マニフェストの永続化情報の読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
+		}
 	}
 
-	return prevCompany, nil
+	// ContainerService の確認
+	if srv.CS == nil {
+		return errors.New("ContainerService の値が nil です")
+	}
+
+	// DBハンドラーの確認
+	if srv.CS.DB() == nil {
+		return errors.New("データベースハンドラの値が nil です")
+	}
+
+	// トランザクション開始
+	tx, err := srv.CS.DB().Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 既存データの削除
+	if _, err := tx.Exec(`DELETE FROM companies`); err != nil {
+		return err
+	}
+
+	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("companies")
+	if err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare(insertSQL)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, company := range cache {
+		_, err := stmt.Exec(
+			company.GetId(),
+			company.GetMfLongName(),
+			company.GetMfPostalCode(),
+			company.GetMfAddress(),
+			company.GetMfTel(),
+			company.GetMfFax(),
+			company.GetMfEmail(),
+			company.GetMfWebsite(),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// GetCompanyByIdFromDB はデータベースから会社情報を取得します
+func (srv *CompanyService) GetCompanyByIdFromId(id string) (*grpcv1.Company, error) {
+	if id == "" {
+		return nil, errors.New("id が空です")
+	}
+
+	if srv.CS == nil {
+		return nil, errors.New("ContainerService の値が nil です")
+	}
+	if srv.CS.DB() == nil {
+		return nil, errors.New("データベースハンドラの値が nil です")
+	}
+
+	selectSQL, err := core.BuildSelectByIDSQLFromDefaultMigrations("companies")
+	if err != nil {
+		return nil, err
+	}
+
+	row := srv.CS.DB().QueryRow(selectSQL, id)
+
+	var (
+		companyID  string
+		longName   string
+		postalCode string
+		address    string
+		tel        string
+		fax        string
+		email      string
+		website    string
+	)
+
+	if err := row.Scan(
+		&companyID,
+		&longName,
+		&postalCode,
+		&address,
+		&tel,
+		&fax,
+		&email,
+		&website,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("company not found")
+		}
+		return nil, err
+	}
+
+	return grpcv1.Company_builder{
+		Id:           companyID,
+		MfLongName:   longName,
+		MfPostalCode: postalCode,
+		MfAddress:    address,
+		MfTel:        tel,
+		MfFax:        fax,
+		MfEmail:      email,
+		MfWebsite:    website,
+	}.Build(), nil
 }
 
 // GetCompanies は管理されている会社情報の一覧を取得します
