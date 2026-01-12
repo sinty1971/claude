@@ -74,9 +74,9 @@ func showCompanyCategories(ctx context.Context, client grpcv1connect.CompanyServ
 }
 
 // showCompany は指定されたIDの会社情報を表示します
-func showCompany(ctx context.Context, client grpcv1connect.CompanyServiceClient, companyID string, jsonOut bool) {
+func showCompany(ctx context.Context, client grpcv1connect.CompanyServiceClient, targetId string, jsonOut bool) {
 	req := grpcv1.GetCompanyRequest_builder{
-		Id: companyID,
+		TargetId: targetId,
 	}.Build()
 
 	res, err := client.GetCompany(ctx, req)
@@ -95,20 +95,20 @@ func showCompany(ctx context.Context, client grpcv1connect.CompanyServiceClient,
 
 	// ターミナル表示
 	company := res.GetCompany()
-	log.Println("Long Name:", company.GetPersistLongName())
-	fmt.Printf("Company Information (ID: %s)\n", companyID)
+	log.Println("Long Name:", company.GetMfLongName())
+	fmt.Printf("Company Information (ID: %s)\n", targetId)
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Printf("ID: %s\n", company.GetId())
-	fmt.Printf("Pathist Folder: %s\n", company.GetPathistFolder())
+	fmt.Printf("Pathist Folder: %s\n", company.GetDirPath())
 	fmt.Printf("Short Name: %s\n", company.GetShortName())
-	fmt.Printf("Long Name: %s\n", company.GetPersistLongName())
+	fmt.Printf("Long Name: %s\n", company.GetMfLongName())
 	fmt.Printf("Category Index: %d\n", company.GetCategoryIndex())
-	fmt.Printf("Postal Code: %s\n", company.GetPersistPostalCode())
-	fmt.Printf("Address: %s\n", company.GetPersistAddress())
-	fmt.Printf("Tel: %s\n", company.GetPersistTel())
-	fmt.Printf("Fax: %s\n", company.GetPersistFax())
-	fmt.Printf("Email: %s\n", company.GetPersistEmail())
-	fmt.Printf("Website: %s\n", company.GetPersistWebsite())
+	fmt.Printf("Postal Code: %s\n", company.GetMfPostalCode())
+	fmt.Printf("Address: %s\n", company.GetMfAddress())
+	fmt.Printf("Tel: %s\n", company.GetMfTel())
+	fmt.Printf("Fax: %s\n", company.GetMfFax())
+	fmt.Printf("Email: %s\n", company.GetMfEmail())
+	fmt.Printf("Website: %s\n", company.GetMfWebsite())
 
 }
 
@@ -144,7 +144,7 @@ func showAllCompanies(ctx context.Context, client grpcv1connect.CompanyServiceCl
 			shortName = shortName[:12] + "..."
 		}
 
-		legalName := company.GetPersistLongName()
+		legalName := company.GetMfLongName()
 		if len(legalName) > 30 {
 			legalName = legalName[:27] + "..."
 		}

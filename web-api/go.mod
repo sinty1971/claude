@@ -6,7 +6,6 @@ require (
 	connectrpc.com/connect v1.19.1
 	connectrpc.com/grpcreflect v1.3.0
 	github.com/fsnotify/fsnotify v1.9.0
-	github.com/mattn/go-sqlite3 v1.14.33
 	golang.org/x/crypto v0.46.0
 	golang.org/x/net v0.48.0
 	google.golang.org/protobuf v1.36.11
