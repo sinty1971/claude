@@ -40,11 +40,6 @@ generate-grpc:
     @echo "Generating gRPC stubs..."
     @ {{buf}} generate
 
-# Generate manifest migrations from proto definitions
-generate-manifest-migrations:
-    @echo "Generating manifest migrations..."
-    cd ./web-api ; go run cmd/migrate/main.go -output gen/sqlite/migrations/
-    
 # Generate Connect-Web stubs for the web frontend
 web-generate-grpc: generate-grpc
     @echo "Connect-Web stubs generated at web/src/gen/"
@@ -84,7 +79,7 @@ dev:
     @echo "Run 'just api' in one terminal and 'just web' in another"
 
 # Generate both API and web gRPC stubs
-generate-all: generate-grpc generate-types generate-manifest-migrations
+generate-all: generate-grpc generate-types
 
 # Install API server dependencies
 api-deps:

@@ -21,7 +21,7 @@ import (
 	"web-api/gen/grpc/v1/grpcv1connect"
 
 	"web-api/internal/core"
-	"web-api/internal/ctrl"
+	"web-api/internal/services"
 
 	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
@@ -39,15 +39,12 @@ var (
 
 func main() {
 	// サーバーのデフォルト設定を定義します。
-	core.Config = core.Config{
-		FileServiceTarget:          "{ROOT}",
-		CompanyTargetFolder:        "{ROOT}/1 会社",
-		CompanyPersistFilename:     "@company.yaml",
+	core.Config = core.ConfigType{
+		DirectoryServiceDirPath:    "{ROOT}",
+		CompanyServiceDirPath:      "{ROOT}/1 会社",
 		CompanyWatcherMaxDepth:     3,
 		CompanyPollIntervalMillSec: 3000,
-		KojiTargetFolder:           "{ROOT}/2 工事",
-		KojiPersistFilename:        "@koji.yaml",
-		MemberPersistFilename:      "@member.yaml",
+		KojiServiceDirPath:         "{ROOT}/2 工事",
 		PersistDBPath:              "{USERPROFILE}/.persist/@persist.db",
 		MinumWorkers:               2,
 		MaximumWorkers:             16,
@@ -59,29 +56,29 @@ func main() {
 	flag.Parse()
 
 	// サービスコレクションの初期化
-	srvCollection := ctrl.NewStorageManager()
-	defer srvCollection.CleanupAll()
+	cs := services.NewContainerService()
+	defer cs.CleanupAll()
 
 	// 各サービスの初期化
-	fileService := &ctrl.DirectoryManager{}
-	companyService := &ctrl.CompanyService{}
-	kojiService := &ctrl.KojiStorage{}
+	directoryService := &services.DirectoryService{}
+	companyService := &services.CompanyService{}
+	kojiService := &services.KojiService{}
 
 	// サービスをサービスコレクションに追加
-	srvCollection.AddStorager(fileService)
-	srvCollection.AddStorager(companyService)
-	srvCollection.AddStorager(kojiService)
+	cs.AddService(directoryService)
+	cs.AddService(companyService)
+	cs.AddService(kojiService)
 
 	// サービスの起動
-	if err := srvCollection.Start(); err != nil {
+	if err := cs.Start(); err != nil {
 		log.Fatalf("Failed to start services: %v", err)
 	}
-	defer srvCollection.CleanupAll()
+	defer cs.CleanupAll()
 
 	// gRPC, HTTP ハンドラの設定
 	mux := http.NewServeMux()
-	filePath, fileConnectHandler := grpcv1connect.NewFileServiceHandler(fileService)
-	mux.Handle(filePath, fileConnectHandler)
+	directoryPath, directoryConnectHandler := grpcv1connect.NewDirectoryServiceHandler(directoryService)
+	mux.Handle(directoryPath, directoryConnectHandler)
 
 	companyPath, companyConnectHandler := grpcv1connect.NewCompanyServiceHandler(companyService)
 	mux.Handle(companyPath, companyConnectHandler)
@@ -92,7 +89,7 @@ func main() {
 	// gRPC ハンドラの登録
 
 	reflector := grpcreflect.NewStaticReflector(
-		grpcv1connect.FileServiceName,
+		grpcv1connect.DirectoryServiceName,
 		grpcv1connect.CompanyServiceName,
 		grpcv1connect.KojiServiceName,
 	)

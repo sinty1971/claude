@@ -1,12 +1,10 @@
-package ctrl
+package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"sync"
 	"web-api/internal/core"
@@ -16,113 +14,99 @@ import (
 	"web-api/internal/models"
 
 	"connectrpc.com/connect"
-	"github.com/fsnotify/fsnotify"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// KojiStorage bridges existing KojiStorage logic to Connect handlers.
-type KojiStorage struct {
+// KojiService bridges existing KojiService logic to Connect handlers.
+type KojiService struct {
+	// CS は任意のgrpcサービスハンドラーへの参照
+	CS *ContainerService
+
 	// DirPath はこのサービスが管理する工事データのルートフォルダー
 	DirPath string
 
-	// container は任意のgrpcサービスハンドラーへの参照
-	container *ContainerService
+	// cache は工事データのIDをキーとしたキャッシュマップ
+	cache map[string]*models.Koji
 
-	// watcher は target のファイルシステム監視オブジェクト
-	watcher *fsnotify.Watcher
+	// watcher はファイルシステム監視オブジェクト
+	watcher *core.Watcher
 
 	// Embed the unimplemented handler for forward compatibility
 	grpcv1connect.UnimplementedKojiServiceHandler
 }
 
 // Name はサービス名を返します
-func (s *KojiStorage) Name() string {
+func (srv *KojiService) Name() string {
 	return "KojiService"
 }
 
-func (s *KojiStorage) Start(cm *ContainerService) error {
+func (srv *KojiService) Start(cs *ContainerService) error {
 	// パスの取得と正規化
-	target, err := core.NormalizeAbsPath(core.Config.KojiServiceFolder)
+	dirPath, err := core.NormalizeAbsPath(core.Config.KojiServiceDirPath)
 	if err != nil {
 		return err
 	}
 
 	// 情報の初期化
-	s.container = cm
-	s.DirPath = target
+	srv.CS = cs
+	srv.DirPath = dirPath
 
 	// kojiesByIdの情報を取得
-	if err = s.UpdateKojies(); err != nil {
+	if err = srv.SyncAllToCache(); err != nil {
 		return err
 	}
 
-	// targetの監視を開始
-	if err = s.watchTarget(); err != nil {
+	// ファイルシステム監視オブジェクトの作成
+	watcher, err := core.NewWatcher()
+	if err != nil {
 		return err
 	}
+	srv.watcher = watcher
+
+	// 監視対象ディレクトリの設定
+	err = srv.watcher.Start(srv.DirPath, core.Config.CompanyWatcherMaxDepth)
+	if err != nil {
+		return err
+	}
+
+	// ゴルーチンで監視イベントを処理
+	go srv.consumeWatcherEvents()
 
 	return nil
 }
 
-func (s *KojiStorage) Cleanup() {
+func (srv *KojiService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
 }
 
-// SyncToDB は工事データを SQLite に同期する。
-func (s *KojiStorage) SyncToDB(db *sql.DB) error {
-	return s.persistKojies(db)
-}
-
-// watchTarget starts watching the provided target for changes.
-// Add callbacks or channels as needed to propagate events to your services.
-func (s *KojiStorage) watchTarget() error {
-	absPath, err := filepath.Abs(s.DirPath)
-	if err != nil {
-		return err
-	}
-
-	s.watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
-	// 監視終了時に閉じる
-	go func() {
-		<-s.watcher.Errors
-		s.watcher.Close()
-	}()
-
-	// イベントループ
-	go func() {
-		for {
-			select {
-			case event, ok := <-s.watcher.Events:
-				if !ok {
-					return
-				}
-				log.Printf("[target] event=%s path=%s", event.Op, event.Name)
-				if event.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename|fsnotify.Write) != 0 {
-					// 必要に応じてサービスへ通知する
-					// 例: reload metadata, update cache, etc.
-				}
-
-			case err := <-s.watcher.Errors:
-				log.Printf("[target] watcher error: %v", err)
+// consumeWatcherEvents はファイルシステム監視イベントを処理します
+func (srv *KojiService) consumeWatcherEvents() {
+	for {
+		select {
+		case event, ok := <-srv.watcher.Events():
+			if !ok {
+				return
 			}
+			log.Printf("KojiService: File system event: %s", event)
+
+			// データベースへの同期
+			if err := srv.SyncAllToCache(); err != nil {
+				log.Printf("KojiService: Failed to update koji cache map: %v", err)
+			}
+
+		case err, ok := <-srv.watcher.Errors():
+			if !ok {
+				return
+			}
+			log.Printf("KojiService: File system watcher error: %v", err)
 		}
-	}()
-
-	// フォルダを監視対象に追加
-	if err := s.watcher.Add(absPath); err != nil {
-		return err
 	}
-
-	log.Printf("watching target: %s", absPath)
-	return nil
 }
 
-func (s *KojiStorage) UpdateKojies() error {
+func (srv *KojiService) SyncAllToCache() error {
 	// ファイルシステムから工事フォルダー一覧を取得
-	entries, err := os.ReadDir(s.DirPath)
+	entries, err := os.ReadDir(srv.DirPath)
 	if err != nil {
 		return err
 	}
@@ -144,9 +128,9 @@ func (s *KojiStorage) UpdateKojies() error {
 		go func() {
 			defer wg.Done()
 			for idx := range jobs {
-				folder := path.Join(s.DirPath, entries[idx].Name())
-				koji := models.NewKoji()
-				if err := koji.ParseFrom(folder); err == nil {
+				dirPath := filepath.Join(srv.DirPath, entries[idx].Name())
+				koji, err := models.NewKoji(dirPath)
+				if err == nil {
 					results <- koji
 				} else {
 					results <- nil // エラーの場合はnilを返す
@@ -171,27 +155,51 @@ func (s *KojiStorage) UpdateKojies() error {
 
 	for result := range results {
 		if result != nil {
-			s.kojies[result.GetId()] = result
+			srv.cache[result.GetId()] = result
 		}
-	}
-
-	if s.container != nil {
-		return s.persistKojies(s.container.DB())
 	}
 
 	return nil
 }
 
+// Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
+//
+//	targetId: 更新対象会社Id
+//	source: 新しい会社情報
+func (srv *KojiService) Update(targetId string, source *models.Koji) error {
+	// 引数チェック
+	if source == nil {
+		return errors.New("更新情報 source の値が nil です")
+	}
+
+	// targetId から工事データを取得
+	target, exist := srv.cache[targetId]
+	if !exist {
+		return errors.New("更新対象の工事情報が存在しません")
+	}
+
+	// 工事情報の更新
+	err := target.Update(source)
+	if err != nil {
+		return err
+	}
+
+	// キャッシュ情報の更新
+	srv.cache[target.GetId()] = target
+
+	return nil
+}
+
 // GetKojies は管理されている工事データ一覧を返す
-func (s *KojiStorage) GetKojies(
+func (srv *KojiService) GetKojies(
 	ctx context.Context,
 	req *grpcv1.GetKojiesRequest) (
 	res *grpcv1.GetKojiesResponse,
 	err error) {
 	_ = req // 現状フィルター未対応
 
-	grpcKojies := make(map[string]*grpcv1.Koji, len(s.kojies))
-	for _, v := range s.kojies {
+	grpcKojies := make(map[string]*grpcv1.Koji, len(srv.cache))
+	for _, v := range srv.cache {
 		grpcKojies[v.GetId()] = v.Koji
 	}
 
@@ -201,17 +209,20 @@ func (s *KojiStorage) GetKojies(
 }
 
 // GetKojiById は指定されたIDの工事データを返す
-func (s *KojiStorage) GetKojiById(
+func (srv *KojiService) GetKoji(
+	// args
 	ctx context.Context,
 	req *grpcv1.GetKojiRequest) (
+
+	// returns
 	res *grpcv1.GetKojiResponse,
 	err error) {
 
 	// リクエスト情報の取得
-	id := req.GetId()
+	id := req.GetTargetId()
 
 	// 工事情報を取得
-	koji, exist := s.kojies[id]
+	koji, exist := srv.cache[id]
 	if !exist {
 		err = connect.NewError(connect.CodeNotFound, errors.New("koji not found"))
 		return
@@ -223,80 +234,40 @@ func (s *KojiStorage) GetKojiById(
 	return
 }
 
-func (s *KojiStorage) UpdateKoji(
-	_ context.Context, req *grpcv1.UpdateKojiRequest) (
-	*grpcv1.UpdateKojiResponse, error) {
+func (srv *KojiService) UpdateKoji(
+	// args
+	ctx context.Context,
+	req *grpcv1.UpdateKojiRequest) (
+
+	// returns
+	res *grpcv1.UpdateKojiResponse,
+	err error) {
 
 	// 既存の工事情報を取得
-	grpcNewKoji := req.GetNewKoji()
-	prevKoji, exist := s.kojies[grpcNewKoji.GetId()]
+	targetId := req.GetTargetId()
+	target, exist := srv.cache[targetId]
 	if !exist {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("koji not found"))
 	}
 
-	newKoji := &models.Koji{Koji: grpcNewKoji}
+	// 変更前の工事データのメッセージを保存
+	prevMessageKoji := proto.Clone(target.Koji).(*grpcv1.Koji)
+
+	newKoji, err := models.NewKojiFromMessage(req.GetSourceKoji())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 
 	// 工事情報を更新
-	newKoji, err := prevKoji.ImportFrom(newKoji)
+	err = srv.Update(targetId, newKoji)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-
-	// 工事情報のインデックスを更新
-	if _, exist := s.kojies[prevKoji.GetId()]; exist {
-		delete(s.kojies, prevKoji.GetId())
-		// 新しいIDで再登録
-		s.kojies[newKoji.GetId()] = newKoji
-	}
-
 	// Responseの作成
-	res := grpcv1.UpdateKojiResponse_builder{}.Build()
-
-	grpcv1KojiMapById := make(map[string]*grpcv1.Koji, len(s.kojies))
-	for _, v := range s.kojies {
-		grpcv1KojiMapById[v.GetId()] = v.Koji
-	}
-	res.SetPrevKoji(prevKoji.Koji)
+	res = grpcv1.UpdateKojiResponse_builder{}.Build()
+	res.SetPrevKoji(prevMessageKoji)
 
 	return res, nil
-}
-
-func (s *KojiStorage) persistKojies(db *sql.DB) error {
-	if db == nil {
-		return errors.New("koji persist db is nil")
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.Exec(`DELETE FROM kojies`); err != nil {
-		return err
-	}
-
-	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("kojies")
-	if err != nil {
-		return err
-	}
-
-	stmt, err := tx.Prepare(insertSQL)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for _, koji := range s.kojies {
-		if _, err := stmt.Exec(
-			koji.GetId(),
-			timestampValue(koji.GetPersistEnd()),
-		); err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
 }
 
 func timestampValue(ts *timestamppb.Timestamp) any {

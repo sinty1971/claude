@@ -6,30 +6,34 @@ import (
 	"strings"
 )
 
-// 環境設定を定義します。
-var Config = struct {
-	FolderServiceFolder        string
-	CompanyServiceFolder       string
+// 環境設定の型定義します。
+type ConfigType = struct {
+	DirectoryServiceDirPath    string
+	CompanyServiceDirPath      string
 	CompanyWatcherMaxDepth     int
 	CompanyPollIntervalMillSec int
-	KojiServiceFolder          string
+	KojiServiceDirPath         string
 	PersistDBPath              string
 	MinumWorkers               int
 	MaximumWorkers             int
 	CpuMultiplier              int
-}{
-	FolderServiceFolder:        "{ROOT}",
-	CompanyServiceFolder:       "{ROOT}/1 会社",
-	CompanyWatcherMaxDepth:     2,
-	CompanyPollIntervalMillSec: 3000,
-	KojiServiceFolder:          "{ROOT}/2 工事",
-	PersistDBPath:              "{USERPROFILE}/.persist/@persist.db",
-	MinumWorkers:               2,
-	MaximumWorkers:             16,
-	CpuMultiplier:              2,
 }
 
+var Config ConfigType
+
 func init() {
+	Config = ConfigType{
+		DirectoryServiceDirPath:    "{ROOT}",
+		CompanyServiceDirPath:      "{ROOT}/1 会社",
+		CompanyWatcherMaxDepth:     2,
+		CompanyPollIntervalMillSec: 3000,
+		KojiServiceDirPath:         "{ROOT}/2 工事",
+		PersistDBPath:              "{USERPROFILE}/.persist/@persist.db",
+		MinumWorkers:               2,
+		MaximumWorkers:             16,
+		CpuMultiplier:              2,
+	}
+
 	ParseConfigValue()
 }
 

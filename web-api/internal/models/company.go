@@ -41,6 +41,26 @@ func NewCompany(dirPath string) (*Company, error) {
 	return company, nil
 }
 
+func NewCompanyFromMessage(msg *grpcv1.Company) (*Company, error) {
+	if msg == nil {
+		return nil, errors.New("msg is nil")
+	}
+
+	// クローンを作成して保持
+	cloneMsg := proto.Clone(msg).(*grpcv1.Company)
+	company := &Company{Company: cloneMsg}
+
+	// ManifestProvider の初期化
+	company.Manifest = core.NewManifestProvider(company)
+
+	return company, nil
+}
+
+// GenerateCompanyId は dirPath から会社IDを生成します
+func GenerateCompanyIdFromDirName(dirName string) string {
+	return core.GenerateIdFromString(dirName)
+}
+
 // GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
 // Manifestable インターフェースの実装
 func (m *Company) GetManifestDirectory() string {
@@ -87,29 +107,38 @@ func (m *Company) ParseFromDirPath(dirPath string) error {
 	}
 
 	// 各フィールドの設定
+	m.SetId(GenerateCompanyIdFromDirName(dirName))
 	m.SetDirPath(dirPath)
 	m.SetCategoryIndex(int32(ci))
 	m.SetShortName(sn)
-	_ = m.GenerateId()
 
 	return nil
 }
 
 // Update は会社情報を更新します
 // 必要に応じて管理フォルダー名の変更も行います
-func (m *Company) Update(src *Company) error {
+func (m *Company) Update(source *Company) error {
 
 	// 引数チェック
-	if src == nil {
-		return errors.New("更新情報 src の値が nil です")
+	if source == nil {
+		return errors.New("更新情報 source の値が nil です")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	newDirPath, _ := m.GenerateDirPath(
+	newDirPath, err := m.GenerateDirPath(
 		filepath.Dir(m.GetDirPath()),
-		src.GetCategoryIndex(),
-		src.GetShortName(),
+		source.GetCategoryIndex(),
+		source.GetShortName(),
 	)
+	if err != nil {
+		return err
+	}
+
+	// 新しい管理フォルダー名の取得
+	newDirName := core.GetBaseName(newDirPath)
+	if newDirName == "" {
+		return errors.New("新しい管理フォルダー名の取得に失敗しました")
+	}
 
 	// ファイル名変更の必要がある場合は管理フォルダー名を更新
 	if m.GetDirPath() != newDirPath {
@@ -120,22 +149,19 @@ func (m *Company) Update(src *Company) error {
 			return err
 		}
 
+		// newId の取得
+		newId := GenerateCompanyIdFromDirName(newDirName)
+
+		// フィールドの更新
 		// マニフェスト以外の情報を更新
+		m.SetId(newId)
 		m.SetDirPath(newDirPath)
-		m.SetCategoryIndex(src.GetCategoryIndex())
-		m.SetShortName(src.GetShortName())
-		m.GenerateId()
+		m.SetCategoryIndex(source.GetCategoryIndex())
+		m.SetShortName(source.GetShortName())
 	}
 
-	// Persist情報の更新
-	return m.Manifest.Update(src.Manifest)
-}
-
-func (m *Company) GenerateId() string {
-	dirName := core.GetBaseName(m.GetDirPath())
-	id := core.GenerateIdFromString(dirName)
-	m.SetId(id)
-	return id
+	// Manifest データの更新
+	return m.Manifest.Update(source.Manifest)
 }
 
 // GenerateDirPath はパラメータをもとに管理フォルダー名変更します

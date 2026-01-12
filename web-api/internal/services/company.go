@@ -1,8 +1,7 @@
-package ctrl
+package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"web-api/internal/models"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 )
 
 // CompanyService の実装
@@ -23,6 +23,9 @@ type CompanyService struct {
 
 	// DirPath は会社一覧フォルダーパス
 	DirPath string
+
+	// cache は会社情報キャッシュマップ
+	cache map[string]*models.Company
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -43,19 +46,19 @@ func (srv *CompanyService) Start(cs *ContainerService) error {
 	srv.CS = cs
 
 	// パスをの取得と正規化
-	dirPath, err := core.NormalizeAbsPath(core.Config.CompanyServiceFolder)
+	dirPath, err := core.NormalizeAbsPath(core.Config.CompanyServiceDirPath)
 	if err != nil {
 		return err
 	}
 	srv.DirPath = dirPath
 
 	// 全ての会社情報をデータベースに取り込む
-	err = srv.SyncAllToDb()
+	err = srv.SyncAllToCache()
 	if err != nil {
 		return err
 	}
 
-	// オプションが存在する場合は数値に変換
+	// ファイルシステム監視オブジェクトの作成
 	watcher, err := core.NewWatcher()
 	if err != nil {
 		return err
@@ -91,7 +94,7 @@ func (srv *CompanyService) consumeWatcherEvents() {
 			log.Printf("CompanyService: File system event: %s", event)
 
 			// データベースへの同期
-			if err := srv.SyncAllToDb(); err != nil {
+			if err := srv.SyncAllToCache(); err != nil {
 				log.Printf("CompanyService: Failed to update company cache map: %v", err)
 			}
 
@@ -104,8 +107,8 @@ func (srv *CompanyService) consumeWatcherEvents() {
 	}
 }
 
-// LoadAllCompanies は全ての会社情報をデータベースに取り込みます
-func (srv *CompanyService) SyncAllToDb() error {
+// LoadAllCompanies は全ての会社情報をキャッシュに取り込みます
+func (srv *CompanyService) SyncAllToCache() error {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.DirPath)
 	if err != nil {
@@ -113,7 +116,7 @@ func (srv *CompanyService) SyncAllToDb() error {
 	}
 
 	// データの初期化
-	cache := make(map[string]*models.Company, len(entries))
+	srv.cache = make(map[string]*models.Company, len(entries))
 
 	// 全てのCompanyインスタンスを作成
 	for _, entry := range entries {
@@ -121,231 +124,73 @@ func (srv *CompanyService) SyncAllToDb() error {
 		dirPath := filepath.Join(srv.DirPath, entry.Name())
 		company, err := models.NewCompany(dirPath)
 		if err == nil {
-			cache[company.GetId()] = company
+			srv.cache[company.GetId()] = company
 		}
 	}
 
 	// Manifest情報の読み込み
-	for _, company := range cache {
+	for _, company := range srv.cache {
 		err := company.Manifest.Load()
 		if err != nil {
 			log.Printf("マニフェストの永続化情報の読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
 		}
 	}
 
-	// ContainerService の確認
-	if srv.CS == nil {
-		return errors.New("ContainerService の値が nil です")
-	}
-
-	// DBハンドラーの確認
-	if srv.CS.DB() == nil {
-		return errors.New("データベースハンドラの値が nil です")
-	}
-
-	// トランザクション開始
-	tx, err := srv.CS.DB().Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// 既存データの削除
-	if _, err := tx.Exec(`DELETE FROM companies`); err != nil {
-		return err
-	}
-
-	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("companies")
-	if err != nil {
-		return err
-	}
-
-	stmt, err := tx.Prepare(insertSQL)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for _, company := range cache {
-		_, err := stmt.Exec(
-			company.GetId(),
-			company.GetMfLongName(),
-			company.GetMfPostalCode(),
-			company.GetMfAddress(),
-			company.GetMfTel(),
-			company.GetMfFax(),
-			company.GetMfEmail(),
-			company.GetMfWebsite(),
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
+	return nil
 }
 
-// UpdateNewCompany は指定 id のキャッシュ情報を新しい会社情報で更新します
-// prevId: 更新対象の会社ID、存在しない場合は追加
-// newCompany: 更新後の会社情報
-func (srv *CompanyService) SyncToDB(ids []string) error {
-	// ファイルシステムから会社フォルダー一覧を取得
-	entries, err := os.ReadDir(srv.DirPath)
+// Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
+//
+//	targetId: 更新対象会社Id
+//	source: 新しい会社情報
+func (srv *CompanyService) Update(targetId string, src *models.Company) error {
+	// 引数チェック
+	if src == nil {
+		return errors.New("更新情報 src の値が nil です")
+	}
+
+	// targetId からCompanyデータを取得
+	target, exist := srv.cache[targetId]
+	if !exist {
+		return errors.New("更新対象の会社情報が存在しません")
+	}
+
+	// 会社情報の更新
+	err := target.Update(src)
 	if err != nil {
 		return err
 	}
 
-	// データの初期化
-	cache := make(map[string]*models.Company, len(entries))
+	// キャッシュ情報の更新
+	srv.cache[target.GetId()] = target
 
-	// 全てのCompanyインスタンスを作成
-	for _, entry := range entries {
-		// Companyインスタンスの作成と初期化
-		dirPath := filepath.Join(srv.DirPath, entry.Name())
-		company, err := models.NewCompany(dirPath)
-		if err == nil {
-			cache[company.GetId()] = company
-		}
-	}
-
-	// Manifest情報の読み込み
-	for _, company := range cache {
-		err := company.Manifest.Load()
-		if err != nil {
-			log.Printf("マニフェストの永続化情報の読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
-		}
-	}
-
-	// ContainerService の確認
-	if srv.CS == nil {
-		return errors.New("ContainerService の値が nil です")
-	}
-
-	// DBハンドラーの確認
-	if srv.CS.DB() == nil {
-		return errors.New("データベースハンドラの値が nil です")
-	}
-
-	// トランザクション開始
-	tx, err := srv.CS.DB().Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// 既存データの削除
-	if _, err := tx.Exec(`DELETE FROM companies`); err != nil {
-		return err
-	}
-
-	insertSQL, err := core.BuildInsertSQLFromDefaultMigrations("companies")
-	if err != nil {
-		return err
-	}
-
-	stmt, err := tx.Prepare(insertSQL)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for _, company := range cache {
-		_, err := stmt.Exec(
-			company.GetId(),
-			company.GetMfLongName(),
-			company.GetMfPostalCode(),
-			company.GetMfAddress(),
-			company.GetMfTel(),
-			company.GetMfFax(),
-			company.GetMfEmail(),
-			company.GetMfWebsite(),
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-// GetCompanyByIdFromDB はデータベースから会社情報を取得します
-func (srv *CompanyService) GetCompanyByIdFromId(id string) (*grpcv1.Company, error) {
-	if id == "" {
-		return nil, errors.New("id が空です")
-	}
-
-	if srv.CS == nil {
-		return nil, errors.New("ContainerService の値が nil です")
-	}
-	if srv.CS.DB() == nil {
-		return nil, errors.New("データベースハンドラの値が nil です")
-	}
-
-	selectSQL, err := core.BuildSelectByIDSQLFromDefaultMigrations("companies")
-	if err != nil {
-		return nil, err
-	}
-
-	row := srv.CS.DB().QueryRow(selectSQL, id)
-
-	var (
-		companyID  string
-		longName   string
-		postalCode string
-		address    string
-		tel        string
-		fax        string
-		email      string
-		website    string
-	)
-
-	if err := row.Scan(
-		&companyID,
-		&longName,
-		&postalCode,
-		&address,
-		&tel,
-		&fax,
-		&email,
-		&website,
-	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("company not found")
-		}
-		return nil, err
-	}
-
-	return grpcv1.Company_builder{
-		Id:           companyID,
-		MfLongName:   longName,
-		MfPostalCode: postalCode,
-		MfAddress:    address,
-		MfTel:        tel,
-		MfFax:        fax,
-		MfEmail:      email,
-		MfWebsite:    website,
-	}.Build(), nil
+	return nil
 }
 
 // GetCompanies は管理されている会社情報の一覧を取得します
 // gRPCサービスの実装です
 func (srv *CompanyService) GetCompanies(
-	ctx context.Context, req *grpcv1.GetCompaniesRequest) (
-	*grpcv1.GetCompaniesResponse, error) {
+	// args
+	ctx context.Context,
+	req *grpcv1.GetCompaniesRequest) (
+
+	// returns
+	res *grpcv1.GetCompaniesResponse,
+	err error) {
 
 	// レスポンスを初期化
-	res := grpcv1.GetCompaniesResponse_builder{}.Build()
+	res = grpcv1.GetCompaniesResponse_builder{}.Build()
 
 	// 必要に応じてキャッシュを更新
-	if req.GetRefresh() {
-		if err := srv.UpdateCompanies(); err != nil {
+	if req.GetForceReload() {
+		if err := srv.SyncAllToCache(); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
 
 	// 会社データモデルを作成
-	grpcv1Companies := make(map[string]*grpcv1.Company, len(srv.companies))
-	for _, v := range srv.companies {
+	grpcv1Companies := make(map[string]*grpcv1.Company, len(srv.cache))
+	for _, v := range srv.cache {
 		grpcv1Companies[v.Company.GetId()] = v.Company
 	}
 
@@ -366,10 +211,10 @@ func (srv *CompanyService) GetCompany(
 	res = grpcv1.GetCompanyResponse_builder{}.Build()
 
 	// Idの取得
-	id := req.GetId()
+	id := req.GetTargetId()
 
 	// 会社情報を取得
-	company, exist := srv.companies[id]
+	company, exist := srv.cache[id]
 	if !exist {
 		err = connect.NewError(connect.CodeNotFound, errors.New("company not found"))
 		return
@@ -385,23 +230,39 @@ func (srv *CompanyService) GetCompany(
 // gRPCサービスの実装です
 // 既存の Id の会社情報を更新します。そのため Id の変更の可能性があります。
 // また、フォルダーの移動も発生する可能性があります。
-// Company.Id 更新対象の会社Id
 func (srv *CompanyService) UpdateCompany(
-	_ context.Context, req *grpcv1.UpdateCompanyRequest) (
-	*grpcv1.UpdateCompanyResponse, error) {
+	// args
+	ctx context.Context,
+	req *grpcv1.UpdateCompanyRequest) (
+
+	// returns
+	res *grpcv1.UpdateCompanyResponse,
+	err error) {
 
 	// リクエスト情報の取得
-	prevId := req.GetPrevId()
-	newCompany := &models.Company{Company: req.GetNewCompany()}
+	targetId := req.GetTargetId()
+	target, exist := srv.cache[targetId]
+	if !exist {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("指定された target_id の会社データが存在しません"))
+	}
 
-	prevCompany, err := srv.UpdateNewCompany(prevId, newCompany)
+	// prevMessageCompany の作成
+	prevMessageCompany := proto.Clone(target.Company).(*grpcv1.Company)
+
+	// source(proto.Message) から Company モデルを作成
+	source, err := models.NewCompanyFromMessage(req.GetSourceCompany())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("updated company is nil"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	err = srv.Update(targetId, source)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	// Responseの作成
-	res := grpcv1.UpdateCompanyResponse_builder{}.Build()
-	res.SetPrevCompany(prevCompany.Company)
+	res = grpcv1.UpdateCompanyResponse_builder{}.Build()
+	res.SetPrevCompany(prevMessageCompany)
 
 	return res, nil
 }

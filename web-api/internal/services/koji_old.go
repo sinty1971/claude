@@ -1,4 +1,4 @@
-package ctrl
+package services
 
 // import (
 // 	"web-api/internal/models"

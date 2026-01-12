@@ -64,8 +64,8 @@ service CompanyService {
 
 // KojiService provides operations for managing construction projects
 service KojiService {
-  rpc GetKoji(GetKojiRequest) returns (GetKojiResponse);
   rpc GetKojies(GetKojiesRequest) returns (GetKojiesResponse);
+  rpc GetKoji(GetKojiRequest) returns (GetKojiResponse);
   rpc UpdateKoji(UpdateKojiRequest) returns (UpdateKojiResponse);
 }
 
@@ -80,7 +80,7 @@ message GetPathListResponse {
 
 // CompanyService messages
 message GetCompaniesRequest {
-  bool refresh = 1;
+  bool force_reload = 1;
 }
 
 message GetCompaniesResponse {
@@ -88,7 +88,7 @@ message GetCompaniesResponse {
 }
 
 message GetCompanyRequest {
-  string id = 1;
+  string target_id = 1;
 }
 
 message GetCompanyResponse {
@@ -96,8 +96,8 @@ message GetCompanyResponse {
 }
 
 message UpdateCompanyRequest {
-  string prev_id = 1;
-  Company new_company = 2;
+  string target_id = 1;
+  Company source_company = 2;
 }
 
 message UpdateCompanyResponse {
@@ -118,7 +118,7 @@ message GetKojiesResponse {
 }
 
 message GetKojiRequest {
-  string id = 1;
+  string target_id = 1;
 }
 
 message GetKojiResponse {
@@ -126,7 +126,8 @@ message GetKojiResponse {
 }
 
 message UpdateKojiRequest {
-  Koji new_koji = 1;
+  string target_id = 1;
+  Koji source_koji = 2;
 }
 
 message UpdateKojiResponse {

@@ -1,4 +1,4 @@
-package ctrl
+package services
 
 import (
 	"context"
@@ -37,7 +37,7 @@ func (srv *DirectoryService) Name() string {
 func (srv *DirectoryService) Start(cs *ContainerService) error {
 
 	// パスを正規化
-	dirPath, err := core.NormalizeAbsPath(core.Config.FolderServiceFolder)
+	dirPath, err := core.NormalizeAbsPath(core.Config.DirectoryServiceDirPath)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,13 @@ func (srv *DirectoryService) SyncToDB(_ *sql.DB) error {
 
 // GetFiles は指定されたパスのファイル情報一覧を返す
 func (srv *DirectoryService) GetFiles(
-	ctx context.Context, req *grpc.GetPathListRequest) (
-	*grpc.GetPathListResponse, error) {
+	// args
+	ctx context.Context,
+	req *grpc.GetPathListRequest) (
+
+	// returns
+	res *grpc.GetPathListResponse,
+	err error) {
 
 	// 無視する引数
 	_ = ctx
@@ -81,7 +86,7 @@ func (srv *DirectoryService) GetFiles(
 	}
 
 	// ファイルエントリが0の場合は空配列を返す
-	res := grpc.GetPathListResponse_builder{}.Build()
+	res = grpc.GetPathListResponse_builder{}.Build()
 	pathList := make([]string, 0)
 	dirsNum := len(dirs)
 	if dirsNum == 0 {

@@ -35,6 +35,19 @@ func NewKoji(dirPath string) (*Koji, error) {
 	return koji, nil
 }
 
+func NewKojiFromMessage(msg *grpcv1.Koji) (*Koji, error) {
+	if msg == nil {
+		return nil, errors.New("msg is nil")
+	}
+	cloneMsg := proto.Clone(msg).(*grpcv1.Koji)
+
+	koji := &Koji{Koji: cloneMsg}
+
+	// ManifestProvider の初期化
+	koji.Manifest = core.NewManifestProvider(koji)
+	return koji, nil
+}
+
 // GetManifestDirectory は Manifest ファイルを保存先フルパスを取得します
 // Manifestable インターフェースの実装
 func (m *Koji) GetManifestDirectory() string {
@@ -109,18 +122,18 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 	}
 }
 
-func (m *Koji) Update(src *Koji) error {
+func (m *Koji) Update(source *Koji) error {
 	// 引数チェック
-	if src == nil {
+	if source == nil {
 		return errors.New("更新情報 source の値が nil です")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	srcStart := Timestamp{Timestamp: src.GetStart()}
+	sourceStart := Timestamp{Timestamp: source.GetStart()}
 	newDirPath, err := m.GenerateDirPath(
-		srcStart,
-		src.GetCompanyName(),
-		src.GetLocationName())
+		sourceStart,
+		source.GetCompanyName(),
+		source.GetLocationName())
 	if err != nil {
 		return err
 	}
@@ -134,15 +147,15 @@ func (m *Koji) Update(src *Koji) error {
 
 		// マニフェスト以外の情報を更新
 		m.SetDirPath(newDirPath)
-		m.SetStart(src.GetStart())
-		m.SetCompanyName(src.GetCompanyName())
-		m.SetLocationName(src.GetLocationName())
+		m.SetStart(source.GetStart())
+		m.SetCompanyName(source.GetCompanyName())
+		m.SetLocationName(source.GetLocationName())
 		m.GenerateId()
 
 	}
 
 	// Persist情報の更新
-	return m.Manifest.Update(src.Manifest)
+	return m.Manifest.Update(source.Manifest)
 }
 
 func (m *Koji) GenerateId() string {
