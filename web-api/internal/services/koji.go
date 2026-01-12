@@ -51,6 +51,7 @@ func (srv *KojiService) Start(cs *ContainerService) error {
 	// 情報の初期化
 	srv.CS = cs
 	srv.DirPath = dirPath
+	srv.cache = make(map[string]*models.Koji)
 
 	// kojiesByIdの情報を取得
 	if err = srv.SyncAllToCache(); err != nil {

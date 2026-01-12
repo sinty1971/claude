@@ -41,16 +41,16 @@ func (srv *CompanyService) Name() string {
 
 // Start は CompanyListManager を初期化して開始します
 func (srv *CompanyService) Start(cs *ContainerService) error {
-
-	// 既存インスタンスに値をセット（再代入しないこと）
-	srv.CS = cs
-
 	// パスをの取得と正規化
 	dirPath, err := core.NormalizeAbsPath(core.Config.CompanyServiceDirPath)
 	if err != nil {
 		return err
 	}
+
+	// 既存インスタンスに値をセット（再代入しないこと）
+	srv.CS = cs
 	srv.DirPath = dirPath
+	srv.cache = make(map[string]*models.Company)
 
 	// 全ての会社情報をデータベースに取り込む
 	err = srv.SyncAllToCache()
