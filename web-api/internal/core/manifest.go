@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,6 +59,7 @@ func (p *ManifestProvider) getManifestPath() string {
 // Load は Manifest ファイルから永続化データのみを読み込みます。
 // ファイル形式は YAML です。
 func (p *ManifestProvider) Load() error {
+
 	// YAMLファイルからテキストデータを読み込む
 	text, err := os.ReadFile(p.getManifestPath())
 	if err != nil {
@@ -69,7 +69,8 @@ func (p *ManifestProvider) Load() error {
 
 	// YAMLファイルデータをJSONマップデータに変換
 	jsonmap := &map[string]any{}
-	if err = yaml.Unmarshal(text, jsonmap); err != nil {
+	err = yaml.Unmarshal(text, jsonmap)
+	if len(*jsonmap) == 0 || err != nil {
 		return p.Save()
 	}
 
@@ -125,7 +126,7 @@ func (p *ManifestProvider) Update(src *ManifestProvider) error {
 		f := fields.Get(i)
 		v := srcRef.Get(f)
 		name := string(f.Name())
-		if !strings.HasPrefix(name, "mf") || name[2] < 'A' || name[2] > 'Z' {
+		if !strings.HasPrefix(name, "mf_") {
 			continue
 		}
 		targetRef.Set(f, v)
@@ -149,7 +150,7 @@ func (p *ManifestProvider) ExportJson() (*map[string]any, error) {
 	jsonmap := &map[string]any{}
 	json.Unmarshal(jsonbytes, jsonmap)
 	for k := range *jsonmap {
-		if !strings.HasPrefix(k, "mf") || k[2] < 'A' || k[2] > 'Z' {
+		if !strings.HasPrefix(k, "mf_") {
 			delete(*jsonmap, k)
 		}
 	}
@@ -174,14 +175,13 @@ func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
 	tempMsg := dynamicpb.NewMessage(targetRef.Descriptor())
 	opts := protojson.UnmarshalOptions{AllowPartial: true}
 	if err := opts.Unmarshal(bytes, tempMsg); err != nil {
-		log.Printf("Failed to unmarshal mmanifest jsonmap: %v", err)
 		return err
 	}
 
 	// Manifest フィールドのみを元のメッセージにコピー
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
-		if !strings.HasPrefix(string(f.Name()), "mf") || string(f.Name())[2] < 'A' || string(f.Name())[2] > 'Z' {
+		if !strings.HasPrefix(string(f.Name()), "mf_") {
 			continue
 		}
 		targetRef.Set(f, tempMsg.Get(f))

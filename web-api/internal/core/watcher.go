@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -31,6 +32,12 @@ type Watcher struct {
 
 	// errors はエラーを通知するチャネル
 	errors chan error
+
+	// eventDebounce はイベントの重複排除のためのマップ (キー: "op:path", 値: 最終受信時刻)
+	eventDebounce map[string]time.Time
+
+	// debounceDuration はイベントの重複判定期間
+	debounceDuration time.Duration
 }
 
 // NewWatcher は新しい Watcher インスタンスを作成します
@@ -41,11 +48,13 @@ func NewWatcher() (*Watcher, error) {
 	}
 
 	return &Watcher{
-		watcher:     fsWatcher,
-		watchedDirs: make(map[string]struct{}),
-		events:      make(chan fsnotify.Event),
-		errors:      make(chan error),
-		done:        make(chan struct{}),
+		watcher:          fsWatcher,
+		watchedDirs:      make(map[string]struct{}),
+		events:           make(chan fsnotify.Event),
+		errors:           make(chan error),
+		done:             make(chan struct{}),
+		eventDebounce:    make(map[string]time.Time),
+		debounceDuration: 500 * time.Millisecond, // 0.5秒の重複排除期間
 	}, nil
 }
 
@@ -90,6 +99,11 @@ func (w *Watcher) loop() {
 				return
 			}
 			w.handleInternalEvent(event)
+
+			// イベントの重複チェック
+			if w.shouldDebounce(event) {
+				continue
+			}
 
 			// 外部にイベントを転送
 			select {
@@ -234,4 +248,47 @@ func (w *Watcher) relativeDepth(target string) (int, bool) {
 	}
 
 	return strings.Count(slashed, "/") + 1, true
+}
+
+// shouldDebounce はイベントが重複しているかを判定します
+// 重複している場合は true を返し、イベントを破棄します
+func (w *Watcher) shouldDebounce(event fsnotify.Event) bool {
+	now := time.Now()
+	key := w.eventKey(event)
+
+	// 最後に同じイベントを受信した時刻を取得
+	if lastTime, exists := w.eventDebounce[key]; exists {
+		// debounceDuration 以内に同じイベントがあった場合は破棄
+		if now.Sub(lastTime) < w.debounceDuration {
+			return true
+		}
+	}
+
+	// イベントを記録して通知
+	w.eventDebounce[key] = now
+
+	// 古いエントリーをクリーンアップ (メモリリーク防止)
+	w.cleanupDebounceMap(now)
+
+	return false
+}
+
+// eventKey はイベントから一意のキーを生成します (操作種類:ファイルパス)
+func (w *Watcher) eventKey(event fsnotify.Event) string {
+	return event.Op.String() + ":" + event.Name
+}
+
+// cleanupDebounceMap は debounceDuration より古いエントリーを削除します
+func (w *Watcher) cleanupDebounceMap(now time.Time) {
+	// マップが大きくなりすぎた場合のみクリーンアップ
+	if len(w.eventDebounce) < 100 {
+		return
+	}
+
+	cutoff := now.Add(-w.debounceDuration * 2)
+	for key, timestamp := range w.eventDebounce {
+		if timestamp.Before(cutoff) {
+			delete(w.eventDebounce, key)
+		}
+	}
 }
