@@ -52,7 +52,7 @@ func (srv *CompanyService) Start(cs *ContainerService) error {
 	srv.DirPath = dirPath
 	srv.cache = make(map[string]*models.Company)
 
-	// 全ての会社情報をデータベースに取り込む
+	// 全ての会社情報をキャッシュに取り込む
 	err = srv.SyncAllToCache()
 	if err != nil {
 		return err
@@ -80,30 +80,6 @@ func (srv *CompanyService) Start(cs *ContainerService) error {
 func (srv *CompanyService) Cleanup() {
 	if srv.watcher != nil {
 		srv.watcher.Close()
-	}
-}
-
-// consumeWatcherEvents はファイルシステム監視イベントを処理します
-func (srv *CompanyService) consumeWatcherEvents() {
-	for {
-		select {
-		case event, ok := <-srv.watcher.Events():
-			if !ok {
-				return
-			}
-			log.Printf("CompanyService: File system event: %s", event)
-
-			// データベースへの同期
-			if err := srv.SyncAllToCache(); err != nil {
-				log.Printf("CompanyService: Failed to update company cache map: %v", err)
-			}
-
-		case err, ok := <-srv.watcher.Errors():
-			if !ok {
-				return
-			}
-			log.Printf("CompanyService: File system watcher error: %v", err)
-		}
 	}
 }
 
@@ -167,11 +143,38 @@ func (srv *CompanyService) Update(targetId string, src *models.Company) error {
 	return nil
 }
 
+// consumeWatcherEvents はファイルシステム監視イベントを処理します
+func (srv *CompanyService) consumeWatcherEvents() {
+	for {
+		select {
+		case event, ok := <-srv.watcher.Events():
+			if !ok {
+				return
+			}
+			// eventからCompanyIdの取得
+			dirName := filepath.Base(filepath.Dir(event.Name))
+			id := core.GenerateIdFromString(dirName)
+			log.Printf("CompanyService: File system event: %s, CompanyId: %s", event, id)
+
+			// キャッシュの同期
+			if err := srv.SyncAllToCache(); err != nil {
+				log.Printf("CompanyService: Failed to update company cache map: %v", err)
+			}
+
+		case err, ok := <-srv.watcher.Errors():
+			if !ok {
+				return
+			}
+			log.Printf("CompanyService: File system watcher error: %v", err)
+		}
+	}
+}
+
 // GetCompanies は管理されている会社情報の一覧を取得します
 // gRPCサービスの実装です
 func (srv *CompanyService) GetCompanies(
 	// args
-	ctx context.Context,
+	_ context.Context,
 	req *grpcv1.GetCompaniesRequest) (
 
 	// returns
@@ -202,7 +205,7 @@ func (srv *CompanyService) GetCompanies(
 // GetCompany は会社IDから会社情報を取得します
 // gRPCサービスの実装です
 func (srv *CompanyService) GetCompany(
-	ctx context.Context,
+	_ context.Context,
 	req *grpcv1.GetCompanyRequest) (
 	res *grpcv1.GetCompanyResponse,
 	err error) {
@@ -232,7 +235,7 @@ func (srv *CompanyService) GetCompany(
 // また、フォルダーの移動も発生する可能性があります。
 func (srv *CompanyService) UpdateCompany(
 	// args
-	ctx context.Context,
+	_ context.Context,
 	req *grpcv1.UpdateCompanyRequest) (
 
 	// returns
@@ -269,11 +272,15 @@ func (srv *CompanyService) UpdateCompany(
 
 // GetCompanyCategories は業種カテゴリーの一覧を取得します
 func (srv *CompanyService) GetCompanyCategories(
-	_ context.Context, _ *grpcv1.GetCompanyCategoriesRequest) (
-	*grpcv1.GetCompanyCategoriesResponse, error) {
+	// args
+	_ context.Context,
+	_ *grpcv1.GetCompanyCategoriesRequest) (
+	// returns
+	res *grpcv1.GetCompanyCategoriesResponse,
+	err error) {
 
 	// レスポンスを初期化
-	res := grpcv1.GetCompanyCategoriesResponse_builder{}.Build()
+	res = grpcv1.GetCompanyCategoriesResponse_builder{}.Build()
 
 	categories := make([]*grpcv1.CompanyCategory, 0, len(models.CompanyCategoryMap))
 	for idx, label := range models.CompanyCategoryMap {

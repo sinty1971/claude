@@ -21,7 +21,7 @@ import (
 // ManifestProvider は永続化設定を保持します。
 // モデルへの参照は保持せず、循環参照を避けています。
 type ManifestProvider struct {
-	// メッセージ名（モデルの一意な識別子）
+	// Manifestable インターフェースを実装するモデルへの参照
 	Manifestable
 }
 
