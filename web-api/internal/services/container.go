@@ -15,7 +15,7 @@ func NewContainerService() *ContainerService {
 // Service はファイルシステムとデータベースを橋渡しするインターフェースを定義します。
 type Service interface {
 	Name() string
-	Start(*ContainerService) error
+	Start() error
 	Cleanup()
 }
 
@@ -27,7 +27,7 @@ func (cs *ContainerService) AddService(service Service) {
 // Start はすべてのサービスを起動する
 func (cs *ContainerService) Start() error {
 	for _, p := range cs.Services {
-		if err := (*p).Start(cs); err != nil {
+		if err := (*p).Start(); err != nil {
 			return err
 		}
 	}

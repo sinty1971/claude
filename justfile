@@ -17,6 +17,10 @@ test-file *ARGS:
 test-company *ARGS:
     cd ./web-api ; go run cmd/test/company/main.go {{ARGS}}
 
+# Test koji service
+test-koji *ARGS:
+    cd ./web-api ; go run cmd/test/koji/main.go {{ARGS}}
+
 # Start the API server with TLS enabled
 api-tls:
     cd ./web-api ; go run cmd/server/main.go -enable-tls

@@ -103,25 +103,22 @@ func (p *ManifestProvider) Save() error {
 
 // Update は Manifest データを更新します。
 //
-// src: ManifestProvider
-func (p *ManifestProvider) Update(src *ManifestProvider) error {
+// source: ManifestProvider
+func (p *ManifestProvider) Update(source *ManifestProvider) error {
 	// 引数チェック
-	if p.Manifestable == nil {
-		return errors.New("Target Manifestable target is nil")
-	}
-	if src == nil || src.Manifestable == nil {
+	if source == nil || source.Manifestable == nil {
 		return errors.New("Source Manifestable src is nil")
 	}
 
 	// モデル名チェック
-	if p.GetMessageFullName() != src.GetMessageFullName() {
+	if p.GetMessageFullName() != source.GetMessageFullName() {
 		return errors.New("MessageFullName mismatch")
 	}
 
 	// Manifest フィールドのみを更新
 	targetRef := p.GetManifestMessage().ProtoReflect()
 	fields := targetRef.Descriptor().Fields()
-	srcRef := src.GetManifestMessage().ProtoReflect()
+	srcRef := source.GetManifestMessage().ProtoReflect()
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
 		v := srcRef.Get(f)

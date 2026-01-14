@@ -15,8 +15,8 @@ type Watcher struct {
 	// watcher は fsnotify の監視オブジェクト
 	watcher *fsnotify.Watcher
 
-	// rootPath は監視対象のルートディレクトリ
-	rootPath string
+	// rootDirPath は監視対象のルートディレクトリ
+	rootDirPath string
 
 	// maxDepth は監視するディレクトリの最大深度
 	maxDepth int
@@ -38,10 +38,13 @@ type Watcher struct {
 
 	// debounceDuration はイベントの重複判定期間
 	debounceDuration time.Duration
+
+	// closed は Close() が既に呼ばれたかどうかのフラグ
+	closed bool
 }
 
 // NewWatcher は新しい Watcher インスタンスを作成します
-func NewWatcher() (*Watcher, error) {
+func NewWatcher(rootDirPath string, maxDepth int) (*Watcher, error) {
 	fsWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -49,6 +52,8 @@ func NewWatcher() (*Watcher, error) {
 
 	return &Watcher{
 		watcher:          fsWatcher,
+		rootDirPath:      rootDirPath,
+		maxDepth:         maxDepth,
 		watchedDirs:      make(map[string]struct{}),
 		events:           make(chan fsnotify.Event),
 		errors:           make(chan error),
@@ -60,24 +65,41 @@ func NewWatcher() (*Watcher, error) {
 
 // Start は監視を開始します
 //
-//	rootPath は監視対象のルートディレクトリ、maxDepth は監視するディレクトリの最大深度を指定します
-//	maxDepth が 0 の場合、rootPath のみが監視されます
-func (w *Watcher) Start(rootPath string, maxDepth int) error {
-	w.rootPath = rootPath
-	w.maxDepth = maxDepth
-
-	if err := w.addWatchersRecursively(w.rootPath, 0); err != nil {
+//	rootDirPath は監視対象のルートディレクトリ、maxDepth は監視するディレクトリの最大深度を指定します
+//	maxDepth が 0 の場合、rootDirPath のみが監視されます
+func (w *Watcher) Start() error {
+	// ルートディレクトリ以下を再帰的に監視対象に追加
+	err := w.addWatchersRecursively(w.rootDirPath, 0)
+	if err != nil {
 		return err
 	}
 
+	// 監視ループをゴルーチンで開始
 	go w.loop()
 	return nil
 }
 
 // Close は監視を停止し、リソースを解放します
 func (w *Watcher) Close() error {
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+
+	// done チャネルを閉じて loop() を終了させる
 	close(w.done)
-	return w.watcher.Close()
+
+	// watcher を閉じる
+	err := w.watcher.Close()
+
+	// loop() が終了するまで少し待つ
+	time.Sleep(100 * time.Millisecond)
+
+	// events と errors チャネルを閉じる
+	close(w.events)
+	close(w.errors)
+
+	return err
 }
 
 // Events はイベントチャネルを返します
@@ -233,7 +255,7 @@ func (w *Watcher) unregisterWatcherTree(target string) {
 
 // relativeDepth はルートパスからの相対的な深さを計算します
 func (w *Watcher) relativeDepth(target string) (int, bool) {
-	rel, err := filepath.Rel(w.rootPath, target)
+	rel, err := filepath.Rel(w.rootDirPath, target)
 	if err != nil {
 		return -1, false
 	}

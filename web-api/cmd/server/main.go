@@ -39,18 +39,14 @@ var (
 
 func main() {
 	// サーバーのデフォルト設定を定義します。
-	core.Config = core.ConfigType{
-		DirectoryServiceDirPath:    "{ROOT}",
-		CompanyServiceDirPath:      "{ROOT}/1 会社",
-		CompanyWatcherMaxDepth:     3,
-		CompanyPollIntervalMillSec: 3000,
-		KojiServiceDirPath:         "{ROOT}/2 工事",
-		PersistDBPath:              "{USERPROFILE}/.persist/@persist.db",
-		MinumWorkers:               2,
-		MaximumWorkers:             16,
-		CpuMultiplier:              2,
-	}
-	core.ParseConfigValue()
+	core.Config.DirectoryBaseDirPath = "{ROOT}"
+	core.Config.CompanyBaseDirPath = "{ROOT}/1 会社"
+	core.Config.CompanyWatcherMaxDepth = 3
+	core.Config.KojiBaseDirPath = "{ROOT}/2 工事"
+	core.Config.MaximumWorkers = 16
+	core.Config.MinimumWorkers = 2
+	core.Config.CpuMultiplier = 2
+	core.Config.ExpandPlaceholders()
 
 	// コマンドライン引数の解析
 	flag.Parse()
@@ -60,9 +56,9 @@ func main() {
 	defer cs.CleanupAll()
 
 	// 各サービスの初期化
-	directoryService := &services.DirectoryService{}
-	companyService := &services.CompanyService{}
-	kojiService := &services.KojiService{}
+	directoryService := services.NewDirectoryService(cs)
+	companyService := services.NewCompanyService(cs)
+	kojiService := services.NewKojiService(cs)
 
 	// サービスをサービスコレクションに追加
 	cs.AddService(directoryService)

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io"
 	"os"
@@ -19,14 +18,28 @@ import (
 
 // DirectoryService exposes DirectoryService operations via Connect handlers.
 type DirectoryService struct {
-	// CS はContainerServiceへの参照
-	CS *ContainerService
+	// cs はContainerServiceへの参照
+	cs *ContainerService
 
-	// DirPath はファイルサービスの絶対パスフォルダー
-	DirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
+	// BaseDirPath はファイルサービスの絶対パスフォルダー
+	BaseDirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
 
 	// Embed the unimplemented handler for forward compatibility
 	grpcConnect.UnimplementedDirectoryServiceHandler
+}
+
+func NewDirectoryService(cs *ContainerService) *DirectoryService {
+
+	// パスを正規化
+	baseDirPath, err := core.ResolveAbsPath(core.Config.DirectoryBaseDirPath)
+	if err != nil {
+		panic(err)
+	}
+
+	return &DirectoryService{
+		cs:          cs,
+		BaseDirPath: baseDirPath,
+	}
 }
 
 // Name はサービス名を返します
@@ -34,27 +47,12 @@ func (srv *DirectoryService) Name() string {
 	return "DirectoryService"
 }
 
-func (srv *DirectoryService) Start(cs *ContainerService) error {
-
-	// パスを正規化
-	dirPath, err := core.NormalizeAbsPath(core.Config.DirectoryServiceDirPath)
-	if err != nil {
-		return err
-	}
-
-	srv.CS = cs
-	srv.DirPath = dirPath
-
+func (srv *DirectoryService) Start() error {
 	return nil
 }
 
 func (srv *DirectoryService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
-}
-
-// SyncToDB はファイルサービスの情報を SQLite へ同期する際に利用します。
-func (srv *DirectoryService) SyncToDB(_ *sql.DB) error {
-	return nil
 }
 
 // GetFiles は指定されたパスのファイル情報一覧を返す
@@ -95,13 +93,13 @@ func (srv *DirectoryService) GetFiles(
 	}
 
 	// ワーカーグループとチャンネルを設定
-	workerNum := core.DecideNumWorkers(dirsNum)
+	WorkerCount := core.Config.CalculateWorkerCount(dirsNum)
 	var wg sync.WaitGroup
 	channelIn := make(chan int, dirsNum)
 	channelOut := make(chan string, dirsNum)
 
 	// ワーカーを起動
-	for range workerNum {
+	for range WorkerCount {
 		wg.Go(func() {
 			for idx := range channelIn {
 				dir := dirs[idx]
@@ -141,7 +139,7 @@ func (srv *DirectoryService) GetAbsPathFrom(relPath string) (res string, err err
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(srv.DirPath, relPath)
+	res = filepath.Join(srv.BaseDirPath, relPath)
 
 	return // naked return
 }

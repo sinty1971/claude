@@ -25,34 +25,25 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	client := grpcv1connect.NewFileServiceClient(http.DefaultClient, *baseURL)
+	client := grpcv1connect.NewDirectoryServiceClient(http.DefaultClient, *baseURL)
 
-	resFileBasePath, err := client.GetFilePathistFolder(
-		ctx,
-		grpcv1.GetFilePathistFolderRequest_builder{}.Build(),
-	)
-	if err != nil {
-		log.Fatalf("GetFilePathistFolder の呼び出しに失敗しました: %v", err)
-	}
-
-	req := grpcv1.GetFilesRequest_builder{
-		PathistFolder: *target,
+	req := grpcv1.GetPathListRequest_builder{
+		RelativePath: *target,
 	}.Build()
 
-	resFiles, err := client.GetFiles(ctx, req)
+	res, err := client.GetPathList(ctx, req)
 	if err != nil {
 		log.Fatalf("ListFiles の呼び出しに失敗しました: %v", err)
 	}
 
 	if *jsonOut {
 		output := struct {
-			ManagedFolder string         `json:"managedFolder"`
-			Target        string         `json:"target"`
-			Files         []*grpcv1.File `json:"files"`
+			ManagedFolder string   `json:"managedFolder"`
+			Target        string   `json:"target"`
+			FilePaths     []string `json:"filePaths"`
 		}{
-			ManagedFolder: resFileBasePath.GetPathistFolder(),
-			Target:        req.GetPathistFolder(),
-			Files:         resFiles.GetFiles(),
+			Target:    req.GetRelativePath(),
+			FilePaths: res.GetPathList(),
 		}
 
 		data, err := json.MarshalIndent(output, "", "  ")
@@ -64,14 +55,9 @@ func main() {
 	}
 
 	// ターミナルで読みやすいように簡易フォーマットで出力する。
-	fmt.Printf("ManagedFolder: %s\n", resFileBasePath.GetPathistFolder())
-	fmt.Printf("PathistFolder: %s\n", req.GetPathistFolder())
+	fmt.Printf("PathistFolder: %s\n", req.GetRelativePath())
 	fmt.Println("IsDir\tSize\tModified\tPathistFolder\tIdealPath")
-	for _, file := range resFiles.GetFiles() {
-		fmt.Printf("%d\t%s\t%s\t\n",
-			file.GetSize(),
-			file.GetModifiedTime().AsTime().Format(time.RFC3339Nano),
-			file.GetPathistFolder(),
-		)
+	for _, filePath := range res.GetPathList() {
+		fmt.Printf("%s\n", filePath)
 	}
 }

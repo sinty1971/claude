@@ -123,9 +123,13 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 }
 
 func (m *Koji) Update(source *Koji) error {
-	// 引数チェック
+	// source が nil の場合は自身の dirPath から再解析を行う
 	if source == nil {
-		return errors.New("更新情報 source の値が nil です")
+		err := m.ParseFromDirPath(m.GetDirPath())
+		if err != nil {
+			return err
+		}
+		return m.Manifest.Load()
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
@@ -154,8 +158,13 @@ func (m *Koji) Update(source *Koji) error {
 
 	}
 
-	// Persist情報の更新
-	return m.Manifest.Update(source.Manifest)
+	// Manifestデータの更新
+	err = m.Manifest.Update(source.Manifest)
+	if err != nil {
+		return err
+	}
+
+	return m.Manifest.Save()
 }
 
 func (m *Koji) GenerateId() string {

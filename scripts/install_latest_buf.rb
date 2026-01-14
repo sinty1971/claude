@@ -3,8 +3,10 @@ require 'open-uri'
 require 'fileutils'
 require 'optparse'
 
+# アーキテクチャ検出
 def detect_arch
   machine = RbConfig::CONFIG['host_cpu'].downcase
+
   return 'arm64' if machine.include?('arm64') || machine.include?('aarch64')
   return 'x86_64' if machine.include?('x86_64') || machine.include?('amd64') || machine.include?('x64')
 

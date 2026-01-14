@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// NormalizeAbsPath は絶対パスを最短パスに変換します。
+// ResolveAbsPath は絶対パスを最短パスに変換します。
 // absPath は絶対パスです。
 // '~' はホームディレクトリを展開して絶対パスに変換します。
-func NormalizeAbsPath(absPath string) (string, error) {
+func ResolveAbsPath(absPath string) (string, error) {
 	// ホームディレクトリに展開
 	if strings.HasPrefix(absPath, "~/") {
 		usr, err := user.Current()

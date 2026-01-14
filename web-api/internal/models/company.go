@@ -119,9 +119,13 @@ func (m *Company) ParseFromDirPath(dirPath string) error {
 // 必要に応じて管理フォルダー名の変更も行います
 func (m *Company) Update(source *Company) error {
 
-	// 引数チェック
+	// source が nil の場合は m.dirPath から再解析を行う
 	if source == nil {
-		return errors.New("更新情報 source の値が nil です")
+		err := m.ParseFromDirPath(m.GetDirPath())
+		if err != nil {
+			return err
+		}
+		return m.Manifest.Load()
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
@@ -161,7 +165,11 @@ func (m *Company) Update(source *Company) error {
 	}
 
 	// Manifest データの更新
-	return m.Manifest.Update(source.Manifest)
+	err = m.Manifest.Update(source.Manifest)
+	if err != nil {
+		return err
+	}
+	return m.Manifest.Save()
 }
 
 // GenerateDirPath はパラメータをもとに管理フォルダー名変更します

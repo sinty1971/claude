@@ -18,11 +18,14 @@ import (
 
 // CompanyService の実装
 type CompanyService struct {
-	// CS は任意のgrpcサービスハンドラーへの参照
-	CS *ContainerService
+	// name はサービス名
+	name string
 
-	// DirPath は会社一覧フォルダーパス
-	DirPath string
+	// cs は任意のgrpcサービスハンドラーへの参照
+	cs *ContainerService
+
+	// baseDirPath は会社一覧ディレクトリパス
+	baseDirPath string
 
 	// cache は会社情報キャッシュマップ
 	cache map[string]*models.Company
@@ -34,45 +37,49 @@ type CompanyService struct {
 	grpcv1connect.UnimplementedCompanyServiceHandler
 }
 
+func NewCompanyService(cs *ContainerService) *CompanyService {
+	// パスをの取得と正規化
+	dirPath, err := core.ResolveAbsPath(core.Config.CompanyBaseDirPath)
+	if err != nil {
+		panic(err)
+	}
+
+	// watcher の作成と初期化
+	watcher, err := core.NewWatcher(dirPath, core.Config.CompanyWatcherMaxDepth)
+	if err != nil {
+		panic(err)
+	}
+
+	return &CompanyService{
+		name:        "CompanyService",
+		baseDirPath: dirPath,
+		cache:       map[string]*models.Company{},
+		cs:          cs,
+		watcher:     watcher,
+	}
+}
+
 // Name はデータサービス名を返します
 func (srv *CompanyService) Name() string {
-	return "CompanyService"
+	return srv.name
 }
 
 // Start は CompanyListManager を初期化して開始します
-func (srv *CompanyService) Start(cs *ContainerService) error {
-	// パスをの取得と正規化
-	dirPath, err := core.NormalizeAbsPath(core.Config.CompanyServiceDirPath)
-	if err != nil {
-		return err
-	}
-
-	// 既存インスタンスに値をセット（再代入しないこと）
-	srv.CS = cs
-	srv.DirPath = dirPath
-	srv.cache = make(map[string]*models.Company)
-
+func (srv *CompanyService) Start() error {
 	// 全ての会社情報をキャッシュに取り込む
-	err = srv.SyncAllToCache()
+	err := srv.SyncAllToCache()
 	if err != nil {
 		return err
 	}
-
-	// ファイルシステム監視オブジェクトの作成
-	watcher, err := core.NewWatcher()
-	if err != nil {
-		return err
-	}
-	srv.watcher = watcher
 
 	// 監視対象ディレクトリの設定
-	err = srv.watcher.Start(srv.DirPath, core.Config.CompanyWatcherMaxDepth)
+	err = srv.watcher.Start()
 	if err != nil {
 		return err
 	}
 
 	// ゴルーチンで監視イベントを処理
-	go srv.consumeWatcherEvents()
+	go srv.watchFileSystemEvents()
 
 	return nil
 }
@@ -86,7 +93,7 @@ func (srv *CompanyService) Cleanup() {
 // LoadAllCompanies は全ての会社情報をキャッシュに取り込みます
 func (srv *CompanyService) SyncAllToCache() error {
 	// ファイルシステムから会社フォルダー一覧を取得
-	entries, err := os.ReadDir(srv.DirPath)
+	entries, err := os.ReadDir(srv.baseDirPath)
 	if err != nil {
 		return err
 	}
@@ -96,9 +103,14 @@ func (srv *CompanyService) SyncAllToCache() error {
 
 	// 全てのCompanyインスタンスを作成
 	for _, entry := range entries {
+		// ディレクトリのみ処理
+		if !entry.IsDir() {
+			continue
+		}
+
 		// Companyインスタンスの作成と初期化
-		dirPath := filepath.Join(srv.DirPath, entry.Name())
-		company, err := models.NewCompany(dirPath)
+		entryPath := filepath.Join(srv.baseDirPath, entry.Name())
+		company, err := models.NewCompany(entryPath)
 		if err == nil {
 			srv.cache[company.GetId()] = company
 		}
@@ -118,13 +130,8 @@ func (srv *CompanyService) SyncAllToCache() error {
 // Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
 //
 //	targetId: 更新対象会社Id
-//	source: 新しい会社情報
-func (srv *CompanyService) Update(targetId string, src *models.Company) error {
-	// 引数チェック
-	if src == nil {
-		return errors.New("更新情報 src の値が nil です")
-	}
-
+//	source: 新しい会社情報、nilの場合は更新対象会社自身の更新を行います
+func (srv *CompanyService) Update(targetId string, source *models.Company) error {
 	// targetId からCompanyデータを取得
 	target, exist := srv.cache[targetId]
 	if !exist {
@@ -132,7 +139,7 @@ func (srv *CompanyService) Update(targetId string, src *models.Company) error {
 	}
 
 	// 会社情報の更新
-	err := target.Update(src)
+	err := target.Update(source)
 	if err != nil {
 		return err
 	}
@@ -143,22 +150,30 @@ func (srv *CompanyService) Update(targetId string, src *models.Company) error {
 	return nil
 }
 
-// consumeWatcherEvents はファイルシステム監視イベントを処理します
-func (srv *CompanyService) consumeWatcherEvents() {
+// watchFileSystemEvents はファイルシステム監視イベントを処理します
+func (srv *CompanyService) watchFileSystemEvents() {
 	for {
 		select {
 		case event, ok := <-srv.watcher.Events():
 			if !ok {
 				return
 			}
-			// eventからCompanyIdの取得
+
+			// eventから会社Idの取得
 			dirName := filepath.Base(filepath.Dir(event.Name))
 			id := core.GenerateIdFromString(dirName)
-			log.Printf("CompanyService: File system event: %s, CompanyId: %s", event, id)
 
-			// キャッシュの同期
-			if err := srv.SyncAllToCache(); err != nil {
-				log.Printf("CompanyService: Failed to update company cache map: %v", err)
+			// 会社情報の存在チェック
+			_, exist := srv.cache[id]
+			if !exist {
+				if err := srv.SyncAllToCache(); err != nil {
+					log.Printf("CompanyService: Failed to update company cache map: %v", err)
+				}
+			} else {
+				err := srv.Update(id, nil)
+				if err != nil {
+					log.Printf("CompanyService: Failed to update company cache map for known company: %s, Error: %v", id, err)
+				}
 			}
 
 		case err, ok := <-srv.watcher.Errors():

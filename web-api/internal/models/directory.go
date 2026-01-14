@@ -32,7 +32,7 @@ func (m *Directory) ParseFromDirPath(dirPath string) error {
 	var err error
 
 	// 絶対パスの正規化
-	absPath, err := core.NormalizeAbsPath(dirPath)
+	absPath, err := core.ResolveAbsPath(dirPath)
 	if err != nil {
 		return err
 	}
