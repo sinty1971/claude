@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -135,9 +136,8 @@ func (p *ManifestProvider) Update(source *ManifestProvider) error {
 func (p *ManifestProvider) ExportJson() (*map[string]any, error) {
 	// camelCase キーで JSON にマーシャル
 	jsonbytes, err := protojson.MarshalOptions{
-		UseProtoNames:     true,
-		EmitUnpopulated:   false,
-		EmitDefaultValues: true,
+		UseProtoNames:   true,
+		EmitUnpopulated: true,
 	}.Marshal(p.GetManifestMessage())
 	if err != nil {
 		return nil, err
@@ -152,11 +152,56 @@ func (p *ManifestProvider) ExportJson() (*map[string]any, error) {
 		}
 	}
 
+	// タイムスタンプフィールドを日本時間（JST）に変換
+	p.convertTimestampsToJST(jsonmap)
+
 	return jsonmap, nil
+}
+
+// convertTimestampsToJST はマップ内のタイムスタンプを日本時間のフォーマットに変換します
+func (p *ManifestProvider) convertTimestampsToJST(jsonmap *map[string]any) {
+	if p == nil || p.Manifestable == nil {
+		return
+	}
+
+	msg := p.GetManifestMessage()
+	if msg == nil {
+		return
+	}
+
+	ref := msg.ProtoReflect()
+	fields := ref.Descriptor().Fields()
+	jst := time.FixedZone("JST", 9*60*60)
+
+	// 各フィールドを確認
+	for i := 0; i < fields.Len(); i++ {
+		f := fields.Get(i)
+		fieldName := string(f.Name())
+
+		// mf_ で始まるフィールドのみ処理
+		if !strings.HasPrefix(fieldName, "mf_") {
+			continue
+		}
+
+		// Timestamp 型のフィールドのみ処理
+		if f.Message() != nil && f.Message().FullName() == "google.protobuf.Timestamp" {
+			if ref.Has(f) {
+				value := ref.Get(f)
+				if ts, ok := value.Message().Interface().(*timestamppb.Timestamp); ok && ts.IsValid() {
+					// JST で RFC3339 フォーマットに変換
+					jstTime := ts.AsTime().In(jst)
+					(*jsonmap)[fieldName] = jstTime.Format(time.RFC3339)
+				}
+			}
+		}
+	}
 }
 
 // ImportJson はJSONマップを Manifest フィールドに設定します
 func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
+
+	// タイムスタンプ文字列をUTC形式に正規化
+	p.normalizeTimestampsToUTC(jsonmap)
 
 	// JSONマップをバイトデータに変換
 	bytes, err := json.Marshal(*jsonmap)
@@ -164,24 +209,52 @@ func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
 		return err
 	}
 
-	// 代入先メッセージの取得
-	targetRef := p.GetManifestMessage().ProtoReflect()
-	fields := targetRef.Descriptor().Fields()
+	// 一時的な空のメッセージを作成してアンマーシャル
+	targetMsg := p.GetManifestMessage()
+	targetRef := targetMsg.ProtoReflect()
+	tempMsg := targetRef.Type().New()
 
-	// JSONデータをアンマーシャルし、一時メッセージに格納
-	tempMsg := dynamicpb.NewMessage(targetRef.Descriptor())
 	opts := protojson.UnmarshalOptions{AllowPartial: true}
-	if err := opts.Unmarshal(bytes, tempMsg); err != nil {
+	if err := opts.Unmarshal(bytes, tempMsg.Interface()); err != nil {
 		return err
 	}
 
-	// Manifest フィールドのみを元のメッセージにコピー
+	// mf_ フィールドのみを元のメッセージにコピー
+	fields := targetRef.Descriptor().Fields()
+	tempRef := tempMsg
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
 		if !strings.HasPrefix(string(f.Name()), "mf_") {
 			continue
 		}
-		targetRef.Set(f, tempMsg.Get(f))
+		if tempRef.Has(f) {
+			targetRef.Set(f, tempRef.Get(f))
+		}
 	}
+
 	return nil
+}
+
+// normalizeTimestampsToUTC はマップ内のタイムスタンプ文字列をUTC形式に正規化します
+func (p *ManifestProvider) normalizeTimestampsToUTC(jsonmap *map[string]any) {
+	if jsonmap == nil {
+		return
+	}
+
+	// 各フィールドを確認
+	for k, v := range *jsonmap {
+		// mf_ で始まるフィールドのみ処理
+		if !strings.HasPrefix(k, "mf_") {
+			continue
+		}
+
+		// 文字列型の値のみ処理
+		if strVal, ok := v.(string); ok {
+			// RFC3339形式のタイムスタンプとしてパース
+			if t, err := time.Parse(time.RFC3339, strVal); err == nil {
+				// UTC形式の文字列に変換
+				(*jsonmap)[k] = t.UTC().Format(time.RFC3339)
+			}
+		}
+	}
 }

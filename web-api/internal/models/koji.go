@@ -90,17 +90,18 @@ func (m *Koji) ParseFromDirPath(dirPath string) error {
 		return errors.New("工事フォルダー名から会社名及び現場名が得できません")
 	}
 
-	// IDの生成
-	id := core.GenerateIdFromString(dirName)
-
 	// 各フィールドの設定
-	m.SetId(id)
+	m.SetId(GenerateKojiIdFromDirName(dirName))
 	m.SetDirPath(dirPath)
 	m.SetStart(start.Timestamp)
 	m.SetCompanyName(companyName)
 	m.SetLocationName(locationName)
 
 	return nil
+}
+
+func GenerateKojiIdFromDirName(dirName string) string {
+	return core.GenerateIdFromString(dirName)
 }
 
 // GenerateKojiStatus はプロジェクトステータスを判定する
@@ -142,19 +143,26 @@ func (m *Koji) Update(source *Koji) error {
 		return err
 	}
 
-	// フォルダー名変更が必要な場合
+	newDirName := core.GetBaseName(newDirPath)
+	if newDirName == "" {
+		return errors.New("新しい工事フォルダー名の取得に失敗しました")
+	}
+
+	// ディレクトリ名変更が必要な場合
 	if m.GetDirPath() != newDirPath {
 		err := os.Rename(m.GetDirPath(), newDirPath)
 		if err != nil {
 			return err
 		}
 
+		newId := GenerateKojiIdFromDirName(newDirName)
+
 		// マニフェスト以外の情報を更新
+		m.SetId(newId)
 		m.SetDirPath(newDirPath)
 		m.SetStart(source.GetStart())
 		m.SetCompanyName(source.GetCompanyName())
 		m.SetLocationName(source.GetLocationName())
-		m.GenerateId()
 
 	}
 
@@ -167,13 +175,14 @@ func (m *Koji) Update(source *Koji) error {
 	return m.Manifest.Save()
 }
 
-func (m *Koji) GenerateId() string {
-	dirName := core.GetBaseName(m.GetDirPath())
-	id := core.GenerateIdFromString(dirName)
-	m.SetId(id)
-	return id
-}
-
+// GenerateDirPath はパラメータをもとに工事フォルダー名変更します
+//
+//	引数： st: 工事開始日
+//	      cn: 会社名
+//	      loc: 現場名
+//	戻り値:
+//
+//		生成された工事フォルダーパス
 func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, error) {
 
 	startText, err := st.FormatTime("2006-0102")
@@ -195,4 +204,20 @@ func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, err
 	dirPathBuilder.WriteByte(' ')
 	dirPathBuilder.WriteString(loc)
 	return dirPathBuilder.String(), nil
+}
+
+// EnsureKojiMfEndFromStart は mf_end が空の場合に start の値をコピーします
+func (m *Koji) EnsureKojiMfEndFromStart() {
+	if m == nil || m.Koji == nil {
+		return
+	}
+
+	// mf_end が設定されていない、または無効な場合
+	if m.GetMfEnd() == nil || !m.GetMfEnd().IsValid() {
+		// start の値を mf_end にコピー
+		if m.GetStart() != nil && m.GetStart().IsValid() {
+			m.SetMfEnd(m.GetStart())
+			m.Manifest.Save()
+		}
+	}
 }

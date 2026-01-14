@@ -17,7 +17,7 @@ type Company struct {
 	// Company メッセージ本体
 	*grpcv1.Company
 
-	// ManifestProvider は Manifestデータの永続化設定を管理します
+	// ManifestProvider は Manifestデータの永続化を提供します
 	Manifest *core.ManifestProvider
 }
 
@@ -28,6 +28,10 @@ func NewCompany(dirPath string) (*Company, error) {
 	// インスタンス作成と初期化
 	company := &Company{}
 	company.Company = grpcv1.Company_builder{}.Build()
+
+	if dirPath == "" {
+		return nil, errors.New("dirPath is empty")
+	}
 
 	// dirPath から情報を解析して設定
 	err := company.ParseFromDirPath(dirPath)
@@ -116,7 +120,7 @@ func (m *Company) ParseFromDirPath(dirPath string) error {
 }
 
 // Update は会社情報を更新します
-// 必要に応じて管理フォルダー名の変更も行います
+// 必要に応じて会社フォルダー名の変更も行います
 func (m *Company) Update(source *Company) error {
 
 	// source が nil の場合は m.dirPath から再解析を行う
@@ -128,7 +132,7 @@ func (m *Company) Update(source *Company) error {
 		return m.Manifest.Load()
 	}
 
-	// 新しいパラメータを元に管理フォルダーパスを生成
+	// 新しいパラメータを元に会社フォルダーパスを生成
 	newDirPath, err := m.GenerateDirPath(
 		filepath.Dir(m.GetDirPath()),
 		source.GetCategoryIndex(),
@@ -138,13 +142,13 @@ func (m *Company) Update(source *Company) error {
 		return err
 	}
 
-	// 新しい管理フォルダー名の取得
+	// 新しい会社フォルダー名の取得
 	newDirName := core.GetBaseName(newDirPath)
 	if newDirName == "" {
-		return errors.New("新しい管理フォルダー名の取得に失敗しました")
+		return errors.New("新しい会社フォルダー名の取得に失敗しました")
 	}
 
-	// ファイル名変更の必要がある場合は管理フォルダー名を更新
+	// ファイル名変更の必要がある場合は会社フォルダー名を更新
 	if m.GetDirPath() != newDirPath {
 
 		// フォルダー名変更
@@ -172,7 +176,7 @@ func (m *Company) Update(source *Company) error {
 	return m.Manifest.Save()
 }
 
-// GenerateDirPath はパラメータをもとに管理フォルダー名変更します
+// GenerateDirPath はパラメータをもとに会社フォルダー名変更します
 //
 //	引数： dir: 基本パス(原則として O:/.../1 会社 などの親フォルダー)
 //	 ci: カテゴリーインデックス
@@ -180,7 +184,7 @@ func (m *Company) Update(source *Company) error {
 //
 //	 戻り値:
 //
-//		生成された管理フォルダーパス
+//		生成された会社フォルダーパス
 func (m *Company) GenerateDirPath(dir string, ci int32, sn string) (string, error) {
 	dirName := strconv.Itoa(int(ci)) + " " + sn
 	return filepath.Join(dir, dirName), nil

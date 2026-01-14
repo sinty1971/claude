@@ -66,21 +66,23 @@ func main() {
 	cs.AddService(kojiService)
 
 	// サービスの起動
-	if err := cs.Start(); err != nil {
+	err := cs.Start()
+	if err != nil {
 		log.Fatalf("Failed to start services: %v", err)
 	}
 	defer cs.CleanupAll()
 
 	// gRPC, HTTP ハンドラの設定
 	mux := http.NewServeMux()
-	directoryPath, directoryConnectHandler := grpcv1connect.NewDirectoryServiceHandler(directoryService)
-	mux.Handle(directoryPath, directoryConnectHandler)
 
-	companyPath, companyConnectHandler := grpcv1connect.NewCompanyServiceHandler(companyService)
-	mux.Handle(companyPath, companyConnectHandler)
+	// DirectoryService ハンドラの登録
+	directoryServicePath, directoryConnectHandler := grpcv1connect.NewDirectoryServiceHandler(directoryService)
+	mux.Handle(directoryServicePath, directoryConnectHandler)
 
-	kojiPath, kojiConnectHandler := grpcv1connect.NewKojiServiceHandler(kojiService)
-	mux.Handle(kojiPath, kojiConnectHandler)
+	companyServicePath, companyConnectHandler := grpcv1connect.NewCompanyServiceHandler(companyService)
+	mux.Handle(companyServicePath, companyConnectHandler)
+	kojiServicePath, kojiConnectHandler := grpcv1connect.NewKojiServiceHandler(kojiService)
+	mux.Handle(kojiServicePath, kojiConnectHandler)
 
 	// gRPC ハンドラの登録
 

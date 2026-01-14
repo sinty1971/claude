@@ -121,14 +121,14 @@ func (srv *KojiService) SyncAllToCache() error {
 	}
 
 	// 工事フォルダー一覧の要素数を取得
-	kojiesSize := len(entries)
+	entriesCount := len(entries)
 
 	// 並列処理用のワーカー数を決定
-	workderCount := core.Config.CalculateWorkerCount(kojiesSize)
+	workderCount := core.Config.CalculateWorkerCount(entriesCount)
 
 	// バッファ付きチャンネルで効率化
-	jobs := make(chan int, kojiesSize)
-	results := make(chan *models.Koji, kojiesSize)
+	chanCount := make(chan int, entriesCount)
+	chanKojies := make(chan *models.Koji, entriesCount)
 
 	// ワーカープールの起動
 	var wg sync.WaitGroup
@@ -136,14 +136,23 @@ func (srv *KojiService) SyncAllToCache() error {
 	for range workderCount {
 		go func() {
 			defer wg.Done()
-			for idx := range jobs {
-				dirPath := filepath.Join(srv.baseDirPath, entries[idx].Name())
+			for i := range chanCount {
+				dirPath := filepath.Join(srv.baseDirPath, entries[i].Name())
 				koji, err := models.NewKoji(dirPath)
-				if err == nil {
-					results <- koji
-				} else {
-					results <- nil // エラーの場合はnilを返す
+				if err != nil {
+					chanKojies <- nil // エラーの場合はnilを返す
+					continue
 				}
+
+				err = koji.Manifest.Load() // マニフェストの読み込み
+				if err != nil {
+					chanKojies <- nil // エラーの場合はnilを返す
+					continue
+				}
+
+				// mf_end の補完
+				koji.EnsureKojiMfEndFromStart()
+				chanKojies <- koji
 			}
 		}()
 	}
@@ -151,20 +160,22 @@ func (srv *KojiService) SyncAllToCache() error {
 	// ジョブの投入
 	go func() {
 		for i := range entries {
-			jobs <- i
+			chanCount <- i
 		}
-		close(jobs)
+		close(chanCount)
 	}()
 
 	// 結果収集用のゴルーチン
 	go func() {
 		wg.Wait()
-		close(results)
+		close(chanKojies)
 	}()
 
-	for result := range results {
-		if result != nil {
-			srv.cache[result.GetId()] = result
+	// キャッシュマップの更新
+	srv.cache = make(map[string]*models.Koji, entriesCount)
+	for koji := range chanKojies {
+		if koji != nil {
+			srv.cache[koji.GetId()] = koji
 		}
 	}
 
@@ -192,6 +203,9 @@ func (srv *KojiService) Update(targetId string, source *models.Koji) error {
 	if err != nil {
 		return err
 	}
+
+	// mf_end の補完
+	target.EnsureKojiMfEndFromStart()
 
 	// キャッシュ情報の更新
 	srv.cache[target.GetId()] = target

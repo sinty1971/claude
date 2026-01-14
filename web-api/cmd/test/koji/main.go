@@ -60,14 +60,23 @@ func showKoji(ctx context.Context, client grpcv1connect.KojiServiceClient, targe
 
 	// ターミナル表示
 	koji := res.GetKoji()
+	jst := time.FixedZone("JST", 9*60*60)
 	fmt.Printf("Koji Information (ID: %s)\n", targetId)
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Printf("ID: %s\n", koji.GetId())
 	fmt.Printf("Pathist Folder: %s\n", koji.GetDirPath())
-	fmt.Printf("Start: %s\n", koji.GetStart())
+	if koji.GetStart() != nil && koji.GetStart().IsValid() {
+		fmt.Printf("Start: %s\n", koji.GetStart().AsTime().In(jst).Format("2006-01-02 15:04:05 MST"))
+	} else {
+		fmt.Printf("Start: N/A\n")
+	}
 	fmt.Printf("Company: %s\n", koji.GetCompanyName())
 	fmt.Printf("Location: %s\n", koji.GetLocationName())
-	fmt.Printf("End Date: %s\n", koji.GetMfEnd())
+	if koji.GetMfEnd() != nil && koji.GetMfEnd().IsValid() {
+		fmt.Printf("End Date: %s\n", koji.GetMfEnd().AsTime().In(jst).Format("2006-01-02 15:04:05 MST"))
+	} else {
+		fmt.Printf("End Date: N/A\n")
+	}
 }
 
 // showAllKojies は全工事の一覧を表示します
@@ -96,11 +105,12 @@ func showAllKojies(ctx context.Context, client grpcv1connect.KojiServiceClient, 
 	fmt.Println("ID\t\tLong Name\t\t\tCompany ID\tStart Date")
 	fmt.Println(strings.Repeat("-", 100))
 
+	jst := time.FixedZone("JST", 9*60*60)
 	for id, koji := range kojiMap {
 		start := koji.GetStart()
-		startText := start.AsTime().Format("2006-01-02")
-		if len(startText) == 0 {
-			startText = "N/A"
+		startText := "N/A"
+		if start != nil && start.IsValid() {
+			startText = start.AsTime().In(jst).Format("2006-01-02")
 		}
 		companyName := koji.GetCompanyName()
 		if len(companyName) > 30 {
