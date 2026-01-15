@@ -18,46 +18,51 @@ type Company struct {
 	*grpcv1.Company
 
 	// ManifestProvider は Manifestデータの永続化を提供します
-	Manifest *core.ManifestProvider
+	*core.ManifestProvider
 }
 
 // NewCompany インスタンス作成と初期化を行います
 // Manifest は初期化をしますが Manifest ファイルの読み込みは行いません
 func NewCompany(dirPath string) (*Company, error) {
-
 	// インスタンス作成と初期化
-	company := &Company{}
-	company.Company = grpcv1.Company_builder{}.Build()
-
-	if dirPath == "" {
-		return nil, errors.New("dirPath is empty")
+	company := &Company{
+		Company: grpcv1.Company_builder{}.Build(),
 	}
 
 	// dirPath から情報を解析して設定
-	err := company.ParseFromDirPath(dirPath)
+	err := company.parseFromDirPath(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// ManifestProvider の初期化
-	company.Manifest = core.NewManifestProvider(company)
+	company.InitializeManifestProvider()
 
 	return company, nil
 }
 
-func NewCompanyFromMessage(msg *grpcv1.Company) (*Company, error) {
-	if msg == nil {
+func NewCompanyFromMessage(message *grpcv1.Company) (*Company, error) {
+	// message が nil の場合はエラーを返す
+	if message == nil {
 		return nil, errors.New("msg is nil")
 	}
 
+	// インスタンス作成
+	company := &Company{}
+
 	// クローンを作成して保持
-	cloneMsg := proto.Clone(msg).(*grpcv1.Company)
-	company := &Company{Company: cloneMsg}
+	company.Company = proto.Clone(message).(*grpcv1.Company)
 
 	// ManifestProvider の初期化
-	company.Manifest = core.NewManifestProvider(company)
+	company.InitializeManifestProvider()
 
 	return company, nil
+}
+
+// SetManifestProvider は ManifestProvider を設定します
+func (m *Company) InitializeManifestProvider() {
+	mp := &core.ManifestProvider{Manifestable: m}
+	m.ManifestProvider = mp
 }
 
 // GenerateCompanyId は dirPath から会社IDを生成します
@@ -65,22 +70,10 @@ func GenerateCompanyIdFromDirName(dirName string) string {
 	return core.GenerateIdFromString(dirName)
 }
 
-// GetManifestFolder は Manifest ファイルを保存先フルパスを取得します
-// Manifestable インターフェースの実装
-func (m *Company) GetManifestDirectory() string {
-	return m.GetDirPath()
-}
-
-// GetManifestMessage は Company の protobuf メッセージを取得します
-// Manifestable インターフェースの実装
-func (m *Company) GetManifestMessage() proto.Message {
-	return m.Company
-}
-
-// ParseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
+// parseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
 // 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
-func (m *Company) ParseFromDirPath(dirPath string) error {
+func (m *Company) parseFromDirPath(dirPath string) error {
 
 	// ディレクトリ名の取得
 	dirName := core.GetBaseName(dirPath)
@@ -125,22 +118,18 @@ func (m *Company) Update(source *Company) error {
 
 	// source が nil の場合は m.dirPath から再解析を行う
 	if source == nil {
-		err := m.ParseFromDirPath(m.GetDirPath())
+		err := m.parseFromDirPath(m.GetDirPath())
 		if err != nil {
 			return err
 		}
-		return m.Manifest.Load()
+		return m.LoadManifest()
 	}
 
 	// 新しいパラメータを元に会社フォルダーパスを生成
-	newDirPath, err := m.GenerateDirPath(
-		filepath.Dir(m.GetDirPath()),
+	newDirPath := m.GenerateDirPath(
 		source.GetCategoryIndex(),
 		source.GetShortName(),
 	)
-	if err != nil {
-		return err
-	}
 
 	// 新しい会社フォルダー名の取得
 	newDirName := core.GetBaseName(newDirPath)
@@ -169,23 +158,23 @@ func (m *Company) Update(source *Company) error {
 	}
 
 	// Manifest データの更新
-	err = m.Manifest.Update(source.Manifest)
+	err := m.UpdateManifest(source.ManifestProvider)
 	if err != nil {
 		return err
 	}
-	return m.Manifest.Save()
+
+	return m.SaveManifest()
 }
 
 // GenerateDirPath はパラメータをもとに会社フォルダー名変更します
 //
-//	引数： dir: 基本パス(原則として O:/.../1 会社 などの親フォルダー)
-//	 ci: カテゴリーインデックス
-//	 sn: 省略会社名
+//	引数：
+//	  ci: カテゴリーインデックス
+//	  sn: 省略会社名
 //
-//	 戻り値:
-//
-//		生成された会社フォルダーパス
-func (m *Company) GenerateDirPath(dir string, ci int32, sn string) (string, error) {
+//	戻り値: 生成された会社フォルダーパス
+func (m *Company) GenerateDirPath(ci int32, sn string) string {
+	baseDirPath := filepath.Dir(m.GetDirPath())
 	dirName := strconv.Itoa(int(ci)) + " " + sn
-	return filepath.Join(dir, dirName), nil
+	return filepath.Join(baseDirPath, dirName)
 }

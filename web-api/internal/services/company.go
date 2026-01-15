@@ -67,13 +67,10 @@ func (srv *CompanyService) Name() string {
 // Start は CompanyListManager を初期化して開始します
 func (srv *CompanyService) Start() error {
 	// 全ての会社情報をキャッシュに取り込む
-	err := srv.SyncAllToCache()
-	if err != nil {
-		return err
-	}
+	srv.SyncAllToCache()
 
 	// 監視対象ディレクトリの設定
-	err = srv.watcher.Start()
+	err := srv.watcher.Start()
 	if err != nil {
 		return err
 	}
@@ -91,14 +88,14 @@ func (srv *CompanyService) Cleanup() {
 }
 
 // LoadAllCompanies は全ての会社情報をキャッシュに取り込みます
-func (srv *CompanyService) SyncAllToCache() error {
+func (srv *CompanyService) SyncAllToCache() {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.baseDirPath)
 	if err != nil {
-		return err
+		return
 	}
 
-	// データの初期化
+	// キャッシュマップを初期化
 	srv.cache = make(map[string]*models.Company, len(entries))
 
 	// 全てのCompanyインスタンスを作成
@@ -108,23 +105,19 @@ func (srv *CompanyService) SyncAllToCache() error {
 			continue
 		}
 
-		// Companyインスタンスの作成と初期化
-		entryPath := filepath.Join(srv.baseDirPath, entry.Name())
-		company, err := models.NewCompany(entryPath)
-		if err == nil {
-			srv.cache[company.GetId()] = company
-		}
-	}
-
-	// Manifest情報の読み込み
-	for _, company := range srv.cache {
-		err := company.Manifest.Load()
+		dirPath := filepath.Join(srv.baseDirPath, entry.Name())
+		company, err := models.NewCompany(dirPath)
 		if err != nil {
-			log.Printf("マニフェストの永続化情報の読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
+			continue
 		}
-	}
 
-	return nil
+		err = company.LoadManifest()
+		if err != nil {
+			log.Printf("マニフェストデータの読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
+		}
+
+		srv.cache[company.GetId()] = company
+	}
 }
 
 // Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
@@ -166,9 +159,7 @@ func (srv *CompanyService) watchFileSystemEvents() {
 			// 会社情報の存在チェック
 			_, exist := srv.cache[id]
 			if !exist {
-				if err := srv.SyncAllToCache(); err != nil {
-					log.Printf("CompanyService: Failed to update company cache map: %v", err)
-				}
+				srv.SyncAllToCache()
 			} else {
 				err := srv.Update(id, nil)
 				if err != nil {
@@ -201,9 +192,7 @@ func (srv *CompanyService) GetCompanies(
 
 	// 必要に応じてキャッシュを更新
 	if req.GetForceReload() {
-		if err := srv.SyncAllToCache(); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
+		srv.SyncAllToCache()
 	}
 
 	// 会社データモデルを作成

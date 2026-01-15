@@ -144,14 +144,12 @@ func (srv *KojiService) SyncAllToCache() error {
 					continue
 				}
 
-				err = koji.Manifest.Load() // マニフェストの読み込み
+				err = koji.LoadManifest() // マニフェストの読み込み
 				if err != nil {
 					chanKojies <- nil // エラーの場合はnilを返す
 					continue
 				}
 
-				// mf_end の補完
-				koji.EnsureKojiMfEndFromStart()
 				chanKojies <- koji
 			}
 		}()
@@ -203,9 +201,6 @@ func (srv *KojiService) Update(targetId string, source *models.Koji) error {
 	if err != nil {
 		return err
 	}
-
-	// mf_end の補完
-	target.EnsureKojiMfEndFromStart()
 
 	// キャッシュ情報の更新
 	srv.cache[target.GetId()] = target

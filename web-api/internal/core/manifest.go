@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 )
@@ -26,66 +26,60 @@ type ManifestProvider struct {
 	Manifestable
 }
 
-// Manifestable はmanifestフィールドをmanifestファイルに持つモデルのインターフェースを定義します。
+// Manifestable は proto の mf_ フィールドをmanifestファイルに保存できるモデルのインターフェースを定義します。
 //   - protobuf メッセージを持っていることが前提となります。
 type Manifestable interface {
-	// GetManifestDirectory は永続化ファイルを保存するフルパスを取得します。
-	//  - proto メッセージ内の mf_folder フィールドを返す実装が一般的です。
-	GetManifestDirectory() string
+	// InitializeManifestProvider は ManifestProvider を初期化します。
+	InitializeManifestProvider()
 
-	// GetManifestMessage はモデルの protobuf メッセージを取得します。
-	GetManifestMessage() proto.Message
-}
+	// GetProtoMessage はモデルの protobuf メッセージを取得します。
+	ProtoReflect() protoreflect.Message
 
-// NewManifestProvider は ManifestProvider のインスタンスを作成します。
-func NewManifestProvider(target Manifestable) *ManifestProvider {
-	// インスタンス作成（モデルへの参照は保持しない）
-	return &ManifestProvider{
-		Manifestable: target,
-	}
+	// GetDirPath はモデルのディレクトリパスを取得します。
+	GetDirPath() string
 }
 
 // GetMessageFullName はモデルの protobuf メッセージの完全修飾名を取得します。
 func (p *ManifestProvider) GetMessageFullName() string {
-	if p == nil || p.Manifestable.GetManifestMessage() == nil {
+	if p == nil || p.ProtoReflect() == nil {
 		return ""
 	}
-	return string(p.Manifestable.GetManifestMessage().ProtoReflect().Descriptor().FullName())
+	return string(p.ProtoReflect().Descriptor().FullName())
 }
 
 func (p *ManifestProvider) getManifestPath() string {
-	return filepath.Join(p.GetManifestDirectory(), "@manifest.yaml")
+	return filepath.Join(p.GetDirPath(), "@manifest.yaml")
 }
 
-// Load は Manifest ファイルから永続化データのみを読み込みます。
+// LoadManifest は Manifest ファイルから永続化データのみを読み込みます。
 // ファイル形式は YAML です。
-func (p *ManifestProvider) Load() error {
+func (p *ManifestProvider) LoadManifest() error {
 
 	// YAMLファイルからテキストデータを読み込む
 	text, err := os.ReadFile(p.getManifestPath())
 	if err != nil {
 		// ファイルが存在しない場合は新規作成
-		return p.Save()
+		return p.SaveManifest()
 	}
 
 	// YAMLファイルデータをJSONマップデータに変換
 	jsonmap := &map[string]any{}
 	err = yaml.Unmarshal(text, jsonmap)
 	if len(*jsonmap) == 0 || err != nil {
-		return p.Save()
+		return p.SaveManifest()
 	}
 
 	// JSONマップデータから Manifest データを取り込む
 	err = p.ImportJson(jsonmap)
 	if err != nil {
-		return p.Save()
+		return p.SaveManifest()
 	}
 	return nil
 }
 
-// Save はデータを Manifest ファイルに保存します。
+// SaveManifest はデータを Manifest ファイルに保存します。
 // ファイル形式は YAML です。
-func (p *ManifestProvider) Save() error {
+func (p *ManifestProvider) SaveManifest() error {
 	// JSONマップの取得
 	jsonmap, err := p.ExportJson()
 	if err != nil {
@@ -105,7 +99,7 @@ func (p *ManifestProvider) Save() error {
 // Update は Manifest データを更新します。
 //
 // source: ManifestProvider
-func (p *ManifestProvider) Update(source *ManifestProvider) error {
+func (p *ManifestProvider) UpdateManifest(source *ManifestProvider) error {
 	// 引数チェック
 	if source == nil || source.Manifestable == nil {
 		return errors.New("Source Manifestable src is nil")
@@ -117,9 +111,9 @@ func (p *ManifestProvider) Update(source *ManifestProvider) error {
 	}
 
 	// Manifest フィールドのみを更新
-	targetRef := p.GetManifestMessage().ProtoReflect()
+	targetRef := p.ProtoReflect()
 	fields := targetRef.Descriptor().Fields()
-	srcRef := source.GetManifestMessage().ProtoReflect()
+	srcRef := source.ProtoReflect()
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
 		v := srcRef.Get(f)
@@ -138,7 +132,7 @@ func (p *ManifestProvider) ExportJson() (*map[string]any, error) {
 	jsonbytes, err := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: true,
-	}.Marshal(p.GetManifestMessage())
+	}.Marshal(p.Manifestable.ProtoReflect().Interface())
 	if err != nil {
 		return nil, err
 	}
@@ -164,12 +158,10 @@ func (p *ManifestProvider) convertTimestampsToJST(jsonmap *map[string]any) {
 		return
 	}
 
-	msg := p.GetManifestMessage()
-	if msg == nil {
+	ref := p.ProtoReflect()
+	if ref == nil {
 		return
 	}
-
-	ref := msg.ProtoReflect()
 	fields := ref.Descriptor().Fields()
 	jst := time.FixedZone("JST", 9*60*60)
 
@@ -210,8 +202,7 @@ func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
 	}
 
 	// 一時的な空のメッセージを作成してアンマーシャル
-	targetMsg := p.GetManifestMessage()
-	targetRef := targetMsg.ProtoReflect()
+	targetRef := p.ProtoReflect()
 	tempMsg := targetRef.Type().New()
 
 	opts := protojson.UnmarshalOptions{AllowPartial: true}

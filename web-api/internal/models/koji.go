@@ -16,51 +16,48 @@ type Koji struct {
 	*grpcv1.Koji
 
 	// Persist共通モデルフィールド
-	Manifest *core.ManifestProvider
+	*core.ManifestProvider
 }
 
-// NewKoji FolderNameからKojiを作成します（高速化版）
+// NewKoji FolderNameからKojiを作成します
 func NewKoji(dirPath string) (*Koji, error) {
-
+	// インスタンス作成
 	koji := &Koji{}
+
+	// Koji メッセージ本体の初期化
 	koji.Koji = grpcv1.Koji_builder{}.Build()
+
+	// dirPath から情報を解析して設定
 	err := koji.ParseFromDirPath(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// ManifestProvider の初期化
-	koji.Manifest = core.NewManifestProvider(koji)
+	koji.InitializeManifestProvider()
 
 	return koji, nil
 }
 
-func NewKojiFromMessage(msg *grpcv1.Koji) (*Koji, error) {
-	if msg == nil {
+func NewKojiFromMessage(message *grpcv1.Koji) (*Koji, error) {
+	// message が nil の場合はエラーを返す
+	if message == nil {
 		return nil, errors.New("msg is nil")
 	}
-	cloneMsg := proto.Clone(msg).(*grpcv1.Koji)
 
-	koji := &Koji{Koji: cloneMsg}
+	// インスタンス作成
+	koji := &Koji{}
+	koji.Koji = proto.Clone(message).(*grpcv1.Koji)
 
 	// ManifestProvider の初期化
-	koji.Manifest = core.NewManifestProvider(koji)
+	koji.InitializeManifestProvider()
+
 	return koji, nil
 }
 
-// GetManifestDirectory は Manifest ファイルを保存先フルパスを取得します
-// Manifestable インターフェースの実装
-func (m *Koji) GetManifestDirectory() string {
-	return m.GetDirPath()
-}
-
-// GetManifestMessage は Koji の protobuf メッセージを取得します
-// Manifestable インターフェースの実装
-func (m *Koji) GetManifestMessage() proto.Message {
-	if m == nil {
-		return nil
-	}
-	return m.Koji
+func (m *Koji) InitializeManifestProvider() {
+	mp := &core.ManifestProvider{Manifestable: m}
+	m.ManifestProvider = mp
 }
 
 // ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
@@ -130,7 +127,7 @@ func (m *Koji) Update(source *Koji) error {
 		if err != nil {
 			return err
 		}
-		return m.Manifest.Load()
+		return m.LoadManifest()
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
@@ -167,12 +164,14 @@ func (m *Koji) Update(source *Koji) error {
 	}
 
 	// Manifestデータの更新
-	err = m.Manifest.Update(source.Manifest)
+	err = m.UpdateManifest(source.ManifestProvider)
 	if err != nil {
 		return err
 	}
 
-	return m.Manifest.Save()
+	m.EnsureMfEndFromStart()
+
+	return m.SaveManifest()
 }
 
 // GenerateDirPath はパラメータをもとに工事フォルダー名変更します
@@ -206,18 +205,38 @@ func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, err
 	return dirPathBuilder.String(), nil
 }
 
-// EnsureKojiMfEndFromStart は mf_end が空の場合に start の値をコピーします
-func (m *Koji) EnsureKojiMfEndFromStart() {
-	if m == nil || m.Koji == nil {
-		return
+// LoadManifest は Manifest ファイルから永続化データを読み込みます
+func (m *Koji) LoadManifest() error {
+	err := m.ManifestProvider.LoadManifest()
+	if err != nil {
+		return err
 	}
 
-	// mf_end が設定されていない、または無効な場合
-	if m.GetMfEnd() == nil || !m.GetMfEnd().IsValid() {
-		// start の値を mf_end にコピー
-		if m.GetStart() != nil && m.GetStart().IsValid() {
-			m.SetMfEnd(m.GetStart())
-			m.Manifest.Save()
-		}
+	updated := m.EnsureMfEndFromStart()
+	if updated {
+		return m.SaveManifest()
 	}
+	return nil
+}
+
+// EnsureMfEndFromStart は mf_end が空の場合に start の値をコピーします
+func (m *Koji) EnsureMfEndFromStart() bool {
+
+	if m == nil || m.Koji == nil {
+		return false
+	}
+
+	// mf_end が有効な場合は終了
+	if m.GetMfEnd() != nil && m.GetMfEnd().IsValid() {
+		return false
+	}
+
+	// start の無効な場合は終了
+	if m.GetStart() == nil || !m.GetStart().IsValid() {
+		return false
+	}
+
+	// start の値を mf_end にコピー
+	m.SetMfEnd(m.GetStart())
+	return true
 }
