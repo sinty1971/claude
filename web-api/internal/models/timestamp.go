@@ -6,11 +6,11 @@ import (
 	"maps"
 	"math/big"
 	"regexp"
-	"web-api/internal/core"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+	"web-api/internal/core"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -58,7 +58,7 @@ func (ts *Timestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	quoted := strconv.Quote(enc)
 	if err := protojson.Unmarshal([]byte(quoted), ts.Timestamp); err != nil {
 		// 互換性維持のため旧ロジックにフォールバック
-		var parsed *Timestamp
+		parsed := &Timestamp{}
 		_, parseErr := ParseTimestamp(enc, parsed)
 		if parseErr != nil {
 			return fmt.Errorf("timestamppb.UnmarshalJSON failed: %w; fallback parse failed: %v", err, parseErr)

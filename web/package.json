@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "remix dev",
+    "build": "remix build",
+    "start": "remix-serve ./build/server/index.js",
     "lint": "eslint .",
     "generate-grpc": "cd .. && buf generate --path proto/grpc/v1/penguin.proto"
   },
@@ -24,8 +24,10 @@
     "@connectrpc/connect-web": "2.1.0",
     "daisyui": "5.3.9",
     "date-fns": "4.1.0",
+    "@remix-run/node": "3.0.0",
+    "@remix-run/react": "3.0.0",
+    "@remix-run/serve": "3.0.0",
     "isbot": "5.1.31",
-    "next": "16.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
@@ -35,14 +37,16 @@
     "@types/node": "24.9.1",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "@remix-run/dev": "3.0.0",
     "autoprefixer": "10.4.21",
     "eslint": "9.38.0",
-    "eslint-config-next": "16.0.0",
     "eslint-plugin-react-hooks": "5.2.0",
     "globals": "16.4.0",
     "postcss": "8.5.6",
     "tailwindcss": "4.1.16",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.46.2"
+    "typescript-eslint": "8.46.2",
+    "vite": "5.4.6",
+    "vite-tsconfig-paths": "4.3.2"
   }
 }

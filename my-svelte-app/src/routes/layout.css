@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav-toggle {
+  border: 1px solid rgba(248, 250, 252, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.app-nav {
+  display: flex;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #e2e8f0;
+}
+
+.app-nav a {
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.app-nav a:hover {
+  background: #cbd5f5;
+}
+
+.app-main {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .app-nav {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

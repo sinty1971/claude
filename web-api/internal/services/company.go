@@ -262,6 +262,11 @@ func (srv *CompanyService) UpdateCompany(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
+	if srv.watcher != nil {
+		srv.watcher.Pause()
+		defer srv.watcher.Resume()
+	}
+
 	err = srv.Update(targetId, source)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

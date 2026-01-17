@@ -282,6 +282,11 @@ func (srv *KojiService) UpdateKoji(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
+	if srv.watcher != nil {
+		srv.watcher.Pause()
+		defer srv.watcher.Resume()
+	}
+
 	// 工事情報を更新
 	err = srv.Update(targetId, newKoji)
 	if err != nil {

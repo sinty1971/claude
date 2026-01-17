@@ -1,5 +1,3 @@
-'use client';
-
 import type { ReactNode } from 'react';
 import { KojiProvider } from '@/contexts/KojiContext';
 import { FileInfoProvider } from '@/contexts/FileInfoContext';

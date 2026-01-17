@@ -26,6 +26,11 @@ plugins:
     out: web/src/gen
     opt:
       - target=ts
+  # my-svelte-app 向け Connect-ES クライアント生成
+  - remote: buf.build/bufbuild/es:v2.9.0
+    out: my-svelte-app/src/gen
+    opt:
+      - target=ts
 
 inputs:
   - directory: proto

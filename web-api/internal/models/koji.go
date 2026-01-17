@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	grpcv1 "web-api/gen/grpc/v1"
@@ -183,26 +184,21 @@ func (m *Koji) Update(source *Koji) error {
 //
 //		生成された工事フォルダーパス
 func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, error) {
+	// 基底パスの取得
+	dirBasePath := filepath.Dir(m.GetDirPath())
+	if dirBasePath == "" || dirBasePath == "." {
+		return "", errors.New("基底パスの取得に失敗しました")
+	}
 
+	// 開始日のフォーマット
 	startText, err := st.FormatTime("2006-0102")
 	if err != nil {
 		return "", err
 	}
 
-	// 事前に容量を計算してstrings.Builderを初期化（再アロケーション回避）
-	// 日付(9文字) + スペース(1文字) + 会社名 + スペース(1文字) + 現場名 の概算
-	var dirPathBuilder strings.Builder
-	dirPathBuilder.Grow(len(startText) + 1 + len(cn) + 1 + len(loc))
-
-	// 日付部分を手動構築（YYYY-MMDD形式）
-	dirPathBuilder.WriteString(startText)
-
-	// 会社名と現場名を追加
-	dirPathBuilder.WriteByte(' ')
-	dirPathBuilder.WriteString(cn)
-	dirPathBuilder.WriteByte(' ')
-	dirPathBuilder.WriteString(loc)
-	return dirPathBuilder.String(), nil
+	// フルパスの生成
+	dirPath := filepath.Join(dirBasePath, startText+" "+cn+" "+loc)
+	return dirPath, nil
 }
 
 // LoadManifest は Manifest ファイルから永続化データを読み込みます

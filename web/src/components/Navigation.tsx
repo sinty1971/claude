@@ -1,36 +1,33 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from '@remix-run/react';
 import '../styles/navigation.css';
 
 export function Navigation() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
 
   return (
     <nav className="navigation">
       <div className="nav-container">
         <div className="nav-links">
           <Link
-            href="/"
+            to="/"
             className={pathname === '/' ? 'nav-link active' : 'nav-link'}
           >
             ホーム
           </Link>
           <Link
-            href="/files"
+            to="/files"
             className={pathname === '/files' ? 'nav-link active' : 'nav-link'}
           >
             ファイル一覧
           </Link>
           <Link
-            href="/kojies"
+            to="/kojies"
             className={pathname === '/kojies' ? 'nav-link active' : 'nav-link'}
           >
             工事一覧
           </Link>
           <Link
-            href="/companies"
+            to="/companies"
             className={pathname === '/companies' ? 'nav-link active' : 'nav-link'}
           >
             会社一覧

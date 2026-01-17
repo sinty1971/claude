@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -41,6 +42,9 @@ type Watcher struct {
 
 	// closed は Close() が既に呼ばれたかどうかのフラグ
 	closed bool
+
+	// pauseCount はイベント転送を一時停止するためのカウンタ
+	pauseCount int32
 }
 
 // NewWatcher は新しい Watcher インスタンスを作成します
@@ -112,6 +116,23 @@ func (w *Watcher) Errors() <-chan error {
 	return w.errors
 }
 
+// Pause は外部イベント通知を一時停止します
+func (w *Watcher) Pause() {
+	atomic.AddInt32(&w.pauseCount, 1)
+}
+
+// Resume は外部イベント通知の一時停止を解除します
+func (w *Watcher) Resume() {
+	newCount := atomic.AddInt32(&w.pauseCount, -1)
+	if newCount < 0 {
+		atomic.StoreInt32(&w.pauseCount, 0)
+	}
+}
+
+func (w *Watcher) isPaused() bool {
+	return atomic.LoadInt32(&w.pauseCount) > 0
+}
+
 // loop は fsnotify からのイベントを監視し、内部処理と外部への通知を行います
 func (w *Watcher) loop() {
 	for {
@@ -121,6 +142,10 @@ func (w *Watcher) loop() {
 				return
 			}
 			w.handleInternalEvent(event)
+
+			if w.isPaused() {
+				continue
+			}
 
 			// イベントの重複チェック
 			if w.shouldDebounce(event) {

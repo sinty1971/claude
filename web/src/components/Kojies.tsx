@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@remix-run/react";
 import type { ModelsKoji } from "@/types/models";
 import KojiDetailModal from "./KojiDetailModal";
 import { useKoji } from "@/contexts/KojiContext";
@@ -173,7 +173,7 @@ const Kojies = () => {
     <div className="business-entity-container">
       <div className="business-entity-controls">
         <Link
-          href="/kojies/gantt"
+          to="/kojies/gantt"
           className="business-entity-gantt-button"
         >
           📊 工程表を表示

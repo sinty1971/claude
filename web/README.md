@@ -1,11 +1,11 @@
 # フォルダー管理システム - フロントエンド
 
-Next.js (App Router) + TypeScript をベースにしたフォルダー管理システムのフロントエンドアプリケーションです。バックエンドの gRPC (Connect-Web) API を通じてファイル・工事・会社情報を扱います。
+新生 Remix V3 + TypeScript をベースにしたフォルダー管理システムのフロントエンドアプリケーションです。バックエンドの gRPC (Connect-Web) API を通じてファイル・工事・会社情報を扱います。
 
 ## 技術スタック
 
-- **Next.js** 14.x
-- **React** 18.x
+- **Remix** 3.x
+- **React** 19.x
 - **TypeScript** 5.9
 - **MUI / @mui/x-tree-view**
 - **Tailwind CSS + DaisyUI**
@@ -15,12 +15,16 @@ Next.js (App Router) + TypeScript をベースにしたフォルダー管理シ�
 
 ```
 frontend/
-├── app/                     # Next.js App Router
-│   ├── layout.tsx           # ルートレイアウト（Providers, Navigation）
-│   ├── page.tsx             # ホーム
-│   ├── files/page.tsx       # ファイル一覧
-│   ├── kojies/page.tsx      # 工事一覧
-│   └── kojies/gantt/page.tsx# ガントチャート
+├── app/                     # Remix App
+│   ├── root.tsx             # ルートレイアウト（Providers, Navigation）
+│   ├── entry.client.tsx     # ブラウザエントリ
+│   ├── entry.server.tsx     # SSRエントリ
+│   └── routes/              # 画面ルート
+│       ├── _index.tsx       # ホーム
+│       ├── files.tsx        # ファイル一覧
+│       ├── kojies.tsx       # 工事一覧
+│       ├── kojies.gantt.tsx # ガントチャート
+│       └── companies.tsx    # 会社一覧
 ├── src/
 │   ├── components/          # UI コンポーネント
 │   ├── contexts/            # 状態管理コンテキスト
@@ -72,14 +76,14 @@ npm run generate-grpc  # ../proto から ./src/gen に TypeScript を生成
 - **ファイル一覧**: TreeView によるファイル構造の閲覧、詳細モーダル表示。
 - **工事一覧**: 工事エントリーの編集、補助ファイルの状況可視化、ガントチャート遷移。
 - **会社一覧**: カテゴリーフィルタ / 詳細モーダルによる編集。
-- **ナビゲーション**: Next.js の Link と usePathname を利用したアクティブ表示。
+- **ナビゲーション**: Remix の Link と useLocation を利用したアクティブ表示。
 
 ## 注意事項
 
-- ルーティングは Next.js のディレクトリ構造に従います。React Router 用スクリプト `scripts/generate-route-diagram.js` は非推奨となりました。
+- ルーティングは Remix のファイルベース構造に従います。
 - グローバルスタイルは `app/globals.css` で読み込み、コンポーネント固有のスタイルは `src/styles/` からインポートしてください。
 - Context Provider (`KojiProvider`, `FileInfoProvider`) は `app/providers.tsx` で一括ラップしています。
-- 旧来の Vite / React Router 向け設定ファイルは削除済みです。不要なキャッシュは `rm -rf frontend/node_modules` 後に再インストールしてください。
+- 依存関係を更新した場合は `npm install` でロックファイルを再生成してください。
 
 ## トラブルシューティング
 

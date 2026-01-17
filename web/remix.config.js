@@ -1,0 +1,11 @@
+/** @type {import('@remix-run/dev').AppConfig} */
+export default {
+  appDirectory: "app",
+  assetsBuildDirectory: "public/build",
+  publicPath: "/build/",
+  serverBuildPath: "build/server/index.js",
+  ignoredRouteFiles: ["**/.*"],
+  future: {
+    v3_routeConvention: true,
+  },
+};

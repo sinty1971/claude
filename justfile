@@ -29,6 +29,10 @@ api-tls:
 web:
     cd ./web ; npm run dev
 
+# Start the Svelte development server (Bun)
+svelte:
+    cd ./my-svelte-app ; bun run dev
+
 # Generate SSL certificate for HTTP/2
 generate-cert:
     cd ./web-api ; ./generate-cert.sh
@@ -46,7 +50,7 @@ generate-grpc:
 
 # Generate Connect-Web stubs for the web frontend
 web-generate-grpc: generate-grpc
-    @echo "Connect-Web stubs generated at web/src/gen/"
+    @echo "Connect-Web stubs generated at web/src/gen/ and my-svelte-app/src/gen/"
 
 # Install web dependencies  
 web-deps:
