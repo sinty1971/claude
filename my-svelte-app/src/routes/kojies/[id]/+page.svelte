@@ -1,40 +1,19 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { page } from "$app/state";
+  import type { PageData } from "./$types";
   import { create } from "@bufbuild/protobuf";
   import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
-  import { createClient } from "@connectrpc/connect";
-  import { createConnectTransport } from "@connectrpc/connect-web";
+  import { createGrpcClient } from "$lib/grpc-client";
+  import { handleEnterKeyNavigation } from "$lib/form-utils";
+  import { generateKojiStatus, getKojiStatusClass } from "$lib/koji-utils";
   import {
-    GetKojiRequestSchema,
     KojiService,
     UpdateKojiRequestSchema,
     type Koji,
   } from "../../../gen/grpc/v1/toyotachikuro_pb";
 
-  const baseUrl =
-    import.meta.env.VITE_CONNECT_BASE_URL ?? "http://localhost:9090";
-  const transport = createConnectTransport({
-    baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(KojiService, transport);
+  let { data } = $props<{ data: PageData }>();
 
-  let koji: Koji | null = null;
-  let form = {
-    status: "",
-    companyName: "",
-    locationName: "",
-    start: "",
-    mfEnd: "",
-  };
-  let isLoading = true;
-  let isSaving = false;
-  let errorMessage: string | null = null;
-  let successMessage: string | null = null;
-
-  const displayName = (source: Koji | null): string =>
-    source?.companyName || "名称未設定";
+  const client = createGrpcClient(KojiService);
 
   const toInputValue = (value?: Koji["start"]): string => {
     if (!value) return "";
@@ -51,41 +30,56 @@
     return timestampFromDate(date);
   };
 
-  const loadKoji = async (id: string): Promise<void> => {
-    isLoading = true;
-    errorMessage = null;
-    try {
-      const request = create(GetKojiRequestSchema, { targetId: id });
-      const response = await client.getKoji(request);
-      koji = response.koji ?? null;
-      if (koji) {
-        form = {
-          status: koji.status ?? "",
-          companyName: koji.companyName ?? "",
-          locationName: koji.locationName ?? "",
-          start: toInputValue(koji.start),
-          mfEnd: toInputValue(koji.mfEnd),
-        };
-      }
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "工事情報の取得に失敗しました";
-    } finally {
-      isLoading = false;
+  let koji = $state<Koji | null>(data.koji);
+  let form = $state({
+    companyName: "",
+    locationName: "",
+    start: "",
+    mfEnd: "",
+  });
+  let initialForm = $state<typeof form | null>(null);
+  let isSaving = $state(false);
+  let errorMessage: string | null = $state(null);
+  let savedAt: Date | null = $state(null);
+
+  // koji が変更されたときにフォームと初期値を更新
+  $effect(() => {
+    if (koji) {
+      const newForm = {
+        companyName: koji.companyName ?? "",
+        locationName: koji.locationName ?? "",
+        start: toInputValue(koji.start),
+        mfEnd: toInputValue(koji.mfEnd),
+      };
+      form.companyName = newForm.companyName;
+      form.locationName = newForm.locationName;
+      form.start = newForm.start;
+      form.mfEnd = newForm.mfEnd;
+      initialForm = newForm;
     }
-  };
+  });
+
+  // 未保存の変更があるかを判定
+  let hasUnsavedChanges = $derived(
+    initialForm !== null &&
+    (form.companyName !== initialForm.companyName ||
+      form.locationName !== initialForm.locationName ||
+      form.start !== initialForm.start ||
+      form.mfEnd !== initialForm.mfEnd)
+  );
+
+  const displayName = (source: Koji | null): string =>
+    source?.companyName || "名称未設定";
 
   const saveKoji = async (): Promise<void> => {
     if (!koji) return;
     isSaving = true;
     errorMessage = null;
-    successMessage = null;
     try {
       const request = create(UpdateKojiRequestSchema, {
         targetId: koji.id,
         sourceKoji: {
           id: koji.id,
-          status: form.status,
           companyName: form.companyName,
           locationName: form.locationName,
           dirPath: koji.dirPath ?? "",
@@ -94,8 +88,17 @@
         },
       });
       const response = await client.updateKoji(request);
-      koji = response.prevKoji ?? koji;
-      successMessage = "工事情報を更新しました。";
+      // 更新後の状態をフォーム値で反映
+      koji = {
+        ...koji,
+        companyName: form.companyName,
+        locationName: form.locationName,
+        start: toTimestamp(form.start),
+        mfEnd: toTimestamp(form.mfEnd),
+      };
+      // 初期値を更新
+      initialForm = { ...form };
+      savedAt = new Date();
     } catch (error) {
       errorMessage =
         error instanceof Error ? error.message : "工事情報の更新に失敗しました";
@@ -103,16 +106,6 @@
       isSaving = false;
     }
   };
-
-  onMount(() => {
-    const id = page.params.id;
-    if (id) {
-      void loadKoji(id);
-    } else {
-      isLoading = false;
-      errorMessage = "工事IDが指定されていません。";
-    }
-  });
 </script>
 
 <svelte:head>
@@ -123,40 +116,52 @@
   <header class="page-header">
     <div>
       <h1>工事編集</h1>
-      <p class="lead">工事情報を編集して保存できます。</p>
+      {#if savedAt}
+        <p class="lead success-message">
+          {savedAt.getHours()}:{savedAt.getMinutes().toString().padStart(2, '0')} に保存しました
+        </p>
+      {:else}
+        <p class="lead">工事情報を編集して保存できます。</p>
+      {/if}
     </div>
     <a class="back" href="/kojies">工事一覧に戻る</a>
   </header>
 
   {#if errorMessage}
     <div class="state error">{errorMessage}</div>
-  {:else if successMessage}
-    <div class="state success">{successMessage}</div>
-  {:else if isLoading}
-    <div class="state loading">工事情報を取得しています...</div>
-  {:else if koji === null}
+  {/if}
+
+  {#if koji === null}
     <div class="state empty">工事情報が見つかりませんでした。</div>
   {:else}
-    <form class="detail" on:submit|preventDefault={saveKoji}>
+    <form class="detail" onsubmit={(e) => { e.preventDefault(); void saveKoji(); }}>
+      <div class="actions top">
+        <button class="save" class:unsaved={hasUnsavedChanges} type="submit" disabled={isSaving || !hasUnsavedChanges}>
+          {isSaving ? "保存中..." : "保存"}
+        </button>
+        <span class="hint">会社名: {displayName(koji)}</span>
+      </div>
       <div class="detail-row">
-        <label class="label" for="status">状態</label>
-        <input id="status" type="text" bind:value={form.status} />
+        <span class="label">状態</span>
+        <span class="value">
+          <span class="status {getKojiStatusClass(generateKojiStatus(koji))}">{generateKojiStatus(koji)}</span>
+        </span>
       </div>
       <div class="detail-row">
         <label class="label" for="companyName">会社名</label>
-        <input id="companyName" type="text" bind:value={form.companyName} />
+        <input id="companyName" type="text" bind:value={form.companyName} onkeydown={handleEnterKeyNavigation} />
       </div>
       <div class="detail-row">
         <label class="label" for="locationName">工事場所</label>
-        <input id="locationName" type="text" bind:value={form.locationName} />
+        <input id="locationName" type="text" bind:value={form.locationName} onkeydown={handleEnterKeyNavigation} />
       </div>
       <div class="detail-row">
         <label class="label" for="start">開始</label>
-        <input id="start" type="date" bind:value={form.start} />
+        <input id="start" type="date" bind:value={form.start} onkeydown={handleEnterKeyNavigation} />
       </div>
       <div class="detail-row">
         <label class="label" for="mfEnd">終了</label>
-        <input id="mfEnd" type="date" bind:value={form.mfEnd} />
+        <input id="mfEnd" type="date" bind:value={form.mfEnd} onkeydown={handleEnterKeyNavigation} />
       </div>
       <div class="detail-row">
         <span class="label">ID</span>
@@ -165,12 +170,6 @@
       <div class="detail-row">
         <span class="label">ディレクトリ</span>
         <span class="value mono">{koji.dirPath || "-"}</span>
-      </div>
-      <div class="actions">
-        <button class="save" type="submit" disabled={isSaving}>
-          {isSaving ? "保存中..." : "保存"}
-        </button>
-        <span class="hint">会社名: {displayName(koji)}</span>
       </div>
     </form>
   {/if}
@@ -205,6 +204,11 @@
   .lead {
     margin: 8px 0 0;
     color: #4b5563;
+  }
+
+  .lead.success-message {
+    color: #166534;
+    font-weight: 600;
   }
 
   .back {
@@ -288,6 +292,13 @@
     margin-top: 8px;
   }
 
+  .actions.top {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
   .save {
     background: #0f172a;
     color: #ffffff;
@@ -296,6 +307,21 @@
     padding: 10px 18px;
     font-size: 0.95rem;
     cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .save.unsaved {
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    }
   }
 
   .save:disabled {
@@ -306,6 +332,31 @@
   .hint {
     color: #64748b;
     font-size: 0.9rem;
+  }
+
+  .status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .status-active {
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .status-completed {
+    color: #16a34a;
+  }
+
+  .status-scheduled {
+    color: #2563eb;
+  }
+
+  .status-unknown {
+    color: #6b7280;
   }
 
   .mono {

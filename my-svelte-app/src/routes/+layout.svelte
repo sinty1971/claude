@@ -15,7 +15,7 @@
 			class="nav-toggle"
 			type="button"
 			aria-expanded={isNavOpen}
-			on:click={() => (isNavOpen = !isNavOpen)}
+			onclick={() => (isNavOpen = !isNavOpen)}
 		>
 			{isNavOpen ? 'ナビを隠す' : 'ナビを表示'}
 		</button>

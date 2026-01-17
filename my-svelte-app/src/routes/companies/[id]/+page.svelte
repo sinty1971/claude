@@ -1,29 +1,22 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { page } from "$app/state";
+  import type { PageData } from "./$types";
   import { create } from "@bufbuild/protobuf";
-  import { createClient } from "@connectrpc/connect";
-  import { createConnectTransport } from "@connectrpc/connect-web";
+  import { createGrpcClient } from "$lib/grpc-client";
+  import { handleEnterKeyNavigation } from "$lib/form-utils";
   import {
     CompanyService,
-    GetCompanyCategoriesRequestSchema,
-    GetCompanyRequestSchema,
     UpdateCompanyRequestSchema,
     type Company,
     type CompanyCategory,
   } from "../../../gen/grpc/v1/toyotachikuro_pb";
 
-  const baseUrl =
-    import.meta.env.VITE_CONNECT_BASE_URL ?? "http://localhost:9090";
-  const transport = createConnectTransport({
-    baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(CompanyService, transport);
+  let { data } = $props<{ data: PageData }>();
 
-  let company: Company | null = null;
-  let categories: CompanyCategory[] = [];
-  let form = {
+  const client = createGrpcClient(CompanyService);
+
+  let company = $state<Company | null>(data.company);
+  let categories: CompanyCategory[] = data.categories;
+  let form = $state({
     shortName: "",
     categoryIndex: 0,
     mfLongName: "",
@@ -33,51 +26,60 @@
     mfFax: "",
     mfEmail: "",
     mfWebsite: "",
-  };
-  let isLoading = true;
-  let isSaving = false;
-  let errorMessage: string | null = null;
-  let successMessage: string | null = null;
+  });
+  let initialForm = $state<typeof form | null>(null);
+  let isSaving = $state(false);
+  let errorMessage: string | null = $state(null);
+  let savedAt: Date | null = $state(null);
+
+  // company が変更されたときにフォームと初期値を更新
+  $effect(() => {
+    if (company) {
+      const newForm = {
+        shortName: company.shortName ?? "",
+        categoryIndex: company.categoryIndex ?? 0,
+        mfLongName: company.mfLongName ?? "",
+        mfPostalCode: company.mfPostalCode ?? "",
+        mfAddress: company.mfAddress ?? "",
+        mfTel: company.mfTel ?? "",
+        mfFax: company.mfFax ?? "",
+        mfEmail: company.mfEmail ?? "",
+        mfWebsite: company.mfWebsite ?? "",
+      };
+      form.shortName = newForm.shortName;
+      form.categoryIndex = newForm.categoryIndex;
+      form.mfLongName = newForm.mfLongName;
+      form.mfPostalCode = newForm.mfPostalCode;
+      form.mfAddress = newForm.mfAddress;
+      form.mfTel = newForm.mfTel;
+      form.mfFax = newForm.mfFax;
+      form.mfEmail = newForm.mfEmail;
+      form.mfWebsite = newForm.mfWebsite;
+      initialForm = newForm;
+    }
+  });
+
+  // 未保存の変更があるかを判定
+  let hasUnsavedChanges = $derived(
+    initialForm !== null &&
+    (form.shortName !== initialForm.shortName ||
+      form.categoryIndex !== initialForm.categoryIndex ||
+      form.mfLongName !== initialForm.mfLongName ||
+      form.mfPostalCode !== initialForm.mfPostalCode ||
+      form.mfAddress !== initialForm.mfAddress ||
+      form.mfTel !== initialForm.mfTel ||
+      form.mfFax !== initialForm.mfFax ||
+      form.mfEmail !== initialForm.mfEmail ||
+      form.mfWebsite !== initialForm.mfWebsite)
+  );
 
   const displayName = (source: Company | null): string =>
     source?.shortName || source?.mfLongName || "名称未設定";
-
-  const loadCompany = async (id: string): Promise<void> => {
-    isLoading = true;
-    errorMessage = null;
-    try {
-      const [companyResponse, categoryResponse] = await Promise.all([
-        client.getCompany(create(GetCompanyRequestSchema, { targetId: id })),
-        client.getCompanyCategories(create(GetCompanyCategoriesRequestSchema, {})),
-      ]);
-      company = companyResponse.company ?? null;
-      categories = categoryResponse.categories ?? [];
-      if (company) {
-        form = {
-          shortName: company.shortName ?? "",
-          categoryIndex: company.categoryIndex ?? 0,
-          mfLongName: company.mfLongName ?? "",
-          mfPostalCode: company.mfPostalCode ?? "",
-          mfAddress: company.mfAddress ?? "",
-          mfTel: company.mfTel ?? "",
-          mfFax: company.mfFax ?? "",
-          mfEmail: company.mfEmail ?? "",
-          mfWebsite: company.mfWebsite ?? "",
-        };
-      }
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "会社情報の取得に失敗しました";
-    } finally {
-      isLoading = false;
-    }
-  };
 
   const saveCompany = async (): Promise<void> => {
     if (!company) return;
     isSaving = true;
     errorMessage = null;
-    successMessage = null;
     try {
       const request = create(UpdateCompanyRequestSchema, {
         targetId: company.id,
@@ -96,8 +98,22 @@
         },
       });
       const response = await client.updateCompany(request);
-      company = response.prevCompany ?? company;
-      successMessage = "会社情報を更新しました。";
+      // 更新後の状態をフォーム値で反映
+      company = {
+        ...company,
+        shortName: form.shortName,
+        mfLongName: form.mfLongName,
+        mfPostalCode: form.mfPostalCode,
+        mfAddress: form.mfAddress,
+        mfTel: form.mfTel,
+        mfFax: form.mfFax,
+        mfEmail: form.mfEmail,
+        mfWebsite: form.mfWebsite,
+        categoryIndex: form.categoryIndex,
+      };
+      // 初期値を更新
+      initialForm = { ...form };
+      savedAt = new Date();
     } catch (error) {
       errorMessage =
         error instanceof Error ? error.message : "会社情報の更新に失敗しました";
@@ -105,16 +121,6 @@
       isSaving = false;
     }
   };
-
-  onMount(() => {
-    const id = page.params.id;
-    if (id) {
-      void loadCompany(id);
-    } else {
-      isLoading = false;
-      errorMessage = "会社IDが指定されていません。";
-    }
-  });
 </script>
 
 <svelte:head>
@@ -125,23 +131,33 @@
   <header class="page-header">
     <div>
       <h1>会社編集</h1>
-      <p class="lead">
-        会社情報を編集して保存できます。
-      </p>
+      {#if savedAt}
+        <p class="lead success-message">
+          {savedAt.getHours()}:{savedAt.getMinutes().toString().padStart(2, '0')} に保存しました
+        </p>
+      {:else}
+        <p class="lead">
+          会社情報を編集して保存できます。
+        </p>
+      {/if}
     </div>
     <a class="back" href="/companies">会社一覧に戻る</a>
   </header>
 
   {#if errorMessage}
     <div class="state error">{errorMessage}</div>
-  {:else if successMessage}
-    <div class="state success">{successMessage}</div>
-  {:else if isLoading}
-    <div class="state loading">会社情報を取得しています...</div>
-  {:else if company === null}
+  {/if}
+
+  {#if company === null}
     <div class="state empty">会社情報が見つかりませんでした。</div>
   {:else}
-    <form class="detail" on:submit|preventDefault={saveCompany}>
+    <form class="detail" onsubmit={(e) => { e.preventDefault(); void saveCompany(); }}>
+      <div class="actions top">
+        <button class="save" class:unsaved={hasUnsavedChanges} type="submit" disabled={isSaving || !hasUnsavedChanges}>
+          {isSaving ? "保存中..." : "保存"}
+        </button>
+        <span class="hint">会社名: {displayName(company)}</span>
+      </div>
       <div class="detail-row">
         <label class="label" for="shortName">短縮名</label>
         <input
@@ -149,11 +165,12 @@
           type="text"
           bind:value={form.shortName}
           placeholder="短縮名"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
         <label class="label" for="category">カテゴリ</label>
-        <select id="category" bind:value={form.categoryIndex}>
+        <select id="category" bind:value={form.categoryIndex} onkeydown={handleEnterKeyNavigation}>
           {#each categories as category (category.index)}
             <option value={category.index}>
               {category.label || "業種未設定"}
@@ -168,6 +185,7 @@
           type="text"
           bind:value={form.mfLongName}
           placeholder="正式名称"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -177,6 +195,7 @@
           type="text"
           bind:value={form.mfPostalCode}
           placeholder="郵便番号"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -186,6 +205,7 @@
           type="text"
           bind:value={form.mfAddress}
           placeholder="住所"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -195,6 +215,7 @@
           type="text"
           bind:value={form.mfTel}
           placeholder="電話番号"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -204,6 +225,7 @@
           type="text"
           bind:value={form.mfFax}
           placeholder="FAX"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -213,6 +235,7 @@
           type="email"
           bind:value={form.mfEmail}
           placeholder="メールアドレス"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -222,6 +245,7 @@
           type="url"
           bind:value={form.mfWebsite}
           placeholder="Webサイト"
+          onkeydown={handleEnterKeyNavigation}
         />
       </div>
       <div class="detail-row">
@@ -231,12 +255,6 @@
       <div class="detail-row">
         <span class="label">ディレクトリ</span>
         <span class="value mono">{company.dirPath || "-"}</span>
-      </div>
-      <div class="actions">
-        <button class="save" type="submit" disabled={isSaving}>
-          {isSaving ? "保存中..." : "保存"}
-        </button>
-        <span class="hint">会社名: {displayName(company)}</span>
       </div>
     </form>
   {/if}
@@ -271,6 +289,11 @@
   .lead {
     margin: 8px 0 0;
     color: #4b5563;
+  }
+
+  .lead.success-message {
+    color: #166534;
+    font-weight: 600;
   }
 
   .back {
@@ -356,6 +379,13 @@
     margin-top: 8px;
   }
 
+  .actions.top {
+    margin-top: 0;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
   .save {
     background: #0f172a;
     color: #ffffff;
@@ -364,6 +394,21 @@
     padding: 10px 18px;
     font-size: 0.95rem;
     cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .save.unsaved {
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    }
   }
 
   .save:disabled {

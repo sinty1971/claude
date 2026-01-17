@@ -33,6 +33,14 @@ web:
 svelte:
     cd ./my-svelte-app ; bun run dev
 
+# Update Svelte package to latest version (Bun)
+svelte-update:
+    cd ./my-svelte-app ; bun add svelte@latest
+
+# Update all packages listed in package.json (Bun)
+svelte-update-all:
+    cd ./my-svelte-app ; bun update
+
 # Generate SSL certificate for HTTP/2
 generate-cert:
     cd ./web-api ; ./generate-cert.sh

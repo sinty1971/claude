@@ -41,12 +41,11 @@ message CompanyCategory {
 // @manifest table name: kojies
 message Koji {
   string id = 1;
-  string status = 2;
-  google.protobuf.Timestamp start = 3;
-  string company_name = 4;
-  string location_name = 5;
-  string dir_path = 6;
-  google.protobuf.Timestamp mf_end = 7;
+  google.protobuf.Timestamp start = 2;
+  string company_name = 3;
+  string location_name = 4;
+  string dir_path = 5;
+  google.protobuf.Timestamp mf_end = 6;
 }
 
 // DirectoryService provides operations for folder management
