@@ -9,6 +9,11 @@
     type Company,
     type CompanyCategory,
   } from "../../../gen/grpc/v1/toyotachikuro_pb";
+  import { Button } from "$lib/components/ui/button";
+  import { Input } from "$lib/components/ui/input";
+  import { Label } from "$lib/components/ui/label";
+  import * as Card from "$lib/components/ui/card";
+  import * as Alert from "$lib/components/ui/alert";
 
   let { data } = $props<{ data: PageData }>();
 
@@ -127,314 +132,163 @@
   <title>会社編集</title>
 </svelte:head>
 
-<section class="page">
-  <header class="page-header">
+<div class="max-w-4xl mx-auto px-5 py-12">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
-      <h1>会社編集</h1>
+      <h1 class="text-3xl font-bold mb-2">会社編集</h1>
       {#if savedAt}
-        <p class="lead success-message">
+        <p class="text-green-700 font-semibold">
           {savedAt.getHours()}:{savedAt.getMinutes().toString().padStart(2, '0')} に保存しました
         </p>
       {:else}
-        <p class="lead">
-          会社情報を編集して保存できます。
-        </p>
+        <p class="text-muted-foreground">会社情報を編集して保存できます。</p>
       {/if}
     </div>
-    <a class="back" href="/companies">会社一覧に戻る</a>
-  </header>
+    <Button href="/companies" variant="outline">会社一覧に戻る</Button>
+  </div>
 
   {#if errorMessage}
-    <div class="state error">{errorMessage}</div>
+    <Alert.Root variant="destructive" class="mb-6">
+      <Alert.Description>{errorMessage}</Alert.Description>
+    </Alert.Root>
   {/if}
 
   {#if company === null}
-    <div class="state empty">会社情報が見つかりませんでした。</div>
+    <Card.Root>
+      <Card.Content class="py-8 text-center text-muted-foreground">
+        会社情報が見つかりませんでした。
+      </Card.Content>
+    </Card.Root>
   {:else}
-    <form class="detail" onsubmit={(e) => { e.preventDefault(); void saveCompany(); }}>
-      <div class="actions top">
-        <button class="save" class:unsaved={hasUnsavedChanges} type="submit" disabled={isSaving || !hasUnsavedChanges}>
-          {isSaving ? "保存中..." : "保存"}
-        </button>
-        <span class="hint">会社名: {displayName(company)}</span>
-      </div>
-      <div class="detail-row">
-        <label class="label" for="shortName">短縮名</label>
-        <input
-          id="shortName"
-          type="text"
-          bind:value={form.shortName}
-          placeholder="短縮名"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="category">カテゴリ</label>
-        <select id="category" bind:value={form.categoryIndex} onkeydown={handleEnterKeyNavigation}>
-          {#each categories as category (category.index)}
-            <option value={category.index}>
-              {category.label || "業種未設定"}
-            </option>
-          {/each}
-        </select>
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfLongName">正式名称</label>
-        <input
-          id="mfLongName"
-          type="text"
-          bind:value={form.mfLongName}
-          placeholder="正式名称"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfPostalCode">郵便番号</label>
-        <input
-          id="mfPostalCode"
-          type="text"
-          bind:value={form.mfPostalCode}
-          placeholder="郵便番号"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfAddress">住所</label>
-        <input
-          id="mfAddress"
-          type="text"
-          bind:value={form.mfAddress}
-          placeholder="住所"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfTel">電話</label>
-        <input
-          id="mfTel"
-          type="text"
-          bind:value={form.mfTel}
-          placeholder="電話番号"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfFax">FAX</label>
-        <input
-          id="mfFax"
-          type="text"
-          bind:value={form.mfFax}
-          placeholder="FAX"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfEmail">メール</label>
-        <input
-          id="mfEmail"
-          type="email"
-          bind:value={form.mfEmail}
-          placeholder="メールアドレス"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <label class="label" for="mfWebsite">Web</label>
-        <input
-          id="mfWebsite"
-          type="url"
-          bind:value={form.mfWebsite}
-          placeholder="Webサイト"
-          onkeydown={handleEnterKeyNavigation}
-        />
-      </div>
-      <div class="detail-row">
-        <span class="label">ID</span>
-        <span class="value mono">{company.id}</span>
-      </div>
-      <div class="detail-row">
-        <span class="label">ディレクトリ</span>
-        <span class="value mono">{company.dirPath || "-"}</span>
-      </div>
-    </form>
+    <Card.Root>
+      <Card.Content class="pt-6">
+        <form onsubmit={(e) => { e.preventDefault(); void saveCompany(); }} class="space-y-6">
+          <div class="flex items-center justify-between pb-4 border-b">
+            <Button 
+              type="submit" 
+              disabled={isSaving || !hasUnsavedChanges}
+              class={hasUnsavedChanges ? "animate-pulse" : ""}
+            >
+              {isSaving ? "保存中..." : "保存"}
+            </Button>
+            <span class="text-sm text-muted-foreground">会社名: {displayName(company)}</span>
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="shortName" class="md:text-right">短縮名</Label>
+            <Input 
+              id="shortName" 
+              type="text" 
+              bind:value={form.shortName}
+              placeholder="短縮名" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="category" class="md:text-right">カテゴリ</Label>
+            <select 
+              id="category" 
+              bind:value={form.categoryIndex} 
+              onkeydown={handleEnterKeyNavigation}
+              class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {#each categories as category (category.index)}
+                <option value={category.index}>
+                  {category.label || "業種未設定"}
+                </option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfLongName" class="md:text-right">正式名称</Label>
+            <Input 
+              id="mfLongName" 
+              type="text" 
+              bind:value={form.mfLongName}
+              placeholder="正式名称" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfPostalCode" class="md:text-right">郵便番号</Label>
+            <Input 
+              id="mfPostalCode" 
+              type="text" 
+              bind:value={form.mfPostalCode}
+              placeholder="郵便番号" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfAddress" class="md:text-right">住所</Label>
+            <Input 
+              id="mfAddress" 
+              type="text" 
+              bind:value={form.mfAddress}
+              placeholder="住所" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfTel" class="md:text-right">電話</Label>
+            <Input 
+              id="mfTel" 
+              type="text" 
+              bind:value={form.mfTel}
+              placeholder="電話番号" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfFax" class="md:text-right">FAX</Label>
+            <Input 
+              id="mfFax" 
+              type="text" 
+              bind:value={form.mfFax}
+              placeholder="FAX" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfEmail" class="md:text-right">メール</Label>
+            <Input 
+              id="mfEmail" 
+              type="email" 
+              bind:value={form.mfEmail}
+              placeholder="メールアドレス" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfWebsite" class="md:text-right">Web</Label>
+            <Input 
+              id="mfWebsite" 
+              type="url" 
+              bind:value={form.mfWebsite}
+              placeholder="Webサイト" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label class="md:text-right">ID</Label>
+            <span class="text-sm font-mono text-muted-foreground">{company.id}</span>
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label class="md:text-right">ディレクトリ</Label>
+            <span class="text-sm font-mono text-muted-foreground">{company.dirPath || "-"}</span>
+          </div>
+        </form>
+      </Card.Content>
+    </Card.Root>
   {/if}
-</section>
-
-<style>
-  :global(body) {
-    font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
-    background: linear-gradient(120deg, #f9fafb, #eef2f7);
-    color: #111827;
-  }
-
-  .page {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 48px 20px 80px;
-  }
-
-  .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  h1 {
-    font-size: 2rem;
-    margin: 0;
-  }
-
-  .lead {
-    margin: 8px 0 0;
-    color: #4b5563;
-  }
-
-  .lead.success-message {
-    color: #166534;
-    font-weight: 600;
-  }
-
-  .back {
-    background: #0f172a;
-    color: #ffffff;
-    border: none;
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-size: 0.95rem;
-    text-decoration: none;
-  }
-
-  .state {
-    padding: 18px;
-    border-radius: 12px;
-    background: #ffffff;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-  }
-
-  .state.error {
-    border: 1px solid #fca5a5;
-    color: #991b1b;
-  }
-
-  .state.success {
-    border: 1px solid #86efac;
-    color: #166534;
-  }
-
-  .state.loading {
-    border: 1px solid #e5e7eb;
-  }
-
-  .state.empty {
-    border: 1px dashed #cbd5f5;
-    color: #475569;
-  }
-
-  .detail {
-    background: #ffffff;
-    border-radius: 16px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-    padding: 20px;
-    display: grid;
-    gap: 12px;
-  }
-
-  .detail-row {
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .label {
-    font-weight: 600;
-    color: #475569;
-  }
-
-  .value {
-    color: #111827;
-  }
-
-  input,
-  select {
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 0.95rem;
-    background: #f8fafc;
-  }
-
-  input:focus,
-  select:focus {
-    outline: 2px solid #94a3b8;
-    outline-offset: 2px;
-  }
-
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-top: 8px;
-  }
-
-  .actions.top {
-    margin-top: 0;
-    margin-bottom: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .save {
-    background: #0f172a;
-    color: #ffffff;
-    border: none;
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-
-  .save.unsaved {
-    animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-  }
-
-  @keyframes pulse {
-    0%, 100% {
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-    }
-    50% {
-      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
-    }
-  }
-
-  .save:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .hint {
-    color: #64748b;
-    font-size: 0.9rem;
-  }
-
-  .mono {
-    font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
-    font-size: 0.9rem;
-    color: #475569;
-  }
-
-  @media (max-width: 720px) {
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .detail-row {
-      grid-template-columns: 1fr;
-    }
-  }
-  </style>
+</div>

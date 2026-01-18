@@ -47,11 +47,11 @@
       <Table.Root>
         <Table.Header>
           <Table.Row>
-            <Table.Head class="w-[120px]">カテゴリ</Table.Head>
+            <Table.Head class="w-30">カテゴリ</Table.Head>
             <Table.Head>会社名</Table.Head>
             <Table.Head class="hidden md:table-cell">住所</Table.Head>
             <Table.Head class="hidden lg:table-cell">電話</Table.Head>
-            <Table.Head class="w-[100px]">操作</Table.Head>
+            <Table.Head class="w-30">操作</Table.Head>
           </Table.Row>
         </Table.Header>
         <Table.Body>

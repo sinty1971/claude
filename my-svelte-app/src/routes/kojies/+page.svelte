@@ -45,10 +45,10 @@
           <Table.Row>
             <Table.Head>会社名</Table.Head>
             <Table.Head class="hidden md:table-cell">工事場所</Table.Head>
-            <Table.Head class="w-[100px]">状態</Table.Head>
+            <Table.Head class="w-25">状態</Table.Head>
             <Table.Head class="hidden lg:table-cell">開始</Table.Head>
             <Table.Head class="hidden lg:table-cell">終了</Table.Head>
-            <Table.Head class="w-[100px]">操作</Table.Head>
+            <Table.Head class="w-25">操作</Table.Head>
           </Table.Row>
         </Table.Header>
         <Table.Body>
