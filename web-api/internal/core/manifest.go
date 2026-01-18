@@ -24,6 +24,9 @@ import (
 type ManifestProvider struct {
 	// Manifestable インターフェースを実装するモデルへの参照
 	Manifestable
+
+	// マニフェストファイル名
+	ManifestFileName string
 }
 
 // Manifestable は proto の mf_ フィールドをmanifestファイルに保存できるモデルのインターフェースを定義します。
@@ -48,7 +51,7 @@ func (p *ManifestProvider) GetMessageFullName() string {
 }
 
 func (p *ManifestProvider) getManifestPath() string {
-	return filepath.Join(p.GetDirPath(), "@manifest.yaml")
+	return filepath.Join(p.GetDirPath(), p.ManifestFileName)
 }
 
 // LoadManifest は Manifest ファイルから永続化データのみを読み込みます。

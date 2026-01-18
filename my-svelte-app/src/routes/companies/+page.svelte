@@ -14,10 +14,10 @@
   );
 
   const displayName = (company: Company): string =>
-    company.shortName || company.mfLongName || "名称未設定";
+    company.name || company.mfLongName || "名称未設定";
 
   const displayTitle = (company: Company): string => {
-    const name = company.shortName || company.mfLongName || "名称未設定";
+    const name = company.name || company.mfLongName || "名称未設定";
     return `${name} (${company.id})`;
   };
 
@@ -62,7 +62,7 @@
               </Table.Cell>
               <Table.Cell>
                 <div class="font-semibold">{displayTitle(company)}</div>
-                {#if company.mfLongName && company.shortName}
+                {#if company.mfLongName && company.name}
                   <div class="text-sm text-muted-foreground mt-0.5">{company.mfLongName}</div>
                 {/if}
               </Table.Cell>

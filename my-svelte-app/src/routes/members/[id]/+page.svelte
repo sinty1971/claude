@@ -4,10 +4,9 @@
   import { createGrpcClient } from "$lib/grpc-client";
   import { handleEnterKeyNavigation } from "$lib/form-utils";
   import {
-    CompanyService,
-    UpdateCompanyRequestSchema,
-    type Company,
-    type CompanyCategory,
+    MemberService,
+    UpdateMemberRequestSchema,
+    type Member,
   } from "../../../gen/grpc/v1/toyotachikuro_pb";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -17,16 +16,19 @@
 
   let { data } = $props<{ data: PageData }>();
 
-  const client = createGrpcClient(CompanyService);
+  const client = createGrpcClient(MemberService);
 
-  let company = $state<Company | null>(data.company);
-  let categories: CompanyCategory[] = data.categories;
+  let member = $state<Member | null>(data.member);
   let form = $state({
     name: "",
-    categoryIndex: 0,
-    mfLongName: "",
+    mfLastName: "",
+    mfFirstName: "",
+    mfMiddleName: "",
+    mfKanaName: "",
+    mfRole: "",
     mfPostalCode: "",
     mfAddress: "",
+    mfMobile: "",
     mfTel: "",
     mfFax: "",
     mfEmail: "",
@@ -37,25 +39,33 @@
   let errorMessage: string | null = $state(null);
   let savedAt: Date | null = $state(null);
 
-  // company が変更されたときにフォームと初期値を更新
+  // member が変更されたときにフォームと初期値を更新
   $effect(() => {
-    if (company) {
+    if (member) {
       const newForm = {
-        name: company.name ?? "",
-        categoryIndex: company.categoryIndex ?? 0,
-        mfLongName: company.mfLongName ?? "",
-        mfPostalCode: company.mfPostalCode ?? "",
-        mfAddress: company.mfAddress ?? "",
-        mfTel: company.mfTel ?? "",
-        mfFax: company.mfFax ?? "",
-        mfEmail: company.mfEmail ?? "",
-        mfWebsite: company.mfWebsite ?? "",
+        name: member.name ?? "",
+        mfLastName: member.mfLastName ?? "",
+        mfFirstName: member.mfFirstName ?? "",
+        mfMiddleName: member.mfMiddleName ?? "",
+        mfKanaName: member.mfKanaName ?? "",
+        mfRole: member.mfRole ?? "",
+        mfPostalCode: member.mfPostalCode ?? "",
+        mfAddress: member.mfAddress ?? "",
+        mfMobile: member.mfMobile ?? "",
+        mfTel: member.mfTel ?? "",
+        mfFax: member.mfFax ?? "",
+        mfEmail: member.mfEmail ?? "",
+        mfWebsite: member.mfWebsite ?? "",
       };
       form.name = newForm.name;
-      form.categoryIndex = newForm.categoryIndex;
-      form.mfLongName = newForm.mfLongName;
+      form.mfLastName = newForm.mfLastName;
+      form.mfFirstName = newForm.mfFirstName;
+      form.mfMiddleName = newForm.mfMiddleName;
+      form.mfKanaName = newForm.mfKanaName;
+      form.mfRole = newForm.mfRole;
       form.mfPostalCode = newForm.mfPostalCode;
       form.mfAddress = newForm.mfAddress;
+      form.mfMobile = newForm.mfMobile;
       form.mfTel = newForm.mfTel;
       form.mfFax = newForm.mfFax;
       form.mfEmail = newForm.mfEmail;
@@ -68,60 +78,71 @@
   let hasUnsavedChanges = $derived(
     initialForm !== null &&
     (form.name !== initialForm.name ||
-      form.categoryIndex !== initialForm.categoryIndex ||
-      form.mfLongName !== initialForm.mfLongName ||
+      form.mfLastName !== initialForm.mfLastName ||
+      form.mfFirstName !== initialForm.mfFirstName ||
+      form.mfMiddleName !== initialForm.mfMiddleName ||
+      form.mfKanaName !== initialForm.mfKanaName ||
+      form.mfRole !== initialForm.mfRole ||
       form.mfPostalCode !== initialForm.mfPostalCode ||
       form.mfAddress !== initialForm.mfAddress ||
+      form.mfMobile !== initialForm.mfMobile ||
       form.mfTel !== initialForm.mfTel ||
       form.mfFax !== initialForm.mfFax ||
       form.mfEmail !== initialForm.mfEmail ||
       form.mfWebsite !== initialForm.mfWebsite)
   );
 
-  const displayName = (source: Company | null): string =>
-    source?.name || source?.mfLongName || "名称未設定";
+  const displayName = (source: Member | null): string =>
+    source?.name || "名称未設定";
 
-  const saveCompany = async (): Promise<void> => {
-    if (!company) return;
+  const saveMember = async (): Promise<void> => {
+    if (!member) return;
     isSaving = true;
     errorMessage = null;
     try {
-      const request = create(UpdateCompanyRequestSchema, {
-        targetId: company.id,
-        sourceCompany: {
-          id: company.id,
+      const request = create(UpdateMemberRequestSchema, {
+        targetId: member.id,
+        sourceMember: {
+          id: member.id,
           name: form.name,
-          categoryIndex: form.categoryIndex,
-          dirPath: company.dirPath ?? "",
-          mfLongName: form.mfLongName,
+          mfLastName: form.mfLastName,
+          mfFirstName: form.mfFirstName,
+          mfMiddleName: form.mfMiddleName,
+          mfKanaName: form.mfKanaName,
+          mfRole: form.mfRole,
           mfPostalCode: form.mfPostalCode,
           mfAddress: form.mfAddress,
+          mfMobile: form.mfMobile,
           mfTel: form.mfTel,
           mfFax: form.mfFax,
           mfEmail: form.mfEmail,
           mfWebsite: form.mfWebsite,
         },
       });
-      const response = await client.updateCompany(request);
+      const response = await client.updateMember(request);
       // 更新後の状態をフォーム値で反映
-      company = {
-        ...company,
+      member = {
+        ...member,
         name: form.name,
-        mfLongName: form.mfLongName,
+        mfLastName: form.mfLastName,
+        mfFirstName: form.mfFirstName,
+        mfMiddleName: form.mfMiddleName,
+        mfKanaName: form.mfKanaName,
+        mfRole: form.mfRole,
         mfPostalCode: form.mfPostalCode,
         mfAddress: form.mfAddress,
+        mfMobile: form.mfMobile,
         mfTel: form.mfTel,
         mfFax: form.mfFax,
         mfEmail: form.mfEmail,
         mfWebsite: form.mfWebsite,
-        categoryIndex: form.categoryIndex,
       };
       // 初期値を更新
       initialForm = { ...form };
       savedAt = new Date();
     } catch (error) {
       errorMessage =
-        error instanceof Error ? error.message : "会社情報の更新に失敗しました";
+        error instanceof Error ? error.message : "メンバー情報の更新に失敗しました";
     } finally {
       isSaving = false;
     }
@@ -129,22 +150,22 @@
 </script>
 
 <svelte:head>
-  <title>会社編集</title>
+  <title>メンバー編集</title>
 </svelte:head>
 
 <div class="max-w-4xl mx-auto px-5 py-12">
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
     <div>
-      <h1 class="text-3xl font-bold mb-2">会社編集</h1>
+      <h1 class="text-3xl font-bold mb-2">メンバー編集</h1>
       {#if savedAt}
         <p class="text-green-700 font-semibold">
           {savedAt.getHours()}:{savedAt.getMinutes().toString().padStart(2, '0')} に保存しました
         </p>
       {:else}
-        <p class="text-muted-foreground">会社情報を編集して保存できます。</p>
+        <p class="text-muted-foreground">メンバー情報を編集して保存できます。</p>
       {/if}
     </div>
-    <Button href="/companies" variant="outline">会社一覧に戻る</Button>
+    <Button href="/members" variant="outline">メンバー一覧に戻る</Button>
   </div>
 
   {#if errorMessage}
@@ -153,16 +174,16 @@
     </Alert.Root>
   {/if}
 
-  {#if company === null}
+  {#if member === null}
     <Card.Root>
       <Card.Content class="py-8 text-center text-muted-foreground">
-        会社情報が見つかりませんでした。
+        メンバー情報が見つかりませんでした。
       </Card.Content>
     </Card.Root>
   {:else}
     <Card.Root>
       <Card.Content class="pt-6">
-        <form onsubmit={(e) => { e.preventDefault(); void saveCompany(); }} class="space-y-6">
+        <form onsubmit={(e) => { e.preventDefault(); void saveMember(); }} class="space-y-6">
           <div class="flex items-center justify-between pb-4 border-b">
             <Button 
               type="submit" 
@@ -171,43 +192,71 @@
             >
               {isSaving ? "保存中..." : "保存"}
             </Button>
-            <span class="text-sm text-muted-foreground">会社名: {displayName(company)}</span>
+            <span class="text-sm text-muted-foreground">メンバー名: {displayName(member)}</span>
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="name" class="md:text-right">会社名</Label>
+            <Label for="name" class="md:text-right">名前</Label>
             <Input 
               id="name" 
               type="text" 
               bind:value={form.name}
-              placeholder="会社名" 
+              placeholder="名前" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="category" class="md:text-right">カテゴリ</Label>
-            <select 
-              id="category" 
-              bind:value={form.categoryIndex} 
-              onkeydown={handleEnterKeyNavigation}
-              class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {#each categories as category (category.index)}
-                <option value={category.index}>
-                  {category.label || "業種未設定"}
-                </option>
-              {/each}
-            </select>
+            <Label for="mfLastName" class="md:text-right">姓</Label>
+            <Input 
+              id="mfLastName" 
+              type="text" 
+              bind:value={form.mfLastName}
+              placeholder="姓" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfLongName" class="md:text-right">正式名称</Label>
+            <Label for="mfFirstName" class="md:text-right">名</Label>
             <Input 
-              id="mfLongName" 
+              id="mfFirstName" 
               type="text" 
-              bind:value={form.mfLongName}
-              placeholder="正式名称" 
+              bind:value={form.mfFirstName}
+              placeholder="名" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfMiddleName" class="md:text-right">ミドルネーム</Label>
+            <Input 
+              id="mfMiddleName" 
+              type="text" 
+              bind:value={form.mfMiddleName}
+              placeholder="ミドルネーム" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfKanaName" class="md:text-right">カナ名</Label>
+            <Input 
+              id="mfKanaName" 
+              type="text" 
+              bind:value={form.mfKanaName}
+              placeholder="カナ名" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfRole" class="md:text-right">役職</Label>
+            <Input 
+              id="mfRole" 
+              type="text" 
+              bind:value={form.mfRole}
+              placeholder="役職" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
@@ -235,12 +284,23 @@
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfMobile" class="md:text-right">携帯</Label>
+            <Input 
+              id="mfMobile" 
+              type="text" 
+              bind:value={form.mfMobile}
+              placeholder="携帯" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
             <Label for="mfTel" class="md:text-right">電話</Label>
             <Input 
               id="mfTel" 
               type="text" 
               bind:value={form.mfTel}
-              placeholder="電話番号" 
+              placeholder="電話" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
@@ -262,30 +322,20 @@
               id="mfEmail" 
               type="email" 
               bind:value={form.mfEmail}
-              placeholder="メールアドレス" 
+              placeholder="メール" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfWebsite" class="md:text-right">Web</Label>
+            <Label for="mfWebsite" class="md:text-right">ウェブサイト</Label>
             <Input 
               id="mfWebsite" 
               type="url" 
               bind:value={form.mfWebsite}
-              placeholder="Webサイト" 
+              placeholder="ウェブサイト" 
               onkeydown={handleEnterKeyNavigation} 
             />
-          </div>
-
-          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label class="md:text-right">ID</Label>
-            <span class="text-sm font-mono text-muted-foreground">{company.id}</span>
-          </div>
-
-          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label class="md:text-right">ディレクトリ</Label>
-            <span class="text-sm font-mono text-muted-foreground">{company.dirPath || "-"}</span>
           </div>
         </form>
       </Card.Content>

@@ -14,6 +14,8 @@ type Configuration struct {
 	CompanyWatcherMaxDepth int
 	KojiBaseDirPath        string
 	KojiWatcherMaxDepth    int
+	MemberBaseDirPath      string
+	MemberWatcherMaxDepth  int
 	MinimumWorkers         int
 	MaximumWorkers         int
 	CpuMultiplier          int
@@ -31,7 +33,9 @@ func init() {
 		CompanyBaseDirPath:     "{ROOT}/1 会社",
 		CompanyWatcherMaxDepth: 0,
 		KojiBaseDirPath:        "{ROOT}/2 工事",
-		KojiWatcherMaxDepth:    1,
+		KojiWatcherMaxDepth:    0,
+		MemberBaseDirPath:      "{ROOT}/1 会社",
+		MemberWatcherMaxDepth:  1,
 		MinimumWorkers:         2,
 		MaximumWorkers:         16,
 		CpuMultiplier:          2,

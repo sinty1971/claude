@@ -57,7 +57,10 @@ func NewKojiFromMessage(message *grpcv1.Koji) (*Koji, error) {
 }
 
 func (m *Koji) InitializeManifestProvider() {
-	mp := &core.ManifestProvider{Manifestable: m}
+	mp := &core.ManifestProvider{
+		Manifestable:     m,
+		ManifestFileName: "@koji.yaml",
+	}
 	m.ManifestProvider = mp
 }
 

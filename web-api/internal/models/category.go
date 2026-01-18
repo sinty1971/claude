@@ -1,6 +1,9 @@
 package models
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 // 業種カテゴリーの定義
 const (
@@ -45,9 +48,24 @@ func init() {
 }
 
 // ErrorCompanyCategoryIndex 引数: idx が有効な範囲内かをチェックします
-func ErrorCompanyCategoryIndex(ci int32) error {
-	if CompanyCategoryMin <= ci && ci <= CompanyCategoryMax {
+func ErrorCompanyCategoryIndex(companyCategoryIndex int32) error {
+	if CompanyCategoryMin <= companyCategoryIndex && companyCategoryIndex <= CompanyCategoryMax {
 		return nil
 	}
 	return errors.New("invalid CompanyCategoryIndex")
+}
+
+// ParseCompanyCategoryByte は業種カテゴリーインスタンス文字列からインデックスを取得します
+func ParseCompanyCategoryByte(companyCategoryChar byte) (int32, error) {
+	idx, err := strconv.Atoi(string(companyCategoryChar))
+	if err != nil {
+		return -1, err
+	}
+
+	err = ErrorCompanyCategoryIndex(int32(idx))
+	if err != nil {
+		return -1, err
+	}
+
+	return int32(idx), nil
 }

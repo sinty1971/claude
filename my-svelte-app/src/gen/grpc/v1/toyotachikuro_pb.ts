@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file grpc/v1/toyotachikuro.proto.
  */
 export const file_grpc_v1_toyotachikuro: GenFile = /*@__PURE__*/
-  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJItsBCgdDb21wYW55EgoKAmlkGAEgASgJEhIKCnNob3J0X25hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMbWZfbG9uZ19uYW1lGAUgASgJEhYKDm1mX3Bvc3RhbF9jb2RlGAYgASgJEhIKCm1mX2FkZHJlc3MYByABKAkSDgoGbWZfdGVsGAggASgJEg4KBm1mX2ZheBgJIAEoCRIQCghtZl9lbWFpbBgKIAEoCRISCgptZl93ZWJzaXRlGAsgASgJIi8KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRINCgVsYWJlbBgCIAEoCSKoAQoES29qaRIKCgJpZBgBIAEoCRIpCgVzdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMY29tcGFueV9uYW1lGAMgASgJEhUKDWxvY2F0aW9uX25hbWUYBCABKAkSEAoIZGlyX3BhdGgYBSABKAkSKgoGbWZfZW5kGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIrChJHZXRQYXRoTGlzdFJlcXVlc3QSFQoNcmVsYXRpdmVfcGF0aBgBIAEoCSIoChNHZXRQYXRoTGlzdFJlc3BvbnNlEhEKCXBhdGhfbGlzdBgBIAMoCSIrChNHZXRDb21wYW5pZXNSZXF1ZXN0EhQKDGZvcmNlX3JlbG9hZBgBIAEoCCKbAQoUR2V0Q29tcGFuaWVzUmVzcG9uc2USPwoJY29tcGFuaWVzGAEgAygLMiwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZS5Db21wYW5pZXNFbnRyeRpCCg5Db21wYW5pZXNFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnk6AjgBIiYKEUdldENvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSI3ChJHZXRDb21wYW55UmVzcG9uc2USIQoHY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSJTChRVcGRhdGVDb21wYW55UmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSKAoOc291cmNlX2NvbXBhbnkYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnkiPwoVVXBkYXRlQ29tcGFueVJlc3BvbnNlEiYKDHByZXZfY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSIdChtHZXRDb21wYW55Q2F0ZWdvcmllc1JlcXVlc3QiTAocR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZRIsCgpjYXRlZ29yaWVzGAEgAygLMhguZ3JwYy52MS5Db21wYW55Q2F0ZWdvcnkiEgoQR2V0S29qaWVzUmVxdWVzdCKJAQoRR2V0S29qaWVzUmVzcG9uc2USNgoGa29qaWVzGAEgAygLMiYuZ3JwYy52MS5HZXRLb2ppZXNSZXNwb25zZS5Lb2ppZXNFbnRyeRo8CgtLb2ppZXNFbnRyeRILCgNrZXkYASABKAkSHAoFdmFsdWUYAiABKAsyDS5ncnBjLnYxLktvamk6AjgBIiMKDkdldEtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSIuCg9HZXRLb2ppUmVzcG9uc2USGwoEa29qaRgBIAEoCzINLmdycGMudjEuS29qaSJKChFVcGRhdGVLb2ppUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSIgoLc291cmNlX2tvamkYAiABKAsyDS5ncnBjLnYxLktvamkiNgoSVXBkYXRlS29qaVJlc3BvbnNlEiAKCXByZXZfa29qaRgBIAEoCzINLmdycGMudjEuS29qaTJcChBEaXJlY3RvcnlTZXJ2aWNlEkgKC0dldFBhdGhMaXN0EhsuZ3JwYy52MS5HZXRQYXRoTGlzdFJlcXVlc3QaHC5ncnBjLnYxLkdldFBhdGhMaXN0UmVzcG9uc2Uy2QIKDkNvbXBhbnlTZXJ2aWNlEksKDEdldENvbXBhbmllcxIcLmdycGMudjEuR2V0Q29tcGFuaWVzUmVxdWVzdBodLmdycGMudjEuR2V0Q29tcGFuaWVzUmVzcG9uc2USRQoKR2V0Q29tcGFueRIaLmdycGMudjEuR2V0Q29tcGFueVJlcXVlc3QaGy5ncnBjLnYxLkdldENvbXBhbnlSZXNwb25zZRJOCg1VcGRhdGVDb21wYW55Eh0uZ3JwYy52MS5VcGRhdGVDb21wYW55UmVxdWVzdBoeLmdycGMudjEuVXBkYXRlQ29tcGFueVJlc3BvbnNlEmMKFEdldENvbXBhbnlDYXRlZ29yaWVzEiQuZ3JwYy52MS5HZXRDb21wYW55Q2F0ZWdvcmllc1JlcXVlc3QaJS5ncnBjLnYxLkdldENvbXBhbnlDYXRlZ29yaWVzUmVzcG9uc2Uy1gEKC0tvamlTZXJ2aWNlEkIKCUdldEtvamllcxIZLmdycGMudjEuR2V0S29qaWVzUmVxdWVzdBoaLmdycGMudjEuR2V0S29qaWVzUmVzcG9uc2USPAoHR2V0S29qaRIXLmdycGMudjEuR2V0S29qaVJlcXVlc3QaGC5ncnBjLnYxLkdldEtvamlSZXNwb25zZRJFCgpVcGRhdGVLb2ppEhouZ3JwYy52MS5VcGRhdGVLb2ppUmVxdWVzdBobLmdycGMudjEuVXBkYXRlS29qaVJlc3BvbnNlQoQBCgtjb20uZ3JwYy52MUISVG95b3RhY2hpa3Vyb1Byb3RvUAFaGndlYi1hcGkvZ2VuL2dycGMvdjE7Z3JwY3YxogIDR1hYqgIHR3JwYy5WMcoCB0dycGNcVjHiAhNHcnBjXFYxXEdQQk1ldGFkYXRh6gIIR3JwYzo6VjGSAwcIAtI+AhADYghlZGl0aW9uc3DoBw", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
+  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJIisKEkdldFBhdGhMaXN0UmVxdWVzdBIVCg1yZWxhdGl2ZV9wYXRoGAEgASgJIigKE0dldFBhdGhMaXN0UmVzcG9uc2USEQoJcGF0aF9saXN0GAEgAygJItUBCgdDb21wYW55EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMbWZfbG9uZ19uYW1lGAUgASgJEhYKDm1mX3Bvc3RhbF9jb2RlGAYgASgJEhIKCm1mX2FkZHJlc3MYByABKAkSDgoGbWZfdGVsGAggASgJEg4KBm1mX2ZheBgJIAEoCRIQCghtZl9lbWFpbBgKIAEoCRISCgptZl93ZWJzaXRlGAsgASgJIi8KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRINCgVsYWJlbBgCIAEoCSIrChNHZXRDb21wYW5pZXNSZXF1ZXN0EhQKDGZvcmNlX3JlbG9hZBgBIAEoCCKbAQoUR2V0Q29tcGFuaWVzUmVzcG9uc2USPwoJY29tcGFuaWVzGAEgAygLMiwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZS5Db21wYW5pZXNFbnRyeRpCCg5Db21wYW5pZXNFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnk6AjgBIiYKEUdldENvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSI3ChJHZXRDb21wYW55UmVzcG9uc2USIQoHY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSJTChRVcGRhdGVDb21wYW55UmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSKAoOc291cmNlX2NvbXBhbnkYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnkiPwoVVXBkYXRlQ29tcGFueVJlc3BvbnNlEiYKDHByZXZfY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSIdChtHZXRDb21wYW55Q2F0ZWdvcmllc1JlcXVlc3QiTAocR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZRIsCgpjYXRlZ29yaWVzGAEgAygLMhguZ3JwYy52MS5Db21wYW55Q2F0ZWdvcnkiqAEKBEtvamkSCgoCaWQYASABKAkSKQoFc3RhcnQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDGNvbXBhbnlfbmFtZRgDIAEoCRIVCg1sb2NhdGlvbl9uYW1lGAQgASgJEhAKCGRpcl9wYXRoGAUgASgJEioKBm1mX2VuZBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEgoQR2V0S29qaWVzUmVxdWVzdCKJAQoRR2V0S29qaWVzUmVzcG9uc2USNgoGa29qaWVzGAEgAygLMiYuZ3JwYy52MS5HZXRLb2ppZXNSZXNwb25zZS5Lb2ppZXNFbnRyeRo8CgtLb2ppZXNFbnRyeRILCgNrZXkYASABKAkSHAoFdmFsdWUYAiABKAsyDS5ncnBjLnYxLktvamk6AjgBIiMKDkdldEtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSIuCg9HZXRLb2ppUmVzcG9uc2USGwoEa29qaRgBIAEoCzINLmdycGMudjEuS29qaSJKChFVcGRhdGVLb2ppUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSIgoLc291cmNlX2tvamkYAiABKAsyDS5ncnBjLnYxLktvamkiNgoSVXBkYXRlS29qaVJlc3BvbnNlEiAKCXByZXZfa29qaRgBIAEoCzINLmdycGMudjEuS29qaSLOAgoGTWVtYmVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEQoJaXNfYWN0aXZlGAMgASgIEhQKDGNvbXBhbnlfbmFtZRgEIAEoCRIQCghkaXJfcGF0aBgFIAEoCRIUCgxtZl9sYXN0X25hbWUYBiABKAkSFQoNbWZfZmlyc3RfbmFtZRgHIAEoCRIWCg5tZl9taWRkbGVfbmFtZRgIIAEoCRIUCgxtZl9rYW5hX25hbWUYCSABKAkSDwoHbWZfcm9sZRgKIAEoCRIWCg5tZl9wb3N0YWxfY29kZRgLIAEoCRISCgptZl9hZGRyZXNzGAwgASgJEhEKCW1mX21vYmlsZRgNIAEoCRIOCgZtZl90ZWwYDiABKAkSDgoGbWZfZmF4GA8gASgJEhAKCG1mX2VtYWlsGBAgASgJEhIKCm1mX3dlYnNpdGUYESABKAkiEwoRR2V0TWVtYmVyc1JlcXVlc3QikAEKEkdldE1lbWJlcnNSZXNwb25zZRI5CgdtZW1iZXJzGAEgAygLMiguZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2UuTWVtYmVyc0VudHJ5Gj8KDE1lbWJlcnNFbnRyeRILCgNrZXkYASABKAkSHgoFdmFsdWUYAiABKAsyDy5ncnBjLnYxLk1lbWJlcjoCOAEiJQoQR2V0TWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkiNAoRR2V0TWVtYmVyUmVzcG9uc2USHwoGbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIiUAoTVXBkYXRlTWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSJgoNc291cmNlX21lbWJlchgCIAEoCzIPLmdycGMudjEuTWVtYmVyIjwKFFVwZGF0ZU1lbWJlclJlc3BvbnNlEiQKC3ByZXZfbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIyXAoQRGlyZWN0b3J5U2VydmljZRJICgtHZXRQYXRoTGlzdBIbLmdycGMudjEuR2V0UGF0aExpc3RSZXF1ZXN0GhwuZ3JwYy52MS5HZXRQYXRoTGlzdFJlc3BvbnNlMtkCCg5Db21wYW55U2VydmljZRJLCgxHZXRDb21wYW5pZXMSHC5ncnBjLnYxLkdldENvbXBhbmllc1JlcXVlc3QaHS5ncnBjLnYxLkdldENvbXBhbmllc1Jlc3BvbnNlEkUKCkdldENvbXBhbnkSGi5ncnBjLnYxLkdldENvbXBhbnlSZXF1ZXN0GhsuZ3JwYy52MS5HZXRDb21wYW55UmVzcG9uc2USTgoNVXBkYXRlQ29tcGFueRIdLmdycGMudjEuVXBkYXRlQ29tcGFueVJlcXVlc3QaHi5ncnBjLnYxLlVwZGF0ZUNvbXBhbnlSZXNwb25zZRJjChRHZXRDb21wYW55Q2F0ZWdvcmllcxIkLmdycGMudjEuR2V0Q29tcGFueUNhdGVnb3JpZXNSZXF1ZXN0GiUuZ3JwYy52MS5HZXRDb21wYW55Q2F0ZWdvcmllc1Jlc3BvbnNlMtYBCgtLb2ppU2VydmljZRJCCglHZXRLb2ppZXMSGS5ncnBjLnYxLkdldEtvamllc1JlcXVlc3QaGi5ncnBjLnYxLkdldEtvamllc1Jlc3BvbnNlEjwKB0dldEtvamkSFy5ncnBjLnYxLkdldEtvamlSZXF1ZXN0GhguZ3JwYy52MS5HZXRLb2ppUmVzcG9uc2USRQoKVXBkYXRlS29qaRIaLmdycGMudjEuVXBkYXRlS29qaVJlcXVlc3QaGy5ncnBjLnYxLlVwZGF0ZUtvamlSZXNwb25zZTLnAQoNTWVtYmVyU2VydmljZRJFCgpHZXRNZW1iZXJzEhouZ3JwYy52MS5HZXRNZW1iZXJzUmVxdWVzdBobLmdycGMudjEuR2V0TWVtYmVyc1Jlc3BvbnNlEkIKCUdldE1lbWJlchIZLmdycGMudjEuR2V0TWVtYmVyUmVxdWVzdBoaLmdycGMudjEuR2V0TWVtYmVyUmVzcG9uc2USSwoMVXBkYXRlTWVtYmVyEhwuZ3JwYy52MS5VcGRhdGVNZW1iZXJSZXF1ZXN0Gh0uZ3JwYy52MS5VcGRhdGVNZW1iZXJSZXNwb25zZUKEAQoLY29tLmdycGMudjFCElRveW90YWNoaWt1cm9Qcm90b1ABWhp3ZWItYXBpL2dlbi9ncnBjL3YxO2dycGN2MaICA0dYWKoCB0dycGMuVjHKAgdHcnBjXFYx4gITR3JwY1xWMVxHUEJNZXRhZGF0YeoCCEdycGM6OlYxkgMHCALSPgIQA2IIZWRpdGlvbnNw6Ac", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
 
 /**
  * Directory represents information about a directory
@@ -40,6 +40,42 @@ export const DirectorySchema: GenMessage<Directory> = /*@__PURE__*/
   messageDesc(file_grpc_v1_toyotachikuro, 0);
 
 /**
+ * DirectoryService messages
+ *
+ * @generated from message grpc.v1.GetPathListRequest
+ */
+export type GetPathListRequest = Message<"grpc.v1.GetPathListRequest"> & {
+  /**
+   * @generated from field: string relative_path = 1;
+   */
+  relativePath: string;
+};
+
+/**
+ * Describes the message grpc.v1.GetPathListRequest.
+ * Use `create(GetPathListRequestSchema)` to create a new message.
+ */
+export const GetPathListRequestSchema: GenMessage<GetPathListRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 1);
+
+/**
+ * @generated from message grpc.v1.GetPathListResponse
+ */
+export type GetPathListResponse = Message<"grpc.v1.GetPathListResponse"> & {
+  /**
+   * @generated from field: repeated string path_list = 1;
+   */
+  pathList: string[];
+};
+
+/**
+ * Describes the message grpc.v1.GetPathListResponse.
+ * Use `create(GetPathListResponseSchema)` to create a new message.
+ */
+export const GetPathListResponseSchema: GenMessage<GetPathListResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 2);
+
+/**
  * Company represents a company entity with inside information
  * @manifest table name: companies
  *
@@ -52,9 +88,9 @@ export type Company = Message<"grpc.v1.Company"> & {
   id: string;
 
   /**
-   * @generated from field: string short_name = 2;
+   * @generated from field: string name = 2;
    */
-  shortName: string;
+  name: string;
 
   /**
    * @generated from field: int32 category_index = 3;
@@ -107,7 +143,7 @@ export type Company = Message<"grpc.v1.Company"> & {
  * Use `create(CompanySchema)` to create a new message.
  */
 export const CompanySchema: GenMessage<Company> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 1);
+  messageDesc(file_grpc_v1_toyotachikuro, 3);
 
 /**
  * CompanyCategory represents a company category with index and label
@@ -131,7 +167,146 @@ export type CompanyCategory = Message<"grpc.v1.CompanyCategory"> & {
  * Use `create(CompanyCategorySchema)` to create a new message.
  */
 export const CompanyCategorySchema: GenMessage<CompanyCategory> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 2);
+  messageDesc(file_grpc_v1_toyotachikuro, 4);
+
+/**
+ * CompanyService messages
+ *
+ * @generated from message grpc.v1.GetCompaniesRequest
+ */
+export type GetCompaniesRequest = Message<"grpc.v1.GetCompaniesRequest"> & {
+  /**
+   * @generated from field: bool force_reload = 1;
+   */
+  forceReload: boolean;
+};
+
+/**
+ * Describes the message grpc.v1.GetCompaniesRequest.
+ * Use `create(GetCompaniesRequestSchema)` to create a new message.
+ */
+export const GetCompaniesRequestSchema: GenMessage<GetCompaniesRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 5);
+
+/**
+ * @generated from message grpc.v1.GetCompaniesResponse
+ */
+export type GetCompaniesResponse = Message<"grpc.v1.GetCompaniesResponse"> & {
+  /**
+   * @generated from field: map<string, grpc.v1.Company> companies = 1;
+   */
+  companies: { [key: string]: Company };
+};
+
+/**
+ * Describes the message grpc.v1.GetCompaniesResponse.
+ * Use `create(GetCompaniesResponseSchema)` to create a new message.
+ */
+export const GetCompaniesResponseSchema: GenMessage<GetCompaniesResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 6);
+
+/**
+ * @generated from message grpc.v1.GetCompanyRequest
+ */
+export type GetCompanyRequest = Message<"grpc.v1.GetCompanyRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+};
+
+/**
+ * Describes the message grpc.v1.GetCompanyRequest.
+ * Use `create(GetCompanyRequestSchema)` to create a new message.
+ */
+export const GetCompanyRequestSchema: GenMessage<GetCompanyRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 7);
+
+/**
+ * @generated from message grpc.v1.GetCompanyResponse
+ */
+export type GetCompanyResponse = Message<"grpc.v1.GetCompanyResponse"> & {
+  /**
+   * @generated from field: grpc.v1.Company company = 1;
+   */
+  company?: Company;
+};
+
+/**
+ * Describes the message grpc.v1.GetCompanyResponse.
+ * Use `create(GetCompanyResponseSchema)` to create a new message.
+ */
+export const GetCompanyResponseSchema: GenMessage<GetCompanyResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 8);
+
+/**
+ * @generated from message grpc.v1.UpdateCompanyRequest
+ */
+export type UpdateCompanyRequest = Message<"grpc.v1.UpdateCompanyRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: grpc.v1.Company source_company = 2;
+   */
+  sourceCompany?: Company;
+};
+
+/**
+ * Describes the message grpc.v1.UpdateCompanyRequest.
+ * Use `create(UpdateCompanyRequestSchema)` to create a new message.
+ */
+export const UpdateCompanyRequestSchema: GenMessage<UpdateCompanyRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 9);
+
+/**
+ * @generated from message grpc.v1.UpdateCompanyResponse
+ */
+export type UpdateCompanyResponse = Message<"grpc.v1.UpdateCompanyResponse"> & {
+  /**
+   * @generated from field: grpc.v1.Company prev_company = 1;
+   */
+  prevCompany?: Company;
+};
+
+/**
+ * Describes the message grpc.v1.UpdateCompanyResponse.
+ * Use `create(UpdateCompanyResponseSchema)` to create a new message.
+ */
+export const UpdateCompanyResponseSchema: GenMessage<UpdateCompanyResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 10);
+
+/**
+ * @generated from message grpc.v1.GetCompanyCategoriesRequest
+ */
+export type GetCompanyCategoriesRequest = Message<"grpc.v1.GetCompanyCategoriesRequest"> & {
+};
+
+/**
+ * Describes the message grpc.v1.GetCompanyCategoriesRequest.
+ * Use `create(GetCompanyCategoriesRequestSchema)` to create a new message.
+ */
+export const GetCompanyCategoriesRequestSchema: GenMessage<GetCompanyCategoriesRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 11);
+
+/**
+ * @generated from message grpc.v1.GetCompanyCategoriesResponse
+ */
+export type GetCompanyCategoriesResponse = Message<"grpc.v1.GetCompanyCategoriesResponse"> & {
+  /**
+   * @generated from field: repeated grpc.v1.CompanyCategory categories = 1;
+   */
+  categories: CompanyCategory[];
+};
+
+/**
+ * Describes the message grpc.v1.GetCompanyCategoriesResponse.
+ * Use `create(GetCompanyCategoriesResponseSchema)` to create a new message.
+ */
+export const GetCompanyCategoriesResponseSchema: GenMessage<GetCompanyCategoriesResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 12);
 
 /**
  * Koji represents a construction project with inside information
@@ -176,181 +351,6 @@ export type Koji = Message<"grpc.v1.Koji"> & {
  * Use `create(KojiSchema)` to create a new message.
  */
 export const KojiSchema: GenMessage<Koji> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 3);
-
-/**
- * DirectoryService messages
- *
- * @generated from message grpc.v1.GetPathListRequest
- */
-export type GetPathListRequest = Message<"grpc.v1.GetPathListRequest"> & {
-  /**
-   * @generated from field: string relative_path = 1;
-   */
-  relativePath: string;
-};
-
-/**
- * Describes the message grpc.v1.GetPathListRequest.
- * Use `create(GetPathListRequestSchema)` to create a new message.
- */
-export const GetPathListRequestSchema: GenMessage<GetPathListRequest> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 4);
-
-/**
- * @generated from message grpc.v1.GetPathListResponse
- */
-export type GetPathListResponse = Message<"grpc.v1.GetPathListResponse"> & {
-  /**
-   * @generated from field: repeated string path_list = 1;
-   */
-  pathList: string[];
-};
-
-/**
- * Describes the message grpc.v1.GetPathListResponse.
- * Use `create(GetPathListResponseSchema)` to create a new message.
- */
-export const GetPathListResponseSchema: GenMessage<GetPathListResponse> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 5);
-
-/**
- * CompanyService messages
- *
- * @generated from message grpc.v1.GetCompaniesRequest
- */
-export type GetCompaniesRequest = Message<"grpc.v1.GetCompaniesRequest"> & {
-  /**
-   * @generated from field: bool force_reload = 1;
-   */
-  forceReload: boolean;
-};
-
-/**
- * Describes the message grpc.v1.GetCompaniesRequest.
- * Use `create(GetCompaniesRequestSchema)` to create a new message.
- */
-export const GetCompaniesRequestSchema: GenMessage<GetCompaniesRequest> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 6);
-
-/**
- * @generated from message grpc.v1.GetCompaniesResponse
- */
-export type GetCompaniesResponse = Message<"grpc.v1.GetCompaniesResponse"> & {
-  /**
-   * @generated from field: map<string, grpc.v1.Company> companies = 1;
-   */
-  companies: { [key: string]: Company };
-};
-
-/**
- * Describes the message grpc.v1.GetCompaniesResponse.
- * Use `create(GetCompaniesResponseSchema)` to create a new message.
- */
-export const GetCompaniesResponseSchema: GenMessage<GetCompaniesResponse> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 7);
-
-/**
- * @generated from message grpc.v1.GetCompanyRequest
- */
-export type GetCompanyRequest = Message<"grpc.v1.GetCompanyRequest"> & {
-  /**
-   * @generated from field: string target_id = 1;
-   */
-  targetId: string;
-};
-
-/**
- * Describes the message grpc.v1.GetCompanyRequest.
- * Use `create(GetCompanyRequestSchema)` to create a new message.
- */
-export const GetCompanyRequestSchema: GenMessage<GetCompanyRequest> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 8);
-
-/**
- * @generated from message grpc.v1.GetCompanyResponse
- */
-export type GetCompanyResponse = Message<"grpc.v1.GetCompanyResponse"> & {
-  /**
-   * @generated from field: grpc.v1.Company company = 1;
-   */
-  company?: Company;
-};
-
-/**
- * Describes the message grpc.v1.GetCompanyResponse.
- * Use `create(GetCompanyResponseSchema)` to create a new message.
- */
-export const GetCompanyResponseSchema: GenMessage<GetCompanyResponse> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 9);
-
-/**
- * @generated from message grpc.v1.UpdateCompanyRequest
- */
-export type UpdateCompanyRequest = Message<"grpc.v1.UpdateCompanyRequest"> & {
-  /**
-   * @generated from field: string target_id = 1;
-   */
-  targetId: string;
-
-  /**
-   * @generated from field: grpc.v1.Company source_company = 2;
-   */
-  sourceCompany?: Company;
-};
-
-/**
- * Describes the message grpc.v1.UpdateCompanyRequest.
- * Use `create(UpdateCompanyRequestSchema)` to create a new message.
- */
-export const UpdateCompanyRequestSchema: GenMessage<UpdateCompanyRequest> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 10);
-
-/**
- * @generated from message grpc.v1.UpdateCompanyResponse
- */
-export type UpdateCompanyResponse = Message<"grpc.v1.UpdateCompanyResponse"> & {
-  /**
-   * @generated from field: grpc.v1.Company prev_company = 1;
-   */
-  prevCompany?: Company;
-};
-
-/**
- * Describes the message grpc.v1.UpdateCompanyResponse.
- * Use `create(UpdateCompanyResponseSchema)` to create a new message.
- */
-export const UpdateCompanyResponseSchema: GenMessage<UpdateCompanyResponse> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 11);
-
-/**
- * @generated from message grpc.v1.GetCompanyCategoriesRequest
- */
-export type GetCompanyCategoriesRequest = Message<"grpc.v1.GetCompanyCategoriesRequest"> & {
-};
-
-/**
- * Describes the message grpc.v1.GetCompanyCategoriesRequest.
- * Use `create(GetCompanyCategoriesRequestSchema)` to create a new message.
- */
-export const GetCompanyCategoriesRequestSchema: GenMessage<GetCompanyCategoriesRequest> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 12);
-
-/**
- * @generated from message grpc.v1.GetCompanyCategoriesResponse
- */
-export type GetCompanyCategoriesResponse = Message<"grpc.v1.GetCompanyCategoriesResponse"> & {
-  /**
-   * @generated from field: repeated grpc.v1.CompanyCategory categories = 1;
-   */
-  categories: CompanyCategory[];
-};
-
-/**
- * Describes the message grpc.v1.GetCompanyCategoriesResponse.
- * Use `create(GetCompanyCategoriesResponseSchema)` to create a new message.
- */
-export const GetCompanyCategoriesResponseSchema: GenMessage<GetCompanyCategoriesResponse> = /*@__PURE__*/
   messageDesc(file_grpc_v1_toyotachikuro, 13);
 
 /**
@@ -459,6 +459,206 @@ export const UpdateKojiResponseSchema: GenMessage<UpdateKojiResponse> = /*@__PUR
   messageDesc(file_grpc_v1_toyotachikuro, 19);
 
 /**
+ * @generated from message grpc.v1.Member
+ */
+export type Member = Message<"grpc.v1.Member"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool is_active = 3;
+   */
+  isActive: boolean;
+
+  /**
+   * @generated from field: string company_name = 4;
+   */
+  companyName: string;
+
+  /**
+   * @generated from field: string dir_path = 5;
+   */
+  dirPath: string;
+
+  /**
+   * @generated from field: string mf_last_name = 6;
+   */
+  mfLastName: string;
+
+  /**
+   * @generated from field: string mf_first_name = 7;
+   */
+  mfFirstName: string;
+
+  /**
+   * @generated from field: string mf_middle_name = 8;
+   */
+  mfMiddleName: string;
+
+  /**
+   * @generated from field: string mf_kana_name = 9;
+   */
+  mfKanaName: string;
+
+  /**
+   * @generated from field: string mf_role = 10;
+   */
+  mfRole: string;
+
+  /**
+   * @generated from field: string mf_postal_code = 11;
+   */
+  mfPostalCode: string;
+
+  /**
+   * @generated from field: string mf_address = 12;
+   */
+  mfAddress: string;
+
+  /**
+   * @generated from field: string mf_mobile = 13;
+   */
+  mfMobile: string;
+
+  /**
+   * @generated from field: string mf_tel = 14;
+   */
+  mfTel: string;
+
+  /**
+   * @generated from field: string mf_fax = 15;
+   */
+  mfFax: string;
+
+  /**
+   * @generated from field: string mf_email = 16;
+   */
+  mfEmail: string;
+
+  /**
+   * @generated from field: string mf_website = 17;
+   */
+  mfWebsite: string;
+};
+
+/**
+ * Describes the message grpc.v1.Member.
+ * Use `create(MemberSchema)` to create a new message.
+ */
+export const MemberSchema: GenMessage<Member> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 20);
+
+/**
+ * @generated from message grpc.v1.GetMembersRequest
+ */
+export type GetMembersRequest = Message<"grpc.v1.GetMembersRequest"> & {
+};
+
+/**
+ * Describes the message grpc.v1.GetMembersRequest.
+ * Use `create(GetMembersRequestSchema)` to create a new message.
+ */
+export const GetMembersRequestSchema: GenMessage<GetMembersRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 21);
+
+/**
+ * @generated from message grpc.v1.GetMembersResponse
+ */
+export type GetMembersResponse = Message<"grpc.v1.GetMembersResponse"> & {
+  /**
+   * @generated from field: map<string, grpc.v1.Member> members = 1;
+   */
+  members: { [key: string]: Member };
+};
+
+/**
+ * Describes the message grpc.v1.GetMembersResponse.
+ * Use `create(GetMembersResponseSchema)` to create a new message.
+ */
+export const GetMembersResponseSchema: GenMessage<GetMembersResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 22);
+
+/**
+ * @generated from message grpc.v1.GetMemberRequest
+ */
+export type GetMemberRequest = Message<"grpc.v1.GetMemberRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+};
+
+/**
+ * Describes the message grpc.v1.GetMemberRequest.
+ * Use `create(GetMemberRequestSchema)` to create a new message.
+ */
+export const GetMemberRequestSchema: GenMessage<GetMemberRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 23);
+
+/**
+ * @generated from message grpc.v1.GetMemberResponse
+ */
+export type GetMemberResponse = Message<"grpc.v1.GetMemberResponse"> & {
+  /**
+   * @generated from field: grpc.v1.Member member = 1;
+   */
+  member?: Member;
+};
+
+/**
+ * Describes the message grpc.v1.GetMemberResponse.
+ * Use `create(GetMemberResponseSchema)` to create a new message.
+ */
+export const GetMemberResponseSchema: GenMessage<GetMemberResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 24);
+
+/**
+ * @generated from message grpc.v1.UpdateMemberRequest
+ */
+export type UpdateMemberRequest = Message<"grpc.v1.UpdateMemberRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: grpc.v1.Member source_member = 2;
+   */
+  sourceMember?: Member;
+};
+
+/**
+ * Describes the message grpc.v1.UpdateMemberRequest.
+ * Use `create(UpdateMemberRequestSchema)` to create a new message.
+ */
+export const UpdateMemberRequestSchema: GenMessage<UpdateMemberRequest> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 25);
+
+/**
+ * @generated from message grpc.v1.UpdateMemberResponse
+ */
+export type UpdateMemberResponse = Message<"grpc.v1.UpdateMemberResponse"> & {
+  /**
+   * @generated from field: grpc.v1.Member prev_member = 1;
+   */
+  prevMember?: Member;
+};
+
+/**
+ * Describes the message grpc.v1.UpdateMemberResponse.
+ * Use `create(UpdateMemberResponseSchema)` to create a new message.
+ */
+export const UpdateMemberResponseSchema: GenMessage<UpdateMemberResponse> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 26);
+
+/**
  * DirectoryService provides operations for folder management
  *
  * @generated from service grpc.v1.DirectoryService
@@ -548,4 +748,35 @@ export const KojiService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_grpc_v1_toyotachikuro, 2);
+
+/**
+ * @generated from service grpc.v1.MemberService
+ */
+export const MemberService: GenService<{
+  /**
+   * @generated from rpc grpc.v1.MemberService.GetMembers
+   */
+  getMembers: {
+    methodKind: "unary";
+    input: typeof GetMembersRequestSchema;
+    output: typeof GetMembersResponseSchema;
+  },
+  /**
+   * @generated from rpc grpc.v1.MemberService.GetMember
+   */
+  getMember: {
+    methodKind: "unary";
+    input: typeof GetMemberRequestSchema;
+    output: typeof GetMemberResponseSchema;
+  },
+  /**
+   * @generated from rpc grpc.v1.MemberService.UpdateMember
+   */
+  updateMember: {
+    methodKind: "unary";
+    input: typeof UpdateMemberRequestSchema;
+    output: typeof UpdateMemberResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_grpc_v1_toyotachikuro, 3);
 

@@ -26,6 +26,7 @@
 			<a href="/">トップ</a>
 			<a href="/companies">会社一覧</a>
 			<a href="/kojies">工事一覧</a>
+			<a href="/members">メンバー一覧</a>
 		</nav>
 	{/if}
 

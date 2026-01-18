@@ -15,11 +15,25 @@ message Directory {
   string dir_path = 4;
 }
 
+// DirectoryService provides operations for folder management
+service DirectoryService {
+  rpc GetPathList(GetPathListRequest) returns (GetPathListResponse);
+}
+
+// DirectoryService messages
+message GetPathListRequest {
+  string relative_path = 1;
+}
+
+message GetPathListResponse {
+  repeated string path_list = 1;
+}
+
 // Company represents a company entity with inside information
 // @manifest table name: companies
 message Company {
   string id = 1;
-  string short_name = 2;
+  string name = 2;
   int32 category_index = 3;
   string dir_path = 4;
   string mf_long_name = 5;
@@ -37,44 +51,12 @@ message CompanyCategory {
   string label = 2;
 }
 
-// Koji represents a construction project with inside information
-// @manifest table name: kojies
-message Koji {
-  string id = 1;
-  google.protobuf.Timestamp start = 2;
-  string company_name = 3;
-  string location_name = 4;
-  string dir_path = 5;
-  google.protobuf.Timestamp mf_end = 6;
-}
-
-// DirectoryService provides operations for folder management
-service DirectoryService {
-  rpc GetPathList(GetPathListRequest) returns (GetPathListResponse);
-}
-
 // CompanyService provides operations for managing companies
 service CompanyService {
   rpc GetCompanies(GetCompaniesRequest) returns (GetCompaniesResponse);
   rpc GetCompany(GetCompanyRequest) returns (GetCompanyResponse);
   rpc UpdateCompany(UpdateCompanyRequest) returns (UpdateCompanyResponse);
   rpc GetCompanyCategories(GetCompanyCategoriesRequest) returns (GetCompanyCategoriesResponse);
-}
-
-// KojiService provides operations for managing construction projects
-service KojiService {
-  rpc GetKojies(GetKojiesRequest) returns (GetKojiesResponse);
-  rpc GetKoji(GetKojiRequest) returns (GetKojiResponse);
-  rpc UpdateKoji(UpdateKojiRequest) returns (UpdateKojiResponse);
-}
-
-// DirectoryService messages
-message GetPathListRequest {
-  string relative_path = 1;
-}
-
-message GetPathListResponse {
-  repeated string path_list = 1;
 }
 
 // CompanyService messages
@@ -109,6 +91,24 @@ message GetCompanyCategoriesResponse {
   repeated CompanyCategory categories = 1;
 }
 
+// Koji represents a construction project with inside information
+// @manifest table name: kojies
+message Koji {
+  string id = 1;
+  google.protobuf.Timestamp start = 2;
+  string company_name = 3;
+  string location_name = 4;
+  string dir_path = 5;
+  google.protobuf.Timestamp mf_end = 6;
+}
+
+// KojiService provides operations for managing construction projects
+service KojiService {
+  rpc GetKojies(GetKojiesRequest) returns (GetKojiesResponse);
+  rpc GetKoji(GetKojiRequest) returns (GetKojiResponse);
+  rpc UpdateKoji(UpdateKojiRequest) returns (UpdateKojiResponse);
+}
+
 // KojiService messages
 message GetKojiesRequest {}
 
@@ -131,4 +131,53 @@ message UpdateKojiRequest {
 
 message UpdateKojiResponse {
   Koji prev_koji = 1;
+}
+
+message Member {
+  string id = 1;
+  string name = 2;
+  bool is_active = 3;
+  string company_name = 4;
+  string dir_path = 5;
+  string mf_last_name = 6;
+  string mf_first_name = 7;
+  string mf_middle_name = 8;
+  string mf_kana_name = 9;
+  string mf_role = 10;
+  string mf_postal_code = 11;
+  string mf_address = 12;
+  string mf_mobile = 13;
+  string mf_tel = 14;
+  string mf_fax = 15;
+  string mf_email = 16;
+  string mf_website = 17;
+}
+
+service MemberService {
+  rpc GetMembers(GetMembersRequest) returns (GetMembersResponse);
+  rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
+  rpc UpdateMember(UpdateMemberRequest) returns (UpdateMemberResponse);
+}
+
+message GetMembersRequest {}
+
+message GetMembersResponse {
+  map<string, Member> members = 1;
+}
+
+message GetMemberRequest {
+  string target_id = 1;
+}
+
+message GetMemberResponse {
+  Member member = 1;
+}
+
+message UpdateMemberRequest {
+  string target_id = 1;
+  Member source_member = 2;
+}
+
+message UpdateMemberResponse {
+  Member prev_member = 1;
 }

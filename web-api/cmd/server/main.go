@@ -59,11 +59,13 @@ func main() {
 	directoryService := services.NewDirectoryService(cs)
 	companyService := services.NewCompanyService(cs)
 	kojiService := services.NewKojiService(cs)
+	memberService := services.NewMemberService(cs)
 
 	// サービスをサービスコレクションに追加
 	cs.AddService(directoryService)
 	cs.AddService(companyService)
 	cs.AddService(kojiService)
+	cs.AddService(memberService)
 
 	// サービスの起動
 	err := cs.Start()
@@ -83,6 +85,8 @@ func main() {
 	mux.Handle(companyServicePath, companyConnectHandler)
 	kojiServicePath, kojiConnectHandler := grpcv1connect.NewKojiServiceHandler(kojiService)
 	mux.Handle(kojiServicePath, kojiConnectHandler)
+	memberServicePath, memberConnectHandler := grpcv1connect.NewMemberServiceHandler(memberService)
+	mux.Handle(memberServicePath, memberConnectHandler)
 
 	// gRPC ハンドラの登録
 
@@ -90,6 +94,7 @@ func main() {
 		grpcv1connect.DirectoryServiceName,
 		grpcv1connect.CompanyServiceName,
 		grpcv1connect.KojiServiceName,
+		grpcv1connect.MemberServiceName,
 	)
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))

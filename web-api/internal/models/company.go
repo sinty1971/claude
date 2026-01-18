@@ -61,7 +61,10 @@ func NewCompanyFromMessage(message *grpcv1.Company) (*Company, error) {
 
 // SetManifestProvider は ManifestProvider を設定します
 func (m *Company) InitializeManifestProvider() {
-	mp := &core.ManifestProvider{Manifestable: m}
+	mp := &core.ManifestProvider{
+		Manifestable:     m,
+		ManifestFileName: "@company.yaml",
+	}
 	m.ManifestProvider = mp
 }
 
@@ -72,7 +75,7 @@ func GenerateCompanyIdFromDirName(dirName string) string {
 
 // parseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
 // 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
-// 戻り値Companyは: Id, Target, Cateory, ShortName, Tags のみ設定されます
+// 戻り値Companyは: Id, Target, Cateory, Name, Tags のみ設定されます
 func (m *Company) parseFromDirPath(dirPath string) error {
 
 	// ディレクトリ名の取得
@@ -107,7 +110,7 @@ func (m *Company) parseFromDirPath(dirPath string) error {
 	m.SetId(GenerateCompanyIdFromDirName(dirName))
 	m.SetDirPath(dirPath)
 	m.SetCategoryIndex(int32(ci))
-	m.SetShortName(sn)
+	m.SetName(sn)
 
 	return nil
 }
@@ -128,7 +131,7 @@ func (m *Company) Update(source *Company) error {
 	// 新しいパラメータを元に会社フォルダーパスを生成
 	newDirPath := m.GenerateDirPath(
 		source.GetCategoryIndex(),
-		source.GetShortName(),
+		source.GetName(),
 	)
 
 	// 新しい会社フォルダー名の取得
@@ -154,7 +157,7 @@ func (m *Company) Update(source *Company) error {
 		m.SetId(newId)
 		m.SetDirPath(newDirPath)
 		m.SetCategoryIndex(source.GetCategoryIndex())
-		m.SetShortName(source.GetShortName())
+		m.SetName(source.GetName())
 	}
 
 	// Manifest データの更新

@@ -39,23 +39,16 @@ type CompanyService struct {
 
 func NewCompanyService(cs *ContainerService) *CompanyService {
 	// パスをの取得と正規化
-	dirPath, err := core.ResolveAbsPath(core.Config.CompanyBaseDirPath)
-	if err != nil {
-		panic(err)
-	}
-
-	// watcher の作成と初期化
-	watcher, err := core.NewWatcher(dirPath, core.Config.CompanyWatcherMaxDepth)
+	baseDirPath, err := core.ResolveAbsPath(core.Config.CompanyBaseDirPath)
 	if err != nil {
 		panic(err)
 	}
 
 	return &CompanyService{
 		name:        "CompanyService",
-		baseDirPath: dirPath,
+		baseDirPath: baseDirPath,
 		cache:       map[string]*models.Company{},
 		cs:          cs,
-		watcher:     watcher,
 	}
 }
 
@@ -69,8 +62,16 @@ func (srv *CompanyService) Start() error {
 	// 全ての会社情報をキャッシュに取り込む
 	srv.SyncAllToCache()
 
+	// watcher の作成と初期化
+	watcher, err := core.NewWatcher(srv.baseDirPath, core.Config.CompanyWatcherMaxDepth)
+	if err != nil {
+		panic(err)
+	}
+
+	srv.watcher = watcher
+
 	// 監視対象ディレクトリの設定
-	err := srv.watcher.Start()
+	err = srv.watcher.Start()
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func (srv *CompanyService) SyncAllToCache() {
 
 		err = company.LoadManifest()
 		if err != nil {
-			log.Printf("マニフェストデータの読み込みに失敗しました 会社略称 %s: %v", company.GetShortName(), err)
+			log.Printf("マニフェストデータの読み込みに失敗しました 会社名 %s: %v", company.GetName(), err)
 		}
 
 		srv.cache[company.GetId()] = company

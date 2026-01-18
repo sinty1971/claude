@@ -46,18 +46,11 @@ func NewKojiService(cs *ContainerService) *KojiService {
 		panic(err)
 	}
 
-	// watcher の作成と初期化
-	watcher, err := core.NewWatcher(baseDirPath, core.Config.KojiWatcherMaxDepth)
-	if err != nil {
-		panic(err)
-	}
-
 	return &KojiService{
 		name:        "KojiService",
 		baseDirPath: baseDirPath,
 		cache:       map[string]*models.Koji{},
 		cs:          cs,
-		watcher:     watcher,
 	}
 }
 
@@ -72,6 +65,14 @@ func (srv *KojiService) Start() error {
 	if err != nil {
 		return err
 	}
+
+	// watcher の作成と初期化
+	watcher, err := core.NewWatcher(srv.baseDirPath, core.Config.KojiWatcherMaxDepth)
+	if err != nil {
+		panic(err)
+
+	}
+	srv.watcher = watcher
 
 	// 監視対象ディレクトリの設定
 	err = srv.watcher.Start()
