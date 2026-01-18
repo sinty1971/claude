@@ -21,6 +21,10 @@ test-company *ARGS:
 test-koji *ARGS:
     cd ./web-api ; go run cmd/test/koji/main.go {{ARGS}}
 
+# Test member service
+test-member *ARGS:
+    cd ./web-api ; go run cmd/test/member/main.go {{ARGS}}
+
 # Start the API server with TLS enabled
 api-tls:
     cd ./web-api ; go run cmd/server/main.go -enable-tls

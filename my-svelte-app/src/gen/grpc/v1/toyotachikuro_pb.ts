@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file grpc/v1/toyotachikuro.proto.
  */
 export const file_grpc_v1_toyotachikuro: GenFile = /*@__PURE__*/
-  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJIisKEkdldFBhdGhMaXN0UmVxdWVzdBIVCg1yZWxhdGl2ZV9wYXRoGAEgASgJIigKE0dldFBhdGhMaXN0UmVzcG9uc2USEQoJcGF0aF9saXN0GAEgAygJItUBCgdDb21wYW55EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMbWZfbG9uZ19uYW1lGAUgASgJEhYKDm1mX3Bvc3RhbF9jb2RlGAYgASgJEhIKCm1mX2FkZHJlc3MYByABKAkSDgoGbWZfdGVsGAggASgJEg4KBm1mX2ZheBgJIAEoCRIQCghtZl9lbWFpbBgKIAEoCRISCgptZl93ZWJzaXRlGAsgASgJIi8KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRINCgVsYWJlbBgCIAEoCSIrChNHZXRDb21wYW5pZXNSZXF1ZXN0EhQKDGZvcmNlX3JlbG9hZBgBIAEoCCKbAQoUR2V0Q29tcGFuaWVzUmVzcG9uc2USPwoJY29tcGFuaWVzGAEgAygLMiwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZS5Db21wYW5pZXNFbnRyeRpCCg5Db21wYW5pZXNFbnRyeRILCgNrZXkYASABKAkSHwoFdmFsdWUYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnk6AjgBIiYKEUdldENvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSI3ChJHZXRDb21wYW55UmVzcG9uc2USIQoHY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSJTChRVcGRhdGVDb21wYW55UmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSKAoOc291cmNlX2NvbXBhbnkYAiABKAsyEC5ncnBjLnYxLkNvbXBhbnkiPwoVVXBkYXRlQ29tcGFueVJlc3BvbnNlEiYKDHByZXZfY29tcGFueRgBIAEoCzIQLmdycGMudjEuQ29tcGFueSIdChtHZXRDb21wYW55Q2F0ZWdvcmllc1JlcXVlc3QiTAocR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZRIsCgpjYXRlZ29yaWVzGAEgAygLMhguZ3JwYy52MS5Db21wYW55Q2F0ZWdvcnkiqAEKBEtvamkSCgoCaWQYASABKAkSKQoFc3RhcnQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDGNvbXBhbnlfbmFtZRgDIAEoCRIVCg1sb2NhdGlvbl9uYW1lGAQgASgJEhAKCGRpcl9wYXRoGAUgASgJEioKBm1mX2VuZBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiEgoQR2V0S29qaWVzUmVxdWVzdCKJAQoRR2V0S29qaWVzUmVzcG9uc2USNgoGa29qaWVzGAEgAygLMiYuZ3JwYy52MS5HZXRLb2ppZXNSZXNwb25zZS5Lb2ppZXNFbnRyeRo8CgtLb2ppZXNFbnRyeRILCgNrZXkYASABKAkSHAoFdmFsdWUYAiABKAsyDS5ncnBjLnYxLktvamk6AjgBIiMKDkdldEtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCSIuCg9HZXRLb2ppUmVzcG9uc2USGwoEa29qaRgBIAEoCzINLmdycGMudjEuS29qaSJKChFVcGRhdGVLb2ppUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSIgoLc291cmNlX2tvamkYAiABKAsyDS5ncnBjLnYxLktvamkiNgoSVXBkYXRlS29qaVJlc3BvbnNlEiAKCXByZXZfa29qaRgBIAEoCzINLmdycGMudjEuS29qaSLOAgoGTWVtYmVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEQoJaXNfYWN0aXZlGAMgASgIEhQKDGNvbXBhbnlfbmFtZRgEIAEoCRIQCghkaXJfcGF0aBgFIAEoCRIUCgxtZl9sYXN0X25hbWUYBiABKAkSFQoNbWZfZmlyc3RfbmFtZRgHIAEoCRIWCg5tZl9taWRkbGVfbmFtZRgIIAEoCRIUCgxtZl9rYW5hX25hbWUYCSABKAkSDwoHbWZfcm9sZRgKIAEoCRIWCg5tZl9wb3N0YWxfY29kZRgLIAEoCRISCgptZl9hZGRyZXNzGAwgASgJEhEKCW1mX21vYmlsZRgNIAEoCRIOCgZtZl90ZWwYDiABKAkSDgoGbWZfZmF4GA8gASgJEhAKCG1mX2VtYWlsGBAgASgJEhIKCm1mX3dlYnNpdGUYESABKAkiEwoRR2V0TWVtYmVyc1JlcXVlc3QikAEKEkdldE1lbWJlcnNSZXNwb25zZRI5CgdtZW1iZXJzGAEgAygLMiguZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2UuTWVtYmVyc0VudHJ5Gj8KDE1lbWJlcnNFbnRyeRILCgNrZXkYASABKAkSHgoFdmFsdWUYAiABKAsyDy5ncnBjLnYxLk1lbWJlcjoCOAEiJQoQR2V0TWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkiNAoRR2V0TWVtYmVyUmVzcG9uc2USHwoGbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIiUAoTVXBkYXRlTWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSJgoNc291cmNlX21lbWJlchgCIAEoCzIPLmdycGMudjEuTWVtYmVyIjwKFFVwZGF0ZU1lbWJlclJlc3BvbnNlEiQKC3ByZXZfbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIyXAoQRGlyZWN0b3J5U2VydmljZRJICgtHZXRQYXRoTGlzdBIbLmdycGMudjEuR2V0UGF0aExpc3RSZXF1ZXN0GhwuZ3JwYy52MS5HZXRQYXRoTGlzdFJlc3BvbnNlMtkCCg5Db21wYW55U2VydmljZRJLCgxHZXRDb21wYW5pZXMSHC5ncnBjLnYxLkdldENvbXBhbmllc1JlcXVlc3QaHS5ncnBjLnYxLkdldENvbXBhbmllc1Jlc3BvbnNlEkUKCkdldENvbXBhbnkSGi5ncnBjLnYxLkdldENvbXBhbnlSZXF1ZXN0GhsuZ3JwYy52MS5HZXRDb21wYW55UmVzcG9uc2USTgoNVXBkYXRlQ29tcGFueRIdLmdycGMudjEuVXBkYXRlQ29tcGFueVJlcXVlc3QaHi5ncnBjLnYxLlVwZGF0ZUNvbXBhbnlSZXNwb25zZRJjChRHZXRDb21wYW55Q2F0ZWdvcmllcxIkLmdycGMudjEuR2V0Q29tcGFueUNhdGVnb3JpZXNSZXF1ZXN0GiUuZ3JwYy52MS5HZXRDb21wYW55Q2F0ZWdvcmllc1Jlc3BvbnNlMtYBCgtLb2ppU2VydmljZRJCCglHZXRLb2ppZXMSGS5ncnBjLnYxLkdldEtvamllc1JlcXVlc3QaGi5ncnBjLnYxLkdldEtvamllc1Jlc3BvbnNlEjwKB0dldEtvamkSFy5ncnBjLnYxLkdldEtvamlSZXF1ZXN0GhguZ3JwYy52MS5HZXRLb2ppUmVzcG9uc2USRQoKVXBkYXRlS29qaRIaLmdycGMudjEuVXBkYXRlS29qaVJlcXVlc3QaGy5ncnBjLnYxLlVwZGF0ZUtvamlSZXNwb25zZTLnAQoNTWVtYmVyU2VydmljZRJFCgpHZXRNZW1iZXJzEhouZ3JwYy52MS5HZXRNZW1iZXJzUmVxdWVzdBobLmdycGMudjEuR2V0TWVtYmVyc1Jlc3BvbnNlEkIKCUdldE1lbWJlchIZLmdycGMudjEuR2V0TWVtYmVyUmVxdWVzdBoaLmdycGMudjEuR2V0TWVtYmVyUmVzcG9uc2USSwoMVXBkYXRlTWVtYmVyEhwuZ3JwYy52MS5VcGRhdGVNZW1iZXJSZXF1ZXN0Gh0uZ3JwYy52MS5VcGRhdGVNZW1iZXJSZXNwb25zZUKEAQoLY29tLmdycGMudjFCElRveW90YWNoaWt1cm9Qcm90b1ABWhp3ZWItYXBpL2dlbi9ncnBjL3YxO2dycGN2MaICA0dYWKoCB0dycGMuVjHKAgdHcnBjXFYx4gITR3JwY1xWMVxHUEJNZXRhZGF0YeoCCEdycGM6OlYxkgMHCALSPgIQA2IIZWRpdGlvbnNw6Ac", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
+  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJIisKEkdldFBhdGhMaXN0UmVxdWVzdBIVCg1yZWxhdGl2ZV9wYXRoGAEgASgJIigKE0dldFBhdGhMaXN0UmVzcG9uc2USEQoJcGF0aF9saXN0GAEgAygJIi4KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJItUBCgdDb21wYW55EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMbWZfbG9uZ19uYW1lGAUgASgJEhYKDm1mX3Bvc3RhbF9jb2RlGAYgASgJEhIKCm1mX2FkZHJlc3MYByABKAkSDgoGbWZfdGVsGAggASgJEg4KBm1mX2ZheBgJIAEoCRIQCghtZl9lbWFpbBgKIAEoCRISCgptZl93ZWJzaXRlGAsgASgJIisKE0dldENvbXBhbmllc1JlcXVlc3QSFAoMZm9yY2VfcmVsb2FkGAEgASgIIpsBChRHZXRDb21wYW5pZXNSZXNwb25zZRI/Cgljb21wYW5pZXMYASADKAsyLC5ncnBjLnYxLkdldENvbXBhbmllc1Jlc3BvbnNlLkNvbXBhbmllc0VudHJ5GkIKDkNvbXBhbmllc0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmdycGMudjEuQ29tcGFueToCOAEiJgoRR2V0Q29tcGFueVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIjcKEkdldENvbXBhbnlSZXNwb25zZRIhCgdjb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55IlMKFFVwZGF0ZUNvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIoCg5zb3VyY2VfY29tcGFueRgCIAEoCzIQLmdycGMudjEuQ29tcGFueSI/ChVVcGRhdGVDb21wYW55UmVzcG9uc2USJgoMcHJldl9jb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55Ih0KG0dldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdCJMChxHZXRDb21wYW55Q2F0ZWdvcmllc1Jlc3BvbnNlEiwKCmNhdGVnb3JpZXMYASADKAsyGC5ncnBjLnYxLkNvbXBhbnlDYXRlZ29yeSKoAQoES29qaRIKCgJpZBgBIAEoCRIpCgVzdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMY29tcGFueV9uYW1lGAMgASgJEhUKDWxvY2F0aW9uX25hbWUYBCABKAkSEAoIZGlyX3BhdGgYBSABKAkSKgoGbWZfZW5kGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCISChBHZXRLb2ppZXNSZXF1ZXN0IokBChFHZXRLb2ppZXNSZXNwb25zZRI2CgZrb2ppZXMYASADKAsyJi5ncnBjLnYxLkdldEtvamllc1Jlc3BvbnNlLktvamllc0VudHJ5GjwKC0tvamllc0VudHJ5EgsKA2tleRgBIAEoCRIcCgV2YWx1ZRgCIAEoCzINLmdycGMudjEuS29qaToCOAEiIwoOR2V0S29qaVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIi4KD0dldEtvamlSZXNwb25zZRIbCgRrb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIkoKEVVwZGF0ZUtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIiCgtzb3VyY2Vfa29qaRgCIAEoCzINLmdycGMudjEuS29qaSI2ChJVcGRhdGVLb2ppUmVzcG9uc2USIAoJcHJldl9rb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIpoDCgZNZW1iZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIRCglpc19hY3RpdmUYAyABKAgSFAoMY29tcGFueV9uYW1lGAQgASgJEh0KFWNvbXBhbnlfY2F0ZWdvcnlfbmFtZRgTIAEoCRIQCghkaXJfcGF0aBgFIAEoCRIUCgxtZl9sYXN0X25hbWUYBiABKAkSFQoNbWZfZmlyc3RfbmFtZRgHIAEoCRIWCg5tZl9taWRkbGVfbmFtZRgIIAEoCRIUCgxtZl9rYW5hX25hbWUYCSABKAkSDwoHbWZfcm9sZRgKIAEoCRIUCgxtZl9iaXJ0aGRhdGUYEiABKAkSFQoNbWZfYmxvb2RfdHlwZRgUIAEoCRIWCg5tZl9wb3N0YWxfY29kZRgLIAEoCRISCgptZl9hZGRyZXNzGAwgASgJEhEKCW1mX21vYmlsZRgNIAEoCRIOCgZtZl90ZWwYDiABKAkSDgoGbWZfZmF4GA8gASgJEhAKCG1mX2VtYWlsGBAgASgJEhIKCm1mX3dlYnNpdGUYESABKAkiEwoRR2V0TWVtYmVyc1JlcXVlc3QikAEKEkdldE1lbWJlcnNSZXNwb25zZRI5CgdtZW1iZXJzGAEgAygLMiguZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2UuTWVtYmVyc0VudHJ5Gj8KDE1lbWJlcnNFbnRyeRILCgNrZXkYASABKAkSHgoFdmFsdWUYAiABKAsyDy5ncnBjLnYxLk1lbWJlcjoCOAEiJQoQR2V0TWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkiNAoRR2V0TWVtYmVyUmVzcG9uc2USHwoGbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIiUAoTVXBkYXRlTWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSJgoNc291cmNlX21lbWJlchgCIAEoCzIPLmdycGMudjEuTWVtYmVyIjwKFFVwZGF0ZU1lbWJlclJlc3BvbnNlEiQKC3ByZXZfbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIyXAoQRGlyZWN0b3J5U2VydmljZRJICgtHZXRQYXRoTGlzdBIbLmdycGMudjEuR2V0UGF0aExpc3RSZXF1ZXN0GhwuZ3JwYy52MS5HZXRQYXRoTGlzdFJlc3BvbnNlMn0KFkNvbXBhbnlDYXRlZ29yeVNlcnZpY2USYwoUR2V0Q29tcGFueUNhdGVnb3JpZXMSJC5ncnBjLnYxLkdldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdBolLmdycGMudjEuR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZTL0AQoOQ29tcGFueVNlcnZpY2USSwoMR2V0Q29tcGFuaWVzEhwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXF1ZXN0Gh0uZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZRJFCgpHZXRDb21wYW55EhouZ3JwYy52MS5HZXRDb21wYW55UmVxdWVzdBobLmdycGMudjEuR2V0Q29tcGFueVJlc3BvbnNlEk4KDVVwZGF0ZUNvbXBhbnkSHS5ncnBjLnYxLlVwZGF0ZUNvbXBhbnlSZXF1ZXN0Gh4uZ3JwYy52MS5VcGRhdGVDb21wYW55UmVzcG9uc2Uy1gEKC0tvamlTZXJ2aWNlEkIKCUdldEtvamllcxIZLmdycGMudjEuR2V0S29qaWVzUmVxdWVzdBoaLmdycGMudjEuR2V0S29qaWVzUmVzcG9uc2USPAoHR2V0S29qaRIXLmdycGMudjEuR2V0S29qaVJlcXVlc3QaGC5ncnBjLnYxLkdldEtvamlSZXNwb25zZRJFCgpVcGRhdGVLb2ppEhouZ3JwYy52MS5VcGRhdGVLb2ppUmVxdWVzdBobLmdycGMudjEuVXBkYXRlS29qaVJlc3BvbnNlMucBCg1NZW1iZXJTZXJ2aWNlEkUKCkdldE1lbWJlcnMSGi5ncnBjLnYxLkdldE1lbWJlcnNSZXF1ZXN0GhsuZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2USQgoJR2V0TWVtYmVyEhkuZ3JwYy52MS5HZXRNZW1iZXJSZXF1ZXN0GhouZ3JwYy52MS5HZXRNZW1iZXJSZXNwb25zZRJLCgxVcGRhdGVNZW1iZXISHC5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlcXVlc3QaHS5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlc3BvbnNlQoQBCgtjb20uZ3JwYy52MUISVG95b3RhY2hpa3Vyb1Byb3RvUAFaGndlYi1hcGkvZ2VuL2dycGMvdjE7Z3JwY3YxogIDR1hYqgIHR3JwYy5WMcoCB0dycGNcVjHiAhNHcnBjXFYxXEdQQk1ldGFkYXRh6gIIR3JwYzo6VjGSAwcIAtI+AhADYghlZGl0aW9uc3DoBw", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
 
 /**
  * Directory represents information about a directory
@@ -74,6 +74,30 @@ export type GetPathListResponse = Message<"grpc.v1.GetPathListResponse"> & {
  */
 export const GetPathListResponseSchema: GenMessage<GetPathListResponse> = /*@__PURE__*/
   messageDesc(file_grpc_v1_toyotachikuro, 2);
+
+/**
+ * CompanyCategory represents a company category with index and label
+ *
+ * @generated from message grpc.v1.CompanyCategory
+ */
+export type CompanyCategory = Message<"grpc.v1.CompanyCategory"> & {
+  /**
+   * @generated from field: int32 index = 1;
+   */
+  index: number;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message grpc.v1.CompanyCategory.
+ * Use `create(CompanyCategorySchema)` to create a new message.
+ */
+export const CompanyCategorySchema: GenMessage<CompanyCategory> = /*@__PURE__*/
+  messageDesc(file_grpc_v1_toyotachikuro, 3);
 
 /**
  * Company represents a company entity with inside information
@@ -143,30 +167,6 @@ export type Company = Message<"grpc.v1.Company"> & {
  * Use `create(CompanySchema)` to create a new message.
  */
 export const CompanySchema: GenMessage<Company> = /*@__PURE__*/
-  messageDesc(file_grpc_v1_toyotachikuro, 3);
-
-/**
- * CompanyCategory represents a company category with index and label
- *
- * @generated from message grpc.v1.CompanyCategory
- */
-export type CompanyCategory = Message<"grpc.v1.CompanyCategory"> & {
-  /**
-   * @generated from field: int32 index = 1;
-   */
-  index: number;
-
-  /**
-   * @generated from field: string label = 2;
-   */
-  label: string;
-};
-
-/**
- * Describes the message grpc.v1.CompanyCategory.
- * Use `create(CompanyCategorySchema)` to create a new message.
- */
-export const CompanyCategorySchema: GenMessage<CompanyCategory> = /*@__PURE__*/
   messageDesc(file_grpc_v1_toyotachikuro, 4);
 
 /**
@@ -483,6 +483,11 @@ export type Member = Message<"grpc.v1.Member"> & {
   companyName: string;
 
   /**
+   * @generated from field: string company_category_name = 19;
+   */
+  companyCategoryName: string;
+
+  /**
    * @generated from field: string dir_path = 5;
    */
   dirPath: string;
@@ -511,6 +516,16 @@ export type Member = Message<"grpc.v1.Member"> & {
    * @generated from field: string mf_role = 10;
    */
   mfRole: string;
+
+  /**
+   * @generated from field: string mf_birthdate = 18;
+   */
+  mfBirthdate: string;
+
+  /**
+   * @generated from field: string mf_blood_type = 20;
+   */
+  mfBloodType: string;
 
   /**
    * @generated from field: string mf_postal_code = 11;
@@ -676,6 +691,21 @@ export const DirectoryService: GenService<{
   serviceDesc(file_grpc_v1_toyotachikuro, 0);
 
 /**
+ * @generated from service grpc.v1.CompanyCategoryService
+ */
+export const CompanyCategoryService: GenService<{
+  /**
+   * @generated from rpc grpc.v1.CompanyCategoryService.GetCompanyCategories
+   */
+  getCompanyCategories: {
+    methodKind: "unary";
+    input: typeof GetCompanyCategoriesRequestSchema;
+    output: typeof GetCompanyCategoriesResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_grpc_v1_toyotachikuro, 1);
+
+/**
  * CompanyService provides operations for managing companies
  *
  * @generated from service grpc.v1.CompanyService
@@ -705,16 +735,8 @@ export const CompanyService: GenService<{
     input: typeof UpdateCompanyRequestSchema;
     output: typeof UpdateCompanyResponseSchema;
   },
-  /**
-   * @generated from rpc grpc.v1.CompanyService.GetCompanyCategories
-   */
-  getCompanyCategories: {
-    methodKind: "unary";
-    input: typeof GetCompanyCategoriesRequestSchema;
-    output: typeof GetCompanyCategoriesResponseSchema;
-  },
 }> = /*@__PURE__*/
-  serviceDesc(file_grpc_v1_toyotachikuro, 1);
+  serviceDesc(file_grpc_v1_toyotachikuro, 2);
 
 /**
  * KojiService provides operations for managing construction projects
@@ -747,7 +769,7 @@ export const KojiService: GenService<{
     output: typeof UpdateKojiResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_grpc_v1_toyotachikuro, 2);
+  serviceDesc(file_grpc_v1_toyotachikuro, 3);
 
 /**
  * @generated from service grpc.v1.MemberService
@@ -778,5 +800,5 @@ export const MemberService: GenService<{
     output: typeof UpdateMemberResponseSchema;
   },
 }> = /*@__PURE__*/
-  serviceDesc(file_grpc_v1_toyotachikuro, 3);
+  serviceDesc(file_grpc_v1_toyotachikuro, 4);
 

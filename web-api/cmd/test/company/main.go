@@ -27,26 +27,27 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	client := grpcv1connect.NewCompanyServiceClient(http.DefaultClient, *baseURL)
+	companyServiceClient := grpcv1connect.NewCompanyServiceClient(http.DefaultClient, *baseURL)
+	companyCategoryServiceClient := grpcv1connect.NewCompanyCategoryServiceClient(http.DefaultClient, *baseURL)
 
 	// カテゴリー表示モード
 	if *showCat {
-		showCompanyCategories(ctx, client, *jsonOut)
+		showCompanyCategories(ctx, companyCategoryServiceClient, *jsonOut)
 		return
 	}
 
 	// 特定の会社ID指定時
 	if *companyID != "" {
-		showCompany(ctx, client, *companyID, *jsonOut)
+		showCompany(ctx, companyServiceClient, *companyID, *jsonOut)
 		return
 	}
 
 	// 全会社表示
-	showAllCompanies(ctx, client, *jsonOut)
+	showAllCompanies(ctx, companyServiceClient, *jsonOut)
 }
 
 // showCompanyCategories は会社カテゴリー一覧を表示します
-func showCompanyCategories(ctx context.Context, client grpcv1connect.CompanyServiceClient, jsonOut bool) {
+func showCompanyCategories(ctx context.Context, client grpcv1connect.CompanyCategoryServiceClient, jsonOut bool) {
 	req := grpcv1.GetCompanyCategoriesRequest_builder{}.Build()
 	log.Printf("GetCompanyCategoriesRequest_builder, OK!\n")
 
@@ -69,7 +70,7 @@ func showCompanyCategories(ctx context.Context, client grpcv1connect.CompanyServ
 	fmt.Println("Index\tLabel")
 	fmt.Println("-----\t-----")
 	for _, category := range res.GetCategories() {
-		fmt.Printf("%d\t%s\n", category.GetIndex(), category.GetLabel())
+		fmt.Printf("%d\t%s\n", category.GetIndex(), category.GetName())
 	}
 }
 
@@ -100,7 +101,7 @@ func showCompany(ctx context.Context, client grpcv1connect.CompanyServiceClient,
 	fmt.Println(strings.Repeat("=", 50))
 	fmt.Printf("ID: %s\n", company.GetId())
 	fmt.Printf("Pathist Folder: %s\n", company.GetDirPath())
-	fmt.Printf("Short Name: %s\n", company.GetShortName())
+	fmt.Printf("Name: %s\n", company.GetName())
 	fmt.Printf("Long Name: %s\n", company.GetMfLongName())
 	fmt.Printf("Category Index: %d\n", company.GetCategoryIndex())
 	fmt.Printf("Postal Code: %s\n", company.GetMfPostalCode())
@@ -139,9 +140,9 @@ func showAllCompanies(ctx context.Context, client grpcv1connect.CompanyServiceCl
 	fmt.Println(strings.Repeat("-", 80))
 
 	for id, company := range companyMap {
-		shortName := company.GetShortName()
-		if len(shortName) > 15 {
-			shortName = shortName[:12] + "..."
+		name := company.GetName()
+		if len(name) > 15 {
+			name = name[:12] + "..."
 		}
 
 		legalName := company.GetMfLongName()
@@ -150,7 +151,7 @@ func showAllCompanies(ctx context.Context, client grpcv1connect.CompanyServiceCl
 		}
 
 		fmt.Printf("%-15s\t%-15s\t%-20s\t%d\n",
-			id, shortName, legalName, company.GetCategoryIndex())
+			id, name, legalName, company.GetCategoryIndex())
 	}
 
 	fmt.Println("\nUsage:")

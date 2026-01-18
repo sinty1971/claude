@@ -18,12 +18,10 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-	"web-api/gen/grpc/v1/grpcv1connect"
 
 	"web-api/internal/core"
 	"web-api/internal/services"
 
-	"connectrpc.com/grpcreflect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -41,8 +39,11 @@ func main() {
 	// サーバーのデフォルト設定を定義します。
 	core.Config.DirectoryBaseDirPath = "{ROOT}"
 	core.Config.CompanyBaseDirPath = "{ROOT}/1 会社"
-	core.Config.CompanyWatcherMaxDepth = 3
+	core.Config.CompanyWatcherMaxDepth = 0
 	core.Config.KojiBaseDirPath = "{ROOT}/2 工事"
+	core.Config.KojiWatcherMaxDepth = 0
+	core.Config.MemberBaseDirPath = "{ROOT}/1 会社"
+	core.Config.MemberWatcherMaxDepth = 0
 	core.Config.MaximumWorkers = 16
 	core.Config.MinimumWorkers = 2
 	core.Config.CpuMultiplier = 2
@@ -51,65 +52,43 @@ func main() {
 	// コマンドライン引数の解析
 	flag.Parse()
 
-	// サービスコレクションの初期化
+	// コンテナサービスの作成
 	cs := services.NewContainerService()
 	defer cs.CleanupAll()
 
-	// 各サービスの初期化
-	directoryService := services.NewDirectoryService(cs)
-	companyService := services.NewCompanyService(cs)
-	kojiService := services.NewKojiService(cs)
-	memberService := services.NewMemberService(cs)
+	// 各サービスの作成と登録
+	cs.AddService(services.NewDirectoryService(cs))
+	cs.AddService(services.NewCompanyCategoryService(cs))
+	cs.AddService(services.NewCompanyService(cs))
+	cs.AddService(services.NewKojiService(cs))
+	cs.AddService(services.NewMemberService(cs))
 
-	// サービスをサービスコレクションに追加
-	cs.AddService(directoryService)
-	cs.AddService(companyService)
-	cs.AddService(kojiService)
-	cs.AddService(memberService)
-
-	// サービスの起動
-	err := cs.Start()
+	mux, err := cs.GenerateMux()
 	if err != nil {
-		log.Fatalf("Failed to start services: %v", err)
+		log.Fatalf("Failed to generate mux: %v", err)
 	}
-	defer cs.CleanupAll()
 
-	// gRPC, HTTP ハンドラの設定
-	mux := http.NewServeMux()
-
-	// DirectoryService ハンドラの登録
-	directoryServicePath, directoryConnectHandler := grpcv1connect.NewDirectoryServiceHandler(directoryService)
-	mux.Handle(directoryServicePath, directoryConnectHandler)
-
-	companyServicePath, companyConnectHandler := grpcv1connect.NewCompanyServiceHandler(companyService)
-	mux.Handle(companyServicePath, companyConnectHandler)
-	kojiServicePath, kojiConnectHandler := grpcv1connect.NewKojiServiceHandler(kojiService)
-	mux.Handle(kojiServicePath, kojiConnectHandler)
-	memberServicePath, memberConnectHandler := grpcv1connect.NewMemberServiceHandler(memberService)
-	mux.Handle(memberServicePath, memberConnectHandler)
-
-	// gRPC ハンドラの登録
-
-	reflector := grpcreflect.NewStaticReflector(
-		grpcv1connect.DirectoryServiceName,
-		grpcv1connect.CompanyServiceName,
-		grpcv1connect.KojiServiceName,
-		grpcv1connect.MemberServiceName,
-	)
-	mux.Handle(grpcreflect.NewHandlerV1(reflector))
-	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
-
+	// ヘルスチェックエンドポイントの追加
 	mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	// サービスの起動
+	err = cs.Start()
+	if err != nil {
+		log.Fatalf("Failed to start services: %v", err)
+	}
+	defer cs.CleanupAll()
+
+	// HTTP サーバーの設定
 	httpServer := &http.Server{
 		Addr:    *httpAddr,
 		Handler: h2c.NewHandler(cors(mux), &http2.Server{}),
 	}
 
+	// HTTP サーバーの起動
 	go func() {
 		log.Printf("HTTP gRPC サーバーを %s で起動します", httpServer.Addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

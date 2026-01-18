@@ -36,7 +36,7 @@
     return timestampFromDate(date);
   };
 
-  let koji = $state<Koji | null>(data.koji);
+  let koji = $state<Koji | null>(null);
   let form = $state({
     companyName: "",
     locationName: "",
@@ -50,6 +50,7 @@
 
   // koji が変更されたときにフォームと初期値を更新
   $effect(() => {
+    koji = data.koji;
     if (koji) {
       const newForm = {
         companyName: koji.companyName ?? "",
@@ -57,21 +58,14 @@
         start: toInputValue(koji.start),
         mfEnd: toInputValue(koji.mfEnd),
       };
-      form.companyName = newForm.companyName;
-      form.locationName = newForm.locationName;
-      form.start = newForm.start;
-      form.mfEnd = newForm.mfEnd;
+      Object.assign(form, newForm);
       initialForm = newForm;
     }
   });
 
   // 未保存の変更があるかを判定
   let hasUnsavedChanges = $derived(
-    initialForm !== null &&
-    (form.companyName !== initialForm.companyName ||
-      form.locationName !== initialForm.locationName ||
-      form.start !== initialForm.start ||
-      form.mfEnd !== initialForm.mfEnd)
+    initialForm !== null && JSON.stringify(form) !== JSON.stringify(initialForm)
   );
 
   const displayName = (source: Koji | null): string =>
@@ -86,9 +80,9 @@
         targetId: koji.id,
         sourceKoji: {
           id: koji.id,
+          dirPath: koji.dirPath ?? "",
           companyName: form.companyName,
           locationName: form.locationName,
-          dirPath: koji.dirPath ?? "",
           start: toTimestamp(form.start),
           mfEnd: toTimestamp(form.mfEnd),
         },

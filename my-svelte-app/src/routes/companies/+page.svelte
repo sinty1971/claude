@@ -13,9 +13,6 @@
     new Map<number, string>(Object.entries(data.categoryMap).map(([k, v]) => [Number(k), v as string]))
   );
 
-  const displayName = (company: Company): string =>
-    company.name || company.mfLongName || "名称未設定";
-
   const displayTitle = (company: Company): string => {
     const name = company.name || company.mfLongName || "名称未設定";
     return `${name} (${company.id})`;

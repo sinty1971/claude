@@ -18,7 +18,7 @@
 
   const client = createGrpcClient(MemberService);
 
-  let member = $state<Member | null>(data.member);
+  let member = $state<Member | null>(null);
   let form = $state({
     name: "",
     mfLastName: "",
@@ -26,6 +26,8 @@
     mfMiddleName: "",
     mfKanaName: "",
     mfRole: "",
+    mfBirthdate: "",
+    mfBloodType: "",
     mfPostalCode: "",
     mfAddress: "",
     mfMobile: "",
@@ -41,6 +43,7 @@
 
   // member が変更されたときにフォームと初期値を更新
   $effect(() => {
+    member = data.member;
     if (member) {
       const newForm = {
         name: member.name ?? "",
@@ -49,6 +52,8 @@
         mfMiddleName: member.mfMiddleName ?? "",
         mfKanaName: member.mfKanaName ?? "",
         mfRole: member.mfRole ?? "",
+        mfBirthdate: member.mfBirthdate ?? "",
+        mfBloodType: member.mfBloodType ?? "",
         mfPostalCode: member.mfPostalCode ?? "",
         mfAddress: member.mfAddress ?? "",
         mfMobile: member.mfMobile ?? "",
@@ -57,39 +62,14 @@
         mfEmail: member.mfEmail ?? "",
         mfWebsite: member.mfWebsite ?? "",
       };
-      form.name = newForm.name;
-      form.mfLastName = newForm.mfLastName;
-      form.mfFirstName = newForm.mfFirstName;
-      form.mfMiddleName = newForm.mfMiddleName;
-      form.mfKanaName = newForm.mfKanaName;
-      form.mfRole = newForm.mfRole;
-      form.mfPostalCode = newForm.mfPostalCode;
-      form.mfAddress = newForm.mfAddress;
-      form.mfMobile = newForm.mfMobile;
-      form.mfTel = newForm.mfTel;
-      form.mfFax = newForm.mfFax;
-      form.mfEmail = newForm.mfEmail;
-      form.mfWebsite = newForm.mfWebsite;
+      Object.assign(form, newForm);
       initialForm = newForm;
     }
   });
 
   // 未保存の変更があるかを判定
   let hasUnsavedChanges = $derived(
-    initialForm !== null &&
-    (form.name !== initialForm.name ||
-      form.mfLastName !== initialForm.mfLastName ||
-      form.mfFirstName !== initialForm.mfFirstName ||
-      form.mfMiddleName !== initialForm.mfMiddleName ||
-      form.mfKanaName !== initialForm.mfKanaName ||
-      form.mfRole !== initialForm.mfRole ||
-      form.mfPostalCode !== initialForm.mfPostalCode ||
-      form.mfAddress !== initialForm.mfAddress ||
-      form.mfMobile !== initialForm.mfMobile ||
-      form.mfTel !== initialForm.mfTel ||
-      form.mfFax !== initialForm.mfFax ||
-      form.mfEmail !== initialForm.mfEmail ||
-      form.mfWebsite !== initialForm.mfWebsite)
+    initialForm !== null && JSON.stringify(form) !== JSON.stringify(initialForm)
   );
 
   const displayName = (source: Member | null): string =>
@@ -104,38 +84,14 @@
         targetId: member.id,
         sourceMember: {
           id: member.id,
-          name: form.name,
-          mfLastName: form.mfLastName,
-          mfFirstName: form.mfFirstName,
-          mfMiddleName: form.mfMiddleName,
-          mfKanaName: form.mfKanaName,
-          mfRole: form.mfRole,
-          mfPostalCode: form.mfPostalCode,
-          mfAddress: form.mfAddress,
-          mfMobile: form.mfMobile,
-          mfTel: form.mfTel,
-          mfFax: form.mfFax,
-          mfEmail: form.mfEmail,
-          mfWebsite: form.mfWebsite,
+          ...form,
         },
       });
       const response = await client.updateMember(request);
       // 更新後の状態をフォーム値で反映
       member = {
         ...member,
-        name: form.name,
-        mfLastName: form.mfLastName,
-        mfFirstName: form.mfFirstName,
-        mfMiddleName: form.mfMiddleName,
-        mfKanaName: form.mfKanaName,
-        mfRole: form.mfRole,
-        mfPostalCode: form.mfPostalCode,
-        mfAddress: form.mfAddress,
-        mfMobile: form.mfMobile,
-        mfTel: form.mfTel,
-        mfFax: form.mfFax,
-        mfEmail: form.mfEmail,
-        mfWebsite: form.mfWebsite,
+        ...form,
       };
       // 初期値を更新
       initialForm = { ...form };
@@ -257,6 +213,28 @@
               type="text" 
               bind:value={form.mfRole}
               placeholder="役職" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfBirthdate" class="md:text-right">生年月日</Label>
+            <Input 
+              id="mfBirthdate" 
+              type="date" 
+              bind:value={form.mfBirthdate}
+              placeholder="生年月日" 
+              onkeydown={handleEnterKeyNavigation} 
+            />
+          </div>
+
+          <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
+            <Label for="mfBloodType" class="md:text-right">血液型</Label>
+            <Input 
+              id="mfBloodType" 
+              type="text" 
+              bind:value={form.mfBloodType}
+              placeholder="血液型" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>

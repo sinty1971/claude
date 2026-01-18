@@ -9,16 +9,18 @@ import (
 
 // コンフィグレーションの型定義します。
 type Configuration struct {
-	DirectoryBaseDirPath   string
-	CompanyBaseDirPath     string
-	CompanyWatcherMaxDepth int
-	KojiBaseDirPath        string
-	KojiWatcherMaxDepth    int
-	MemberBaseDirPath      string
-	MemberWatcherMaxDepth  int
-	MinimumWorkers         int
-	MaximumWorkers         int
-	CpuMultiplier          int
+	DirectoryBaseDirPath           string
+	CompanyBaseDirPath             string
+	CompanyWatcherMaxDepth         int
+	CompanyCategoryBaseDirPath     string
+	CompanyCategoryWatcherMaxDepth int
+	KojiBaseDirPath                string
+	KojiWatcherMaxDepth            int
+	MemberBaseDirPath              string
+	MemberWatcherMaxDepth          int
+	MinimumWorkers                 int
+	MaximumWorkers                 int
+	CpuMultiplier                  int
 }
 
 // Config はアプリケーション全体で使用される設定オブジェクトです。
@@ -29,16 +31,18 @@ var EnvironmentMap map[string]string
 
 func init() {
 	Config = &Configuration{
-		DirectoryBaseDirPath:   "{ROOT}",
-		CompanyBaseDirPath:     "{ROOT}/1 会社",
-		CompanyWatcherMaxDepth: 0,
-		KojiBaseDirPath:        "{ROOT}/2 工事",
-		KojiWatcherMaxDepth:    0,
-		MemberBaseDirPath:      "{ROOT}/1 会社",
-		MemberWatcherMaxDepth:  1,
-		MinimumWorkers:         2,
-		MaximumWorkers:         16,
-		CpuMultiplier:          2,
+		DirectoryBaseDirPath:           "{ROOT}",
+		CompanyBaseDirPath:             "{ROOT}/1 会社",
+		CompanyWatcherMaxDepth:         0,
+		CompanyCategoryBaseDirPath:     "{ROOT}",
+		CompanyCategoryWatcherMaxDepth: 0,
+		KojiBaseDirPath:                "{ROOT}/2 工事",
+		KojiWatcherMaxDepth:            0,
+		MemberBaseDirPath:              "{ROOT}/1 会社",
+		MemberWatcherMaxDepth:          1,
+		MinimumWorkers:                 2,
+		MaximumWorkers:                 16,
+		CpuMultiplier:                  2,
 	}
 
 	// すべての環境変数を map に格納

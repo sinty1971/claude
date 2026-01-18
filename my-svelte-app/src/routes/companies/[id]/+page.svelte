@@ -19,8 +19,7 @@
 
   const client = createGrpcClient(CompanyService);
 
-  let company = $state<Company | null>(data.company);
-  let categories: CompanyCategory[] = data.categories;
+  let company = $state<Company | null>(null);
   let form = $state({
     name: "",
     categoryIndex: 0,
@@ -39,6 +38,7 @@
 
   // company が変更されたときにフォームと初期値を更新
   $effect(() => {
+    company = data.company;
     if (company) {
       const newForm = {
         name: company.name ?? "",
@@ -51,31 +51,14 @@
         mfEmail: company.mfEmail ?? "",
         mfWebsite: company.mfWebsite ?? "",
       };
-      form.name = newForm.name;
-      form.categoryIndex = newForm.categoryIndex;
-      form.mfLongName = newForm.mfLongName;
-      form.mfPostalCode = newForm.mfPostalCode;
-      form.mfAddress = newForm.mfAddress;
-      form.mfTel = newForm.mfTel;
-      form.mfFax = newForm.mfFax;
-      form.mfEmail = newForm.mfEmail;
-      form.mfWebsite = newForm.mfWebsite;
+      Object.assign(form, newForm);
       initialForm = newForm;
     }
   });
 
   // 未保存の変更があるかを判定
   let hasUnsavedChanges = $derived(
-    initialForm !== null &&
-    (form.name !== initialForm.name ||
-      form.categoryIndex !== initialForm.categoryIndex ||
-      form.mfLongName !== initialForm.mfLongName ||
-      form.mfPostalCode !== initialForm.mfPostalCode ||
-      form.mfAddress !== initialForm.mfAddress ||
-      form.mfTel !== initialForm.mfTel ||
-      form.mfFax !== initialForm.mfFax ||
-      form.mfEmail !== initialForm.mfEmail ||
-      form.mfWebsite !== initialForm.mfWebsite)
+    initialForm !== null && JSON.stringify(form) !== JSON.stringify(initialForm)
   );
 
   const displayName = (source: Company | null): string =>
@@ -90,31 +73,15 @@
         targetId: company.id,
         sourceCompany: {
           id: company.id,
-          name: form.name,
-          categoryIndex: form.categoryIndex,
           dirPath: company.dirPath ?? "",
-          mfLongName: form.mfLongName,
-          mfPostalCode: form.mfPostalCode,
-          mfAddress: form.mfAddress,
-          mfTel: form.mfTel,
-          mfFax: form.mfFax,
-          mfEmail: form.mfEmail,
-          mfWebsite: form.mfWebsite,
+          ...form,
         },
       });
       const response = await client.updateCompany(request);
       // 更新後の状態をフォーム値で反映
       company = {
         ...company,
-        name: form.name,
-        mfLongName: form.mfLongName,
-        mfPostalCode: form.mfPostalCode,
-        mfAddress: form.mfAddress,
-        mfTel: form.mfTel,
-        mfFax: form.mfFax,
-        mfEmail: form.mfEmail,
-        mfWebsite: form.mfWebsite,
-        categoryIndex: form.categoryIndex,
+        ...form,
       };
       // 初期値を更新
       initialForm = { ...form };
@@ -193,9 +160,9 @@
               onkeydown={handleEnterKeyNavigation}
               class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {#each categories as category (category.index)}
+              {#each data.categories as category (category.index)}
                 <option value={category.index}>
-                  {category.label || "業種未設定"}
+                  {category.name || "業種未設定"}
                 </option>
               {/each}
             </select>

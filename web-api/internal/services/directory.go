@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	grpc "web-api/gen/grpc/v1"
-	grpcConnect "web-api/gen/grpc/v1/grpcv1connect"
+	grpcv1connect "web-api/gen/grpc/v1/grpcv1connect"
 	"web-api/internal/core"
 )
 
@@ -25,7 +26,7 @@ type DirectoryService struct {
 	BaseDirPath string `json:"dir_path" yaml:"dir_path" example:"/penguin/豊田築炉"`
 
 	// Embed the unimplemented handler for forward compatibility
-	grpcConnect.UnimplementedDirectoryServiceHandler
+	grpcv1connect.UnimplementedDirectoryServiceHandler
 }
 
 func NewDirectoryService(cs *ContainerService) *DirectoryService {
@@ -53,6 +54,19 @@ func (srv *DirectoryService) Start() error {
 
 func (srv *DirectoryService) Cleanup() {
 	// 現在はクリーンアップ処理は不要
+}
+
+// GenerateHandler はサービスのハンドラを生成します
+func (srv *DirectoryService) GenerateHandler() (
+	servicePath string, handler http.Handler, serviceName string) {
+
+	// gRPC パスとハンドラの生成
+	servicePath, handler = grpcv1connect.NewDirectoryServiceHandler(srv)
+
+	// サービス名の取得
+	serviceName = grpcv1connect.DirectoryServiceName
+
+	return
 }
 
 // GetFiles は指定されたパスのファイル情報一覧を返す

@@ -29,6 +29,16 @@ message GetPathListResponse {
   repeated string path_list = 1;
 }
 
+// CompanyCategory represents a company category with index and label
+message CompanyCategory {
+  int32 index = 1;
+  string name = 2;
+}
+
+service CompanyCategoryService {
+  rpc GetCompanyCategories(GetCompanyCategoriesRequest) returns (GetCompanyCategoriesResponse);
+}
+
 // Company represents a company entity with inside information
 // @manifest table name: companies
 message Company {
@@ -45,18 +55,11 @@ message Company {
   string mf_website = 11;
 }
 
-// CompanyCategory represents a company category with index and label
-message CompanyCategory {
-  int32 index = 1;
-  string label = 2;
-}
-
 // CompanyService provides operations for managing companies
 service CompanyService {
   rpc GetCompanies(GetCompaniesRequest) returns (GetCompaniesResponse);
   rpc GetCompany(GetCompanyRequest) returns (GetCompanyResponse);
   rpc UpdateCompany(UpdateCompanyRequest) returns (UpdateCompanyResponse);
-  rpc GetCompanyCategories(GetCompanyCategoriesRequest) returns (GetCompanyCategoriesResponse);
 }
 
 // CompanyService messages
@@ -138,12 +141,15 @@ message Member {
   string name = 2;
   bool is_active = 3;
   string company_name = 4;
+  string company_category_name = 19;
   string dir_path = 5;
   string mf_last_name = 6;
   string mf_first_name = 7;
   string mf_middle_name = 8;
   string mf_kana_name = 9;
   string mf_role = 10;
+  string mf_birthdate = 18;
+  string mf_blood_type = 20;
   string mf_postal_code = 11;
   string mf_address = 12;
   string mf_mobile = 13;

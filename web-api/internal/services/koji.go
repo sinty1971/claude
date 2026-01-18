@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -57,6 +58,19 @@ func NewKojiService(cs *ContainerService) *KojiService {
 // Name はサービス名を返します
 func (srv *KojiService) Name() string {
 	return "KojiService"
+}
+
+// GenerateHandler はサービスのハンドラを生成します
+func (srv *KojiService) GenerateHandler() (
+	servicePath string, handler http.Handler, serviceName string) {
+
+	// gRPC パスとハンドラの生成
+	servicePath, handler = grpcv1connect.NewKojiServiceHandler(srv)
+
+	// サービス名の取得
+	serviceName = grpcv1connect.KojiServiceName
+
+	return
 }
 
 func (srv *KojiService) Start() error {

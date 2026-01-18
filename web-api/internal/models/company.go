@@ -94,14 +94,7 @@ func (m *Company) parseFromDirPath(dirPath string) error {
 	}
 
 	// CategoryIndexの取得
-	num, err := strconv.Atoi(string(dirName[0]))
-	if err != nil {
-		return err
-	}
-	ci := int32(num)
-
-	// CategoryIndexの妥当性チェック
-	err = ErrorCompanyCategoryIndex(ci)
+	cat, err := core.ParseCompanyCategoryFromDirName(dirName)
 	if err != nil {
 		return err
 	}
@@ -109,7 +102,7 @@ func (m *Company) parseFromDirPath(dirPath string) error {
 	// 各フィールドの設定
 	m.SetId(GenerateCompanyIdFromDirName(dirName))
 	m.SetDirPath(dirPath)
-	m.SetCategoryIndex(int32(ci))
+	m.SetCategoryIndex(cat.GetIndex())
 	m.SetName(sn)
 
 	return nil

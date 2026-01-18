@@ -16,30 +16,29 @@ import (
 // 絶対パスでない場合はエラーを返します。
 func ResolveAbsPath(absPath string) (string, error) {
 	// ディレクトリディスクリプタを'/'に変換
-	absPath = strings.ReplaceAll(absPath, "\\", "/")
 
 	// ホームディレクトリに展開
-	if strings.HasPrefix(absPath, "~/") {
+	if strings.HasPrefix(absPath, "~/") || strings.HasPrefix(absPath, "~\\") {
 		usr, err := user.Current()
 		if err != nil {
 			return "", err
 		}
 		absPath = filepath.Join(usr.HomeDir, absPath[2:])
 	}
-	cleanPath := filepath.Clean(absPath)
 
 	// シンボリックリンクを解決して絶対パスチェック
-	resolvedPath, err := filepath.EvalSymlinks(cleanPath)
+	absPath, err := filepath.EvalSymlinks(absPath)
 	if err != nil {
 		return "", err
 	}
 
 	// 絶対パスチェック
-	if !filepath.IsAbs(resolvedPath) {
+	if !filepath.IsAbs(absPath) {
 		return "", errors.New("絶対パスの条件を満たしていません。")
 	}
 
-	return resolvedPath, nil
+	absPath = strings.ReplaceAll(absPath, "\\", "/")
+	return absPath, nil
 }
 
 // パスからファイル名またはフォルダー名を取得します

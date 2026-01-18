@@ -1,5 +1,11 @@
 package services
 
+import (
+	"net/http"
+
+	"connectrpc.com/grpcreflect"
+)
+
 // ContainerService はデータストレージサービスを管理します。
 type ContainerService struct {
 	Services map[string]*Service
@@ -17,6 +23,35 @@ type Service interface {
 	Name() string
 	Start() error
 	Cleanup()
+	GenerateHandler() (servicePath string, handler http.Handler, serviceName string)
+}
+
+func (cs *ContainerService) GenerateMux() (*http.ServeMux, error) {
+
+	mux := http.NewServeMux()
+
+	handleMap := make(map[string]http.Handler, len(cs.Services))
+	serviceNames := make([]string, 0, len(cs.Services))
+
+	// ServicePath, ConnectHandlerの取得
+	for _, service := range cs.Services {
+		servicePath, connectHandler, serviceName := (*service).GenerateHandler()
+		handleMap[servicePath] = connectHandler
+		serviceNames = append(serviceNames, serviceName)
+	}
+
+	// ハンドラの登録
+	for servicePath, connectHandler := range handleMap {
+		mux.Handle(servicePath, connectHandler)
+	}
+
+	// gRPC ハンドラの登録
+	reflector := grpcreflect.NewStaticReflector(serviceNames...)
+
+	mux.Handle(grpcreflect.NewHandlerV1(reflector))
+	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
+
+	return mux, nil
 }
 
 // AddService はサービスを追加する

@@ -65,108 +65,145 @@ func GenerateMemberIdFromName(dirName string) string {
 	return core.GenerateIdFromString(dirName)
 }
 
+// Id 生成用テキストを返します
+func (m *Member) GetIdSourceText() string {
+
+	return m.GetId()
+}
+
+// memberPathInfo はメンバーのパス情報を保持します
+type memberPathInfo struct {
+	fullPath        string
+	companyCategory *grpcv1.CompanyCategory
+	companyName     string
+	memberName      string
+	isActive        bool
+	relativePath    []string // "1 会社" 以降の相対パス
+}
+
+// ParseFromDirPath はディレクトリパスから Member 情報を解析して設定します
 func (m *Member) ParseFromDirPath(dirPath string) error {
-	// dirPath の妥当性チェック
+	// パスを正規化
 	dirPath, err := core.ResolveAbsPath(dirPath)
 	if err != nil {
 		return err
 	}
 
-	// dirPath をディレクトリディスクリプタで分割
-	pathParts := strings.Split(dirPath, "/")
-
-	// メンバーの所属形態を判定
-	// .../'1 会社'/'3 個人名' の形式
-	// .../'1 会社'/[会社名]/'社員'/[メンバー名] の形式
-	// .../'1 会社'/[会社名]/'社員'/'@退職者'/[メンバー名] の形式
-	var (
-		name                 string
-		companyName          string
-		companyCategoryIndex int32
-	)
-
-	// 一人親方ディレクトリ('3 個人名')かを判定
-	// .../'1 会社'/'3 個人名' の形式を想定
-	// 少なくとも'1 会社'ディレクトリ直下であることを確認
-	if len(pathParts) < 3 {
-		return errors.New("ディレクトリパスが短すぎます")
-	}
-
-	// パスパーツから'1 会社'ディレクトリの位置を確認
-	companyDirectoryIndex := -1
-	for i := 1; i < len(pathParts)-1; i++ {
-		if pathParts[i] == "1 会社" {
-			companyDirectoryIndex = i
-			break
-		}
-	}
-	if companyDirectoryIndex == -1 {
-		return errors.New("'1 会社'ディレクトリがパスに含まれていません")
-	}
-	if len(pathParts) < companyDirectoryIndex+2 {
-		return errors.New("ディレクトリパスが短すぎます")
-	}
-
-	// CompanyCategoryの取得
-	companyDirname := pathParts[companyDirectoryIndex+1]
-	if len(companyDirname) < 3 || companyDirname[1] != ' ' {
-		return errors.New("companyDirnameの形式が規定外です")
-	}
-
-	companyCategoryIndex, err = ParseCompanyCategoryByte(companyDirname[0])
+	// パス情報を抽出
+	pathInfo, err := parseMemberPath(dirPath)
 	if err != nil {
 		return err
 	}
 
-	// 会社名の取得
-	companyName = companyDirname[2:]
+	// Member フィールドを設定
+	m.SetId(pathInfo.generateId())
+	m.SetName(pathInfo.memberName)
+	m.SetCompanyName(pathInfo.companyName)
+	m.SetCompanyCategoryName(pathInfo.companyCategory.GetName())
+	m.SetIsActive(pathInfo.isActive)
+	m.SetDirPath(pathInfo.fullPath)
 
-	// 一人親方ディレクトリである場合の処理
-	if companyCategoryIndex == 3 {
-		// 名前の取得
-		m.SetId(GenerateMemberIdFromName(companyDirname))
-		m.SetName(companyDirname)
-		m.SetCompanyName(CompanyCategoryMap[companyCategoryIndex])
-		m.SetIsActive(true)
-		m.SetDirPath(dirPath)
-
-		return nil
-	}
-
-	// 会社所属メンバーで is_active フラグが true の場合の処理
-	// .../'1 会社'/[会社名]/'社員'/[メンバー名] の形式を想定
-	if len(pathParts) < companyDirectoryIndex+4 {
-		return errors.New("ディレクトリパスが短すぎます")
-	}
-	if pathParts[companyDirectoryIndex+2] != "社員" {
-		return errors.New("社員ディレクトリが存在しません")
-	}
-	name = pathParts[companyDirectoryIndex+3]
-
-	if name != "@退職者" {
-		idPath := strings.Join(pathParts[companyDirectoryIndex+1:companyDirectoryIndex+4], "/")
-		m.SetId(GenerateMemberIdFromName(idPath))
-		m.SetIsActive(true)
-
-	} else {
-		// 退職者ディレクトリの場合の処理
-		if len(pathParts) < companyDirectoryIndex+5 {
-			return errors.New("ディレクトリパスが短すぎます")
-		}
-		name = pathParts[companyDirectoryIndex+4]
-		idPath := strings.Join(pathParts[companyDirectoryIndex+1:companyDirectoryIndex+5], "/")
-		m.SetId(GenerateMemberIdFromName(idPath))
-		m.SetIsActive(false)
-	}
-
-	// フィールドの設定
-	m.SetName(name)
-	m.SetCompanyName(companyName)
-	m.SetIsActive(false)
-	m.SetDirPath(dirPath)
-
-	// id は会社名からメンバー名までのディレクトリ名で生成
 	return nil
+}
+
+// parseMemberPath はディレクトリパスを解析して memberPathInfo を返します
+func parseMemberPath(dirPath string) (*memberPathInfo, error) {
+	parts := strings.Split(dirPath, "/")
+
+	// "1 会社" ディレクトリのインデックスを取得
+	companyIdx := findIndex(parts, "1 会社")
+	if companyIdx == -1 {
+		return nil, errors.New("'1 会社'ディレクトリが見つかりません")
+	}
+
+	// "1 会社" 以降の相対パス
+	relativePath := parts[companyIdx+1:]
+	if len(relativePath) == 0 {
+		return nil, errors.New("会社ディレクトリが指定されていません")
+	}
+
+	// 会社カテゴリと会社名を取得
+	companyCategory, companyName, err := parseCompanyDir(relativePath[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// 一人親方の場合
+	if companyCategory.GetName() == "一人親方" {
+		return &memberPathInfo{
+			fullPath:        dirPath,
+			companyCategory: companyCategory,
+			companyName:     companyCategory.GetName(),
+			memberName:      companyName,
+			isActive:        true,
+			relativePath:    relativePath[:1],
+		}, nil
+	}
+
+	// 会社所属メンバーの場合
+	return parseCompanyMember(dirPath, relativePath, companyCategory, companyName)
+}
+
+// parseCompanyDir は会社ディレクトリ名から会社カテゴリと会社名を抽出します
+func parseCompanyDir(dirName string) (*grpcv1.CompanyCategory, string, error) {
+	category, err := core.ParseCompanyCategoryFromDirName(dirName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return category, dirName[2:], nil
+}
+
+// parseCompanyMember は会社所属メンバーの情報を解析します
+func parseCompanyMember(fullPath string, relativePath []string, category *grpcv1.CompanyCategory, companyName string) (*memberPathInfo, error) {
+	// 最低限必要: [会社dir, "社員", メンバー名]
+	if len(relativePath) < 3 {
+		return nil, errors.New("メンバーパスが不完全です")
+	}
+
+	if relativePath[1] != "社員" {
+		return nil, errors.New("'社員'ディレクトリが見つかりません")
+	}
+
+	// 退職者の場合: [会社dir, "社員", "@退職者", メンバー名]
+	if strings.Contains(relativePath[2], "@退職") {
+		if len(relativePath) < 4 {
+			return nil, errors.New("退職者のメンバー名が指定されていません")
+		}
+		return &memberPathInfo{
+			fullPath:        fullPath,
+			companyCategory: category,
+			companyName:     companyName,
+			memberName:      relativePath[3],
+			isActive:        false,
+			relativePath:    relativePath[:4],
+		}, nil
+	}
+
+	// 在籍メンバーの場合: [会社dir, "社員", メンバー名]
+	return &memberPathInfo{
+		fullPath:        fullPath,
+		companyCategory: category,
+		companyName:     companyName,
+		memberName:      relativePath[2],
+		isActive:        true,
+		relativePath:    relativePath[:3],
+	}, nil
+}
+
+// generateId は ID 生成用の文字列から ID を生成します
+func (p *memberPathInfo) generateId() string {
+	return GenerateMemberIdFromName(strings.Join(p.relativePath, "/"))
+}
+
+// findIndex はスライス内で指定された値のインデックスを返します
+func findIndex(slice []string, value string) int {
+	for i, v := range slice {
+		if v == value {
+			return i
+		}
+	}
+	return -1
 }
 
 // Update はメンバー情報を更新します

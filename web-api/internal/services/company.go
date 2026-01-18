@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -55,6 +56,19 @@ func NewCompanyService(cs *ContainerService) *CompanyService {
 // Name はデータサービス名を返します
 func (srv *CompanyService) Name() string {
 	return srv.name
+}
+
+// GenerateHandler はサービスのハンドラを生成します
+func (srv *CompanyService) GenerateHandler() (
+	servicePath string, handler http.Handler, serviceName string) {
+
+	// gRPC パスとハンドラの生成
+	servicePath, handler = grpcv1connect.NewCompanyServiceHandler(srv)
+
+	// サービス名の取得
+	serviceName = grpcv1connect.CompanyServiceName
+
+	return
 }
 
 // Start は CompanyListManager を初期化して開始します
@@ -276,31 +290,6 @@ func (srv *CompanyService) UpdateCompany(
 	// Responseの作成
 	res = grpcv1.UpdateCompanyResponse_builder{}.Build()
 	res.SetPrevCompany(prevMessageCompany)
-
-	return res, nil
-}
-
-// GetCompanyCategories は業種カテゴリーの一覧を取得します
-func (srv *CompanyService) GetCompanyCategories(
-	// args
-	_ context.Context,
-	_ *grpcv1.GetCompanyCategoriesRequest) (
-	// returns
-	res *grpcv1.GetCompanyCategoriesResponse,
-	err error) {
-
-	// レスポンスを初期化
-	res = grpcv1.GetCompanyCategoriesResponse_builder{}.Build()
-
-	categories := make([]*grpcv1.CompanyCategory, 0, len(models.CompanyCategoryMap))
-	for idx, label := range models.CompanyCategoryMap {
-		categories = append(categories, grpcv1.CompanyCategory_builder{
-			Index: int32(idx),
-			Label: label,
-		}.Build())
-	}
-
-	res.SetCategories(categories)
 
 	return res, nil
 }
