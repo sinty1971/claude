@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -29,8 +28,8 @@ type MemberService struct {
 	// 作業員一覧ディレクトリパス
 	baseDirPath string
 
-	// cache は Member 情報キャッシュマップ（ID をキーとする）
-	cache map[string]*models.Member
+	// repo はMember情報リポジトリ（自動保存有効）
+	repo *core.Repository[*models.Member]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -51,7 +50,7 @@ func NewMemberService(cs *ContainerService) *MemberService {
 		name:        "MemberService",
 		cs:          cs,
 		baseDirPath: baseDirPath,
-		cache:       make(map[string]*models.Member),
+		repo:        core.NewRepository[*models.Member](true), // 自動保存有効
 	}
 }
 
@@ -93,8 +92,8 @@ func (srv *MemberService) SyncAllToCache() error {
 	// ターゲットディレクトリの抽出
 	targetDirs := srv.extractTargetDirPaths()
 
-	// キャッシュマップを初期化
-	srv.cache = make(map[string]*models.Member, len(targetDirs))
+	// Repositoryをクリア
+	srv.repo.Clear()
 
 	// 全てのMemberインスタンスを作成
 	for _, dirPath := range targetDirs {
@@ -104,35 +103,30 @@ func (srv *MemberService) SyncAllToCache() error {
 			continue
 		}
 
-		err = member.LoadManifest()
+		err = member.Load()
 		if err != nil {
 			log.Printf("マニフェストデータの読み込みに失敗しました 作業員名 %s: %v", member.GetName(), err)
 		}
 
-		srv.cache[member.GetId()] = member
+		// Repositoryに追加（初期ロード時は自動保存しない）
+		srv.repo.SetAutoSave(false)
+		if err := srv.repo.Set(member.GetId(), member); err != nil {
+			log.Printf("リポジトリへの追加に失敗しました: %v", err)
+		}
 	}
+
+	// 自動保存を有効化
+	srv.repo.SetAutoSave(true)
 
 	return nil
 }
 
-// Update はメンバー情報を更新します
+// Update はメンバー情報を更新します（自動保存）
 func (srv *MemberService) Update(targetId string, source *models.Member) error {
-	// targetId から Member データを取得
-	target, exist := srv.cache[targetId]
-	if !exist {
-		return errors.New("更新対象のメンバー情報が存在しません")
-	}
-
-	// メンバー情報の更新
-	err := target.Update(source)
-	if err != nil {
-		return err
-	}
-
-	// キャッシュ情報の更新
-	srv.cache[target.GetId()] = target
-
-	return nil
+	// Repository経由で更新（自動的にSave()が呼ばれる）
+	return srv.repo.Update(targetId, func(target *models.Member) error {
+		return target.Update(source)
+	})
 }
 
 // 対象ディレクトリの抽出
@@ -211,10 +205,13 @@ func (srv *MemberService) GetMembers(
 	ctx context.Context,
 	req *grpcv1.GetMembersRequest,
 ) (*grpcv1.GetMembersResponse, error) {
-	// キャッシュから全ての Member を取得
-	members := make(map[string]*grpcv1.Member, len(srv.cache))
-	for id, member := range srv.cache {
-		members[id] = member.Member
+	// Repositoryから全てのMemberを取得
+	allMembers := srv.repo.GetAll()
+	members := make(map[string]*grpcv1.Member, len(allMembers))
+	for _, member := range allMembers {
+		if member != nil && member.Member != nil {
+			members[member.GetId()] = member.Member
+		}
 	}
 
 	response := grpcv1.GetMembersResponse_builder{}.Build()
@@ -230,7 +227,7 @@ func (srv *MemberService) GetMember(
 ) (*grpcv1.GetMemberResponse, error) {
 	id := req.GetTargetId()
 
-	member, exists := srv.cache[id]
+	member, exists := srv.repo.Get(id)
 	if !exists {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
@@ -253,7 +250,7 @@ func (srv *MemberService) UpdateMember(
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
-	prevMember, exists := srv.cache[targetId]
+	prevMember, exists := srv.repo.Get(targetId)
 	if !exists {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}

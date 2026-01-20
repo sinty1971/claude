@@ -40,19 +40,16 @@
   $effect(() => {
     company = data.company;
     if (company) {
-      const newForm = {
-        name: company.name ?? "",
-        categoryIndex: company.categoryIndex ?? 0,
-        mfLongName: company.mfLongName ?? "",
-        mfPostalCode: company.mfPostalCode ?? "",
-        mfAddress: company.mfAddress ?? "",
-        mfTel: company.mfTel ?? "",
-        mfFax: company.mfFax ?? "",
-        mfEmail: company.mfEmail ?? "",
-        mfWebsite: company.mfWebsite ?? "",
-      };
-      Object.assign(form, newForm);
-      initialForm = newForm;
+      form.name = company.name ?? "";
+      form.categoryIndex = company.categoryIndex ?? 0;
+      form.mfLongName = company.mfLongName ?? "";
+      form.mfPostalCode = company.mfPostalCode ?? "";
+      form.mfAddress = company.mfAddress ?? "";
+      form.mfTel = company.mfTel ?? "";
+      form.mfFax = company.mfFax ?? "";
+      form.mfEmail = company.mfEmail ?? "";
+      form.mfWebsite = company.mfWebsite ?? "";
+      initialForm = { ...form };
     }
   });
 

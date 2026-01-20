@@ -4,17 +4,19 @@ import { create } from '@bufbuild/protobuf';
 import { createGrpcClient } from '$lib/grpc-client';
 import {
   CompanyService,
+  CompanyCategoryService,
   GetCompanyRequestSchema,
   GetCompanyCategoriesRequestSchema,
 } from '../../../gen/grpc/v1/toyotachikuro_pb';
 
 export const load: PageServerLoad = async ({ params }) => {
-  const client = createGrpcClient(CompanyService);
+  const companyClient = createGrpcClient(CompanyService);
+  const categoryClient = createGrpcClient(CompanyCategoryService);
 
   try {
     const [companyResponse, categoryResponse] = await Promise.all([
-      client.getCompany(create(GetCompanyRequestSchema, { targetId: params.id })),
-      client.getCompanyCategories(create(GetCompanyCategoriesRequestSchema, {})),
+      companyClient.getCompany(create(GetCompanyRequestSchema, { targetId: params.id })),
+      categoryClient.getCompanyCategories(create(GetCompanyCategoriesRequestSchema, {})),
     ]);
 
     return {

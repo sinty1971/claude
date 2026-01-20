@@ -58,8 +58,7 @@ func (ts *Timestamp) UnmarshalYAML(unmarshal func(any) error) error {
 	quoted := strconv.Quote(enc)
 	if err := protojson.Unmarshal([]byte(quoted), ts.Timestamp); err != nil {
 		// 互換性維持のため旧ロジックにフォールバック
-		parsed := &Timestamp{}
-		_, parseErr := ParseTimestamp(enc, parsed)
+		parsed, _, parseErr := ParseTimestamp(enc)
 		if parseErr != nil {
 			return fmt.Errorf("timestamppb.UnmarshalJSON failed: %w; fallback parse failed: %v", err, parseErr)
 		}
@@ -175,27 +174,25 @@ func findTimeString(re *regexp.Regexp, in string, out *string) (string, error) {
 // ParseTimestamp 文字列から日時をパースし、Timestamp型と残りの文字列を返します
 //
 // 例: "2025-0618 豊田築炉 名和工場" → Timestamp(2025-06-18), "豊田築炉 名和工場"
-func ParseTimestamp(in string, out *Timestamp) (string, error) {
-	// 出力パラメータが nil の場合は新規作成
-	if out == nil {
-		out = &Timestamp{Timestamp: &timestamppb.Timestamp{Seconds: 0, Nanos: 0}}
-	}
+func ParseTimestamp(in string) (*Timestamp, string, error) {
+	// Timestampインスタンスを作成
+	out := &Timestamp{Timestamp: &timestamppb.Timestamp{Seconds: 0, Nanos: 0}}
 
-	// 空文字列の場合はゼロ値を設定
+	// 空文字列の場合はゼロ値を返す
 	in = strings.TrimSpace(in)
 	if in == "" {
-		return "", nil
+		return out, "", nil
 	}
 
 	// timestamppb 内蔵の JSON アンマーシャリングを優先利用
 	quoted := strconv.Quote(in)
 	pbts := timestamppb.Timestamp{}
 	if err := protojson.Unmarshal([]byte(quoted), &pbts); err == nil {
-		*out = Timestamp{Timestamp: &timestamppb.Timestamp{
+		out.Timestamp = &timestamppb.Timestamp{
 			Seconds: pbts.GetSeconds(),
 			Nanos:   pbts.GetNanos(),
-		}}
-		return "", nil
+		}
+		return out, "", nil
 	}
 
 	// タイムゾーン付きのフォーマットを試行（配列順序で）
@@ -208,8 +205,8 @@ func ParseTimestamp(in string, out *Timestamp) (string, error) {
 			continue
 		}
 		if t, err := time.Parse(format, *dateStr); err == nil {
-			*out = Timestamp{Timestamp: timestamppb.New(t)}
-			return removed, nil
+			out.Timestamp = timestamppb.New(t)
+			return out, removed, nil
 		}
 	}
 
@@ -223,12 +220,12 @@ func ParseTimestamp(in string, out *Timestamp) (string, error) {
 		}
 
 		if t, err := time.ParseInLocation(format, *dateStr, time.Local); err == nil {
-			*out = Timestamp{Timestamp: timestamppb.New(t)}
-			return removed, nil
+			out.Timestamp = timestamppb.New(t)
+			return out, removed, nil
 		}
 	}
 
-	return in, fmt.Errorf("unable to parse date/time in the string: %s", in)
+	return out, in, fmt.Errorf("unable to parse date/time in the string: %s", in)
 }
 
 // ParseRFC3339Nano RFC3339Nano形式の日時文字列をパースしてtime.Timeを返します
@@ -281,8 +278,7 @@ func (ts *Timestamp) UnmarshalJSON(data []byte) error {
 	}
 
 	// タイムスタンプ文字列のパース
-	var parsed *Timestamp
-	_, err := ParseTimestamp(in, parsed)
+	parsed, _, err := ParseTimestamp(in)
 	if err != nil {
 		return err
 	}

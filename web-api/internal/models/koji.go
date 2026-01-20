@@ -71,8 +71,7 @@ func (m *Koji) ParseFromDirPath(dirPath string) error {
 	dirName := core.GetBaseName(dirPath)
 
 	// ファイル名から工事開始日の取得と日付除外文字列の取得
-	start := new(Timestamp)
-	dirNameRemovedDate, err := ParseTimestamp(dirName, start)
+	start, dirNameRemovedDate, err := ParseTimestamp(dirName)
 	if err != nil || dirNameRemovedDate == "" {
 		return errors.New("工事フォルダー名から工事開始日が取得できません error: " + err.Error())
 	}
@@ -131,7 +130,7 @@ func (m *Koji) Update(source *Koji) error {
 		if err != nil {
 			return err
 		}
-		return m.LoadManifest()
+		return m.Load()
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
@@ -175,7 +174,7 @@ func (m *Koji) Update(source *Koji) error {
 
 	m.EnsureMfEndFromStart()
 
-	return m.SaveManifest()
+	return m.Save()
 }
 
 // GenerateDirPath はパラメータをもとに工事フォルダー名変更します
@@ -204,18 +203,26 @@ func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, err
 	return dirPath, nil
 }
 
-// LoadManifest は Manifest ファイルから永続化データを読み込みます
-func (m *Koji) LoadManifest() error {
-	err := m.ManifestProvider.LoadManifest()
+// Load は Manifest ファイルから永続化データを読み込みます
+func (m *Koji) Load() error {
+	err := m.ManifestProvider.Load()
 	if err != nil {
 		return err
 	}
 
 	updated := m.EnsureMfEndFromStart()
 	if updated {
-		return m.SaveManifest()
+		return m.Save()
 	}
 	return nil
+}
+
+// Save はマニフェストを保存します（Manifestable インターフェース実装）
+func (m *Koji) Save() error {
+	if m.ManifestProvider == nil {
+		return errors.New("ManifestProvider is nil")
+	}
+	return m.ManifestProvider.Save()
 }
 
 // EnsureMfEndFromStart は mf_end が空の場合に start の値をコピーします

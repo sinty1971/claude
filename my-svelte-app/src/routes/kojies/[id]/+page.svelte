@@ -52,14 +52,11 @@
   $effect(() => {
     koji = data.koji;
     if (koji) {
-      const newForm = {
-        companyName: koji.companyName ?? "",
-        locationName: koji.locationName ?? "",
-        start: toInputValue(koji.start),
-        mfEnd: toInputValue(koji.mfEnd),
-      };
-      Object.assign(form, newForm);
-      initialForm = newForm;
+      form.companyName = koji.companyName ?? "";
+      form.locationName = koji.locationName ?? "";
+      form.start = toInputValue(koji.start);
+      form.mfEnd = toInputValue(koji.mfEnd);
+      initialForm = { ...form };
     }
   });
 

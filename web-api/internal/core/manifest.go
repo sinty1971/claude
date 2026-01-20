@@ -40,49 +40,58 @@ type Manifestable interface {
 
 	// GetDirPath はモデルのディレクトリパスを取得します。
 	GetDirPath() string
+
+	// GetId はモデルのIDを取得します。
+	GetId() string
+
+	// Save はマニフェストを保存します。
+	Save() error
+
+	// Load はマニフェストを読み込みます。
+	Load() error
 }
 
 // GetMessageFullName はモデルの protobuf メッセージの完全修飾名を取得します。
 func (p *ManifestProvider) GetMessageFullName() string {
-	if p == nil || p.ProtoReflect() == nil {
+	if p == nil || p.Manifestable == nil || p.Manifestable.ProtoReflect() == nil {
 		return ""
 	}
-	return string(p.ProtoReflect().Descriptor().FullName())
+	return string(p.Manifestable.ProtoReflect().Descriptor().FullName())
 }
 
 func (p *ManifestProvider) getManifestPath() string {
-	return filepath.Join(p.GetDirPath(), p.ManifestFileName)
+	return filepath.Join(p.Manifestable.GetDirPath(), p.ManifestFileName)
 }
 
-// LoadManifest は Manifest ファイルから永続化データのみを読み込みます。
+// Load は Manifest ファイルから永続化データのみを読み込みます。
 // ファイル形式は YAML です。
-func (p *ManifestProvider) LoadManifest() error {
+func (p *ManifestProvider) Load() error {
 
 	// YAMLファイルからテキストデータを読み込む
 	text, err := os.ReadFile(p.getManifestPath())
 	if err != nil {
 		// ファイルが存在しない場合は新規作成
-		return p.SaveManifest()
+		return p.Save()
 	}
 
 	// YAMLファイルデータをJSONマップデータに変換
 	jsonmap := &map[string]any{}
 	err = yaml.Unmarshal(text, jsonmap)
 	if len(*jsonmap) == 0 || err != nil {
-		return p.SaveManifest()
+		return p.Save()
 	}
 
 	// JSONマップデータから Manifest データを取り込む
 	err = p.ImportJson(jsonmap)
 	if err != nil {
-		return p.SaveManifest()
+		return p.Save()
 	}
 	return nil
 }
 
-// SaveManifest はデータを Manifest ファイルに保存します。
+// Save はデータを Manifest ファイルに保存します。
 // ファイル形式は YAML です。
-func (p *ManifestProvider) SaveManifest() error {
+func (p *ManifestProvider) Save() error {
 	// JSONマップの取得
 	jsonmap, err := p.ExportJson()
 	if err != nil {
@@ -114,9 +123,9 @@ func (p *ManifestProvider) UpdateManifest(source *ManifestProvider) error {
 	}
 
 	// Manifest フィールドのみを更新
-	targetRef := p.ProtoReflect()
+	targetRef := p.Manifestable.ProtoReflect()
 	fields := targetRef.Descriptor().Fields()
-	srcRef := source.ProtoReflect()
+	srcRef := source.Manifestable.ProtoReflect()
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
 		v := srcRef.Get(f)
@@ -161,7 +170,7 @@ func (p *ManifestProvider) convertTimestampsToJST(jsonmap *map[string]any) {
 		return
 	}
 
-	ref := p.ProtoReflect()
+	ref := p.Manifestable.ProtoReflect()
 	if ref == nil {
 		return
 	}
@@ -205,7 +214,7 @@ func (p *ManifestProvider) ImportJson(jsonmap *map[string]any) error {
 	}
 
 	// 一時的な空のメッセージを作成してアンマーシャル
-	targetRef := p.ProtoReflect()
+	targetRef := p.Manifestable.ProtoReflect()
 	tempMsg := targetRef.Type().New()
 
 	opts := protojson.UnmarshalOptions{AllowPartial: true}

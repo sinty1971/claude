@@ -118,7 +118,7 @@ func (m *Company) Update(source *Company) error {
 		if err != nil {
 			return err
 		}
-		return m.LoadManifest()
+		return m.Load()
 	}
 
 	// 新しいパラメータを元に会社フォルダーパスを生成
@@ -159,7 +159,7 @@ func (m *Company) Update(source *Company) error {
 		return err
 	}
 
-	return m.SaveManifest()
+	return m.Save()
 }
 
 // GenerateDirPath はパラメータをもとに会社フォルダー名変更します
@@ -173,4 +173,20 @@ func (m *Company) GenerateDirPath(ci int32, sn string) string {
 	baseDirPath := filepath.Dir(m.GetDirPath())
 	dirName := strconv.Itoa(int(ci)) + " " + sn
 	return filepath.Join(baseDirPath, dirName)
+}
+
+// Save はマニフェストを保存します（Manifestable インターフェース実装）
+func (m *Company) Save() error {
+	if m.ManifestProvider == nil {
+		return errors.New("ManifestProvider is nil")
+	}
+	return m.ManifestProvider.Save()
+}
+
+// Load はマニフェストを読み込みます（Manifestable インターフェース実装）
+func (m *Company) Load() error {
+	if m.ManifestProvider == nil {
+		return errors.New("ManifestProvider is nil")
+	}
+	return m.ManifestProvider.Load()
 }

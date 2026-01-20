@@ -30,8 +30,8 @@ type KojiService struct {
 	// baseDirPath はこのサービスが管理する工事一覧のディレクトリパス
 	baseDirPath string
 
-	// cache は工事データのIDをキーとしたキャッシュマップ
-	cache map[string]*models.Koji
+	// repo は工事データのリポジトリ（自動保存有効）
+	repo *core.Repository[*models.Koji]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -50,7 +50,7 @@ func NewKojiService(cs *ContainerService) *KojiService {
 	return &KojiService{
 		name:        "KojiService",
 		baseDirPath: baseDirPath,
-		cache:       map[string]*models.Koji{},
+		repo:        core.NewRepository[*models.Koji](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -159,7 +159,7 @@ func (srv *KojiService) SyncAllToCache() error {
 					continue
 				}
 
-				err = koji.LoadManifest() // マニフェストの読み込み
+				err = koji.Load() // マニフェストの読み込み
 				if err != nil {
 					chanKojies <- nil // エラーの場合はnilを返す
 					continue
@@ -185,12 +185,16 @@ func (srv *KojiService) SyncAllToCache() error {
 	}()
 
 	// キャッシュマップの更新
-	srv.cache = make(map[string]*models.Koji, entriesCount)
+	srv.repo.Clear()
+	srv.repo.SetAutoSave(false)
 	for koji := range chanKojies {
 		if koji != nil {
-			srv.cache[koji.GetId()] = koji
+			if err := srv.repo.Set(koji.GetId(), koji); err != nil {
+				log.Printf("リポジトリへの追加に失敗しました: %v", err)
+			}
 		}
 	}
+	srv.repo.SetAutoSave(true)
 
 	return nil
 }
@@ -205,22 +209,10 @@ func (srv *KojiService) Update(targetId string, source *models.Koji) error {
 		return errors.New("更新情報 source の値が nil です")
 	}
 
-	// targetId から工事データを取得
-	target, exist := srv.cache[targetId]
-	if !exist {
-		return errors.New("更新対象の工事情報が存在しません")
-	}
-
-	// 工事情報の更新
-	err := target.Update(source)
-	if err != nil {
-		return err
-	}
-
-	// キャッシュ情報の更新
-	srv.cache[target.GetId()] = target
-
-	return nil
+	// Repository経由で更新（自動的にSave()が呼ばれる）
+	return srv.repo.Update(targetId, func(target *models.Koji) error {
+		return target.Update(source)
+	})
 }
 
 // GetKojies は管理されている工事データ一覧を返す
@@ -234,9 +226,12 @@ func (srv *KojiService) GetKojies(
 	// レスポンスを初期化
 	res = grpcv1.GetKojiesResponse_builder{}.Build()
 
-	grpcKojies := make(map[string]*grpcv1.Koji, len(srv.cache))
-	for _, v := range srv.cache {
-		grpcKojies[v.GetId()] = v.Koji
+	allKojies := srv.repo.GetAll()
+	grpcKojies := make(map[string]*grpcv1.Koji, len(allKojies))
+	for _, v := range allKojies {
+		if v != nil && v.Koji != nil {
+			grpcKojies[v.GetId()] = v.Koji
+		}
 	}
 
 	res.SetKojies(grpcKojies)
@@ -261,7 +256,7 @@ func (srv *KojiService) GetKoji(
 	id := req.GetTargetId()
 
 	// 工事情報を取得
-	koji, exist := srv.cache[id]
+	koji, exist := srv.repo.Get(id)
 	if !exist {
 		err = connect.NewError(connect.CodeNotFound, errors.New("koji not found"))
 		return
@@ -284,7 +279,7 @@ func (srv *KojiService) UpdateKoji(
 
 	// 既存の工事情報を取得
 	targetId := req.GetTargetId()
-	target, exist := srv.cache[targetId]
+	target, exist := srv.repo.Get(targetId)
 	if !exist {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("koji not found"))
 	}

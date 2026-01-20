@@ -28,8 +28,8 @@ type CompanyService struct {
 	// baseDirPath は会社一覧ディレクトリパス
 	baseDirPath string
 
-	// cache は会社情報キャッシュマップ
-	cache map[string]*models.Company
+	// repo は会社情報リポジトリ（自動保存有効）
+	repo *core.Repository[*models.Company]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -48,7 +48,7 @@ func NewCompanyService(cs *ContainerService) *CompanyService {
 	return &CompanyService{
 		name:        "CompanyService",
 		baseDirPath: baseDirPath,
-		cache:       map[string]*models.Company{},
+		repo:        core.NewRepository[*models.Company](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -102,7 +102,7 @@ func (srv *CompanyService) Cleanup() {
 	}
 }
 
-// LoadAllCompanies は全ての会社情報をキャッシュに取り込みます
+// LoadAllCompanies は全ての会社情報をRepositoryに取り込みます
 func (srv *CompanyService) SyncAllToCache() {
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.baseDirPath)
@@ -110,8 +110,8 @@ func (srv *CompanyService) SyncAllToCache() {
 		return
 	}
 
-	// キャッシュマップを初期化
-	srv.cache = make(map[string]*models.Company, len(entries))
+	// Repositoryをクリア
+	srv.repo.Clear()
 
 	// 全てのCompanyインスタンスを作成
 	for _, entry := range entries {
@@ -126,36 +126,31 @@ func (srv *CompanyService) SyncAllToCache() {
 			continue
 		}
 
-		err = company.LoadManifest()
+		err = company.Load()
 		if err != nil {
 			log.Printf("マニフェストデータの読み込みに失敗しました 会社名 %s: %v", company.GetName(), err)
 		}
 
-		srv.cache[company.GetId()] = company
+		// Repositoryに追加（初期ロード時は自動保存しない）
+		srv.repo.SetAutoSave(false)
+		if err := srv.repo.Set(company.GetId(), company); err != nil {
+			log.Printf("リポジトリへの追加に失敗しました: %v", err)
+		}
 	}
+
+	// 自動保存を有効化
+	srv.repo.SetAutoSave(true)
 }
 
-// Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
+// Update は指定 targetId のRepository情報を新しい会社情報で更新します（自動保存）
 //
 //	targetId: 更新対象会社Id
 //	source: 新しい会社情報、nilの場合は更新対象会社自身の更新を行います
 func (srv *CompanyService) Update(targetId string, source *models.Company) error {
-	// targetId からCompanyデータを取得
-	target, exist := srv.cache[targetId]
-	if !exist {
-		return errors.New("更新対象の会社情報が存在しません")
-	}
-
-	// 会社情報の更新
-	err := target.Update(source)
-	if err != nil {
-		return err
-	}
-
-	// キャッシュ情報の更新
-	srv.cache[target.GetId()] = target
-
-	return nil
+	// Repository経由で更新（自動的にSave()が呼ばれる）
+	return srv.repo.Update(targetId, func(target *models.Company) error {
+		return target.Update(source)
+	})
 }
 
 // watchFileSystemEvents はファイルシステム監視イベントを処理します
@@ -172,7 +167,7 @@ func (srv *CompanyService) watchFileSystemEvents() {
 			id := core.GenerateIdFromString(dirName)
 
 			// 会社情報の存在チェック
-			_, exist := srv.cache[id]
+			_, exist := srv.repo.Get(id)
 			if !exist {
 				srv.SyncAllToCache()
 			} else {
@@ -211,9 +206,12 @@ func (srv *CompanyService) GetCompanies(
 	}
 
 	// 会社データモデルを作成
-	grpcv1Companies := make(map[string]*grpcv1.Company, len(srv.cache))
-	for _, v := range srv.cache {
-		grpcv1Companies[v.Company.GetId()] = v.Company
+	allCompanies := srv.repo.GetAll()
+	grpcv1Companies := make(map[string]*grpcv1.Company, len(allCompanies))
+	for _, v := range allCompanies {
+		if v != nil && v.Company != nil {
+			grpcv1Companies[v.GetId()] = v.Company
+		}
 	}
 
 	// Responseの更新とリターン
@@ -236,7 +234,7 @@ func (srv *CompanyService) GetCompany(
 	id := req.GetTargetId()
 
 	// 会社情報を取得
-	company, exist := srv.cache[id]
+	company, exist := srv.repo.Get(id)
 	if !exist {
 		err = connect.NewError(connect.CodeNotFound, errors.New("company not found"))
 		return
@@ -263,7 +261,7 @@ func (srv *CompanyService) UpdateCompany(
 
 	// リクエスト情報の取得
 	targetId := req.GetTargetId()
-	target, exist := srv.cache[targetId]
+	target, exist := srv.repo.Get(targetId)
 	if !exist {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("指定された target_id の会社データが存在しません"))
 	}

@@ -45,25 +45,22 @@
   $effect(() => {
     member = data.member;
     if (member) {
-      const newForm = {
-        name: member.name ?? "",
-        mfLastName: member.mfLastName ?? "",
-        mfFirstName: member.mfFirstName ?? "",
-        mfMiddleName: member.mfMiddleName ?? "",
-        mfKanaName: member.mfKanaName ?? "",
-        mfRole: member.mfRole ?? "",
-        mfBirthdate: member.mfBirthdate ?? "",
-        mfBloodType: member.mfBloodType ?? "",
-        mfPostalCode: member.mfPostalCode ?? "",
-        mfAddress: member.mfAddress ?? "",
-        mfMobile: member.mfMobile ?? "",
-        mfTel: member.mfTel ?? "",
-        mfFax: member.mfFax ?? "",
-        mfEmail: member.mfEmail ?? "",
-        mfWebsite: member.mfWebsite ?? "",
-      };
-      Object.assign(form, newForm);
-      initialForm = newForm;
+      form.name = member.name ?? "";
+      form.mfLastName = member.mfLastName ?? "";
+      form.mfFirstName = member.mfFirstName ?? "";
+      form.mfMiddleName = member.mfMiddleName ?? "";
+      form.mfKanaName = member.mfKanaName ?? "";
+      form.mfRole = member.mfRole ?? "";
+      form.mfBirthdate = member.mfBirthdate ?? "";
+      form.mfBloodType = member.mfBloodType ?? "";
+      form.mfPostalCode = member.mfPostalCode ?? "";
+      form.mfAddress = member.mfAddress ?? "";
+      form.mfMobile = member.mfMobile ?? "";
+      form.mfTel = member.mfTel ?? "";
+      form.mfFax = member.mfFax ?? "";
+      form.mfEmail = member.mfEmail ?? "";
+      form.mfWebsite = member.mfWebsite ?? "";
+      initialForm = { ...form };
     }
   });
 

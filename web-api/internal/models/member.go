@@ -212,7 +212,7 @@ func (m *Member) Update(source *Member) error {
 
 	// source が nil の場合は マニフェストからデータを読み込む
 	if source == nil {
-		return m.LoadManifest()
+		return m.Load()
 	}
 
 	// Manifest データの更新
@@ -221,5 +221,21 @@ func (m *Member) Update(source *Member) error {
 		return err
 	}
 
-	return m.SaveManifest()
+	return m.Save()
+}
+
+// Save はマニフェストを保存します（Manifestable インターフェース実装）
+func (m *Member) Save() error {
+	if m.ManifestProvider == nil {
+		return errors.New("ManifestProvider is nil")
+	}
+	return m.ManifestProvider.Save()
+}
+
+// Load はマニフェストを読み込みます（Manifestable インターフェース実装）
+func (m *Member) Load() error {
+	if m.ManifestProvider == nil {
+		return errors.New("ManifestProvider is nil")
+	}
+	return m.ManifestProvider.Load()
 }
