@@ -48,14 +48,14 @@
   let errorMessage: string | null = $state(null);
   let savedAt: Date | null = $state(null);
 
-  // koji が変更されたときにフォームと初期値を更新
+  // data.kojiが変化したときのみ初期化
   $effect(() => {
-    koji = data.koji;
-    if (koji) {
-      form.companyName = koji.companyName ?? "";
-      form.locationName = koji.locationName ?? "";
-      form.start = toInputValue(koji.start);
-      form.mfEnd = toInputValue(koji.mfEnd);
+    if (data.koji && (!koji || data.koji.id !== koji.id)) {
+      koji = data.koji;
+      form.companyName = data.koji.companyName ?? "";
+      form.locationName = data.koji.locationName ?? "";
+      form.start = toInputValue(data.koji.start);
+      form.mfEnd = toInputValue(data.koji.mfEnd);
       initialForm = { ...form };
     }
   });

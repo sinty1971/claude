@@ -32,23 +32,39 @@
     mfWebsite: "",
   });
   let initialForm = $state<typeof form | null>(null);
+
+  // 初期化時にdata.companyがあればセット
+  if (data.company) {
+    company = data.company;
+    form.name = data.company.name ?? "";
+    form.categoryIndex = data.company.categoryIndex ?? 0;
+    form.mfLongName = data.company.mfLongName ?? "";
+    form.mfPostalCode = data.company.mfPostalCode ?? "";
+    form.mfAddress = data.company.mfAddress ?? "";
+    form.mfTel = data.company.mfTel ?? "";
+    form.mfFax = data.company.mfFax ?? "";
+    form.mfEmail = data.company.mfEmail ?? "";
+    form.mfWebsite = data.company.mfWebsite ?? "";
+    initialForm = { ...form };
+  }
   let isSaving = $state(false);
   let errorMessage: string | null = $state(null);
   let savedAt: Date | null = $state(null);
 
   // company が変更されたときにフォームと初期値を更新
   $effect(() => {
-    company = data.company;
-    if (company) {
-      form.name = company.name ?? "";
-      form.categoryIndex = company.categoryIndex ?? 0;
-      form.mfLongName = company.mfLongName ?? "";
-      form.mfPostalCode = company.mfPostalCode ?? "";
-      form.mfAddress = company.mfAddress ?? "";
-      form.mfTel = company.mfTel ?? "";
-      form.mfFax = company.mfFax ?? "";
-      form.mfEmail = company.mfEmail ?? "";
-      form.mfWebsite = company.mfWebsite ?? "";
+    // data.companyが変化した場合のみ実行
+    if (data.company && (!company || data.company.id !== company.id)) {
+      company = data.company;
+      form.name = data.company.name ?? "";
+      form.categoryIndex = data.company.categoryIndex ?? 0;
+      form.mfLongName = data.company.mfLongName ?? "";
+      form.mfPostalCode = data.company.mfPostalCode ?? "";
+      form.mfAddress = data.company.mfAddress ?? "";
+      form.mfTel = data.company.mfTel ?? "";
+      form.mfFax = data.company.mfFax ?? "";
+      form.mfEmail = data.company.mfEmail ?? "";
+      form.mfWebsite = data.company.mfWebsite ?? "";
       initialForm = { ...form };
     }
   });

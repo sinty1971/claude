@@ -37,29 +37,30 @@
     mfWebsite: "",
   });
   let initialForm = $state<typeof form | null>(null);
+
+  // 初期化は$effect内でのみ行う（Svelteのリアクティブ仕様に準拠）
   let isSaving = $state(false);
   let errorMessage: string | null = $state(null);
   let savedAt: Date | null = $state(null);
 
-  // member が変更されたときにフォームと初期値を更新
   $effect(() => {
-    member = data.member;
-    if (member) {
-      form.name = member.name ?? "";
-      form.mfLastName = member.mfLastName ?? "";
-      form.mfFirstName = member.mfFirstName ?? "";
-      form.mfMiddleName = member.mfMiddleName ?? "";
-      form.mfKanaName = member.mfKanaName ?? "";
-      form.mfRole = member.mfRole ?? "";
-      form.mfBirthdate = member.mfBirthdate ?? "";
-      form.mfBloodType = member.mfBloodType ?? "";
-      form.mfPostalCode = member.mfPostalCode ?? "";
-      form.mfAddress = member.mfAddress ?? "";
-      form.mfMobile = member.mfMobile ?? "";
-      form.mfTel = member.mfTel ?? "";
-      form.mfFax = member.mfFax ?? "";
-      form.mfEmail = member.mfEmail ?? "";
-      form.mfWebsite = member.mfWebsite ?? "";
+    if (data.member && (!member || data.member.id !== member.id)) {
+      member = data.member;
+      form.name = data.member.name ?? "";
+      form.mfLastName = data.member.mfLastName ?? "";
+      form.mfFirstName = data.member.mfFirstName ?? "";
+      form.mfMiddleName = data.member.mfMiddleName ?? "";
+      form.mfKanaName = data.member.mfKanaName ?? "";
+      form.mfRole = data.member.mfRole ?? "";
+      form.mfBirthdate = data.member.mfBirthdate ?? "";
+      form.mfBloodType = data.member.mfBloodType ?? "";
+      form.mfPostalCode = data.member.mfPostalCode ?? "";
+      form.mfAddress = data.member.mfAddress ?? "";
+      form.mfMobile = data.member.mfMobile ?? "";
+      form.mfTel = data.member.mfTel ?? "";
+      form.mfFax = data.member.mfFax ?? "";
+      form.mfEmail = data.member.mfEmail ?? "";
+      form.mfWebsite = data.member.mfWebsite ?? "";
       initialForm = { ...form };
     }
   });
