@@ -2,6 +2,7 @@ package services
 
 import (
 	"net/http"
+	"strings"
 
 	"connectrpc.com/grpcreflect"
 )
@@ -26,6 +27,7 @@ type Service interface {
 	GenerateHandler() (servicePath string, handler http.Handler, serviceName string)
 }
 
+// GenerateMux はすべてのサービスのハンドラを集約したマルチプレクサを生成します
 func (cs *ContainerService) GenerateMux() (*http.ServeMux, error) {
 
 	mux := http.NewServeMux()
@@ -46,7 +48,13 @@ func (cs *ContainerService) GenerateMux() (*http.ServeMux, error) {
 	}
 
 	// gRPC ハンドラの登録
-	reflector := grpcreflect.NewStaticReflector(serviceNames...)
+	grpcServiceNames := make([]string, 0, len(serviceNames))
+	for _, name := range serviceNames {
+		if strings.HasPrefix(name, "grpc.") {
+			grpcServiceNames = append(grpcServiceNames, name)
+		}
+	}
+	reflector := grpcreflect.NewStaticReflector(grpcServiceNames...)
 
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))

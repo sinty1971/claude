@@ -19,6 +19,8 @@
 ## コーディングスタイルと命名規則
 
 - Go コードは `gofmt` 準拠 (タブインデント)。公開シンボルは UpperCamelCase、内部スコープは lowerCamelCase とし、ハンドラは `<Resource>Handler`、サービスは `<Resource>Service` 命名を守ります。
+
+- Go のエラーハンドリング: `if err := fn(); err != nil {}` のように短縮変数宣言とエラーチェックを同時に書くのではなく、`err := fn()`（あるいは既存の `err = fn()`）と代入を分けてから `if err != nil {}` でチェックするスタイルを推奨します。これはエラー発生時のデバッグやスコープの明確化に役立ちます。
 - フロントエンドは ESLint (`eslint.config.js`) と TypeScript に従い 2 スペースインデント。コンポーネント/フックは PascalCase、ユーティリティは camelCase、API クライアントは `services/` 配下にまとめます。
 - スタイルは Tailwind と MUI テーマを併用します。トークンやカラーパレットは `tailwind.config.js` と `app/styles/*.css` を同期させ、カスタムクラスは接頭辞 `penguin-` を推奨します。
 

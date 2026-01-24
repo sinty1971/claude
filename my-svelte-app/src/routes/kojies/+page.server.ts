@@ -5,7 +5,10 @@ import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { createGrpcClient } from '$lib/grpc-client';
 import { KojiService, GetKojiesRequestSchema } from '../../gen/grpc/v1/toyotachikuro_pb';
 
+// 工事一覧を取得して開始日の新しい順にソートして返す
 export const load: PageServerLoad = async () => {
+
+  // KojiService gRPCクライアントの作成
   const client = createGrpcClient(KojiService);
 
   try {

@@ -7,7 +7,7 @@
 
   let { data } = $props<{ data: PageData }>();
 
-  let selectedCompany = $state<string | null>(null);
+  let selectedCompany = $state<string | null>("豊田築炉");
 
   // カテゴリー名からインデックスへのマップ（会社カテゴリーの定義順）
   const categoryIndexMap: Record<string, number> = {

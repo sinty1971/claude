@@ -21,6 +21,14 @@ type Configuration struct {
 	MinimumWorkers                 int
 	MaximumWorkers                 int
 	CpuMultiplier                  int
+
+	// OCRServerExecutablePath は OCR サービスの実行可能ファイルのパス
+	OcrServerExecutablePath string
+
+	// PdfToImageExecutablePath は PDF を画像に変換する実行可能ファイルのパス
+	PdfToImageExecutablePath string
+	// OcrLanguage は OCR 実行時に渡す言語指定（例: "japan", "ch", "en"）
+	OcrLanguage string
 }
 
 // Config はアプリケーション全体で使用される設定オブジェクトです。
@@ -30,20 +38,7 @@ var Config *Configuration
 var EnvironmentMap map[string]string
 
 func init() {
-	Config = &Configuration{
-		DirectoryBaseDirPath:           "{ROOT}",
-		CompanyBaseDirPath:             "{ROOT}/1 会社",
-		CompanyWatcherMaxDepth:         0,
-		CompanyCategoryBaseDirPath:     "{ROOT}",
-		CompanyCategoryWatcherMaxDepth: 0,
-		KojiBaseDirPath:                "{ROOT}/2 工事",
-		KojiWatcherMaxDepth:            0,
-		MemberBaseDirPath:              "{ROOT}/1 会社",
-		MemberWatcherMaxDepth:          1,
-		MinimumWorkers:                 2,
-		MaximumWorkers:                 16,
-		CpuMultiplier:                  2,
-	}
+	Config = &Configuration{}
 
 	// すべての環境変数を map に格納
 	EnvironmentMap = make(map[string]string)

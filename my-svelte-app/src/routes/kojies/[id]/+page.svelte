@@ -144,7 +144,7 @@
             <Button 
               type="submit" 
               disabled={isSaving || !hasUnsavedChanges}
-              class={hasUnsavedChanges ? "animate-pulse" : ""}
+              class={hasUnsavedChanges ? "animate-pulse bg-orange-400 hover:bg-orange-500 text-white" : ""}
             >
               {isSaving ? "保存中..." : "保存"}
             </Button>

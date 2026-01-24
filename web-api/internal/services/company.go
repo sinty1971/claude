@@ -60,7 +60,9 @@ func (srv *CompanyService) Name() string {
 
 // GenerateHandler はサービスのハンドラを生成します
 func (srv *CompanyService) GenerateHandler() (
-	servicePath string, handler http.Handler, serviceName string) {
+	servicePath string,
+	handler http.Handler,
+	serviceName string) {
 
 	// gRPC パスとハンドラの生成
 	servicePath, handler = grpcv1connect.NewCompanyServiceHandler(srv)

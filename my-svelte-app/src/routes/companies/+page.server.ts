@@ -24,7 +24,7 @@ export const load: PageServerLoad = async () => {
     // カテゴリマップを作成
     const categoryMap = new Map<number, string>();
     for (const category of categoriesResponse.categories ?? []) {
-      categoryMap.set(category.index, category.label || '業種未設定');
+      categoryMap.set(category.index, category.name || '業種未設定');
     }
 
     // ソート処理

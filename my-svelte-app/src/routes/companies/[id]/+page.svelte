@@ -15,6 +15,7 @@
   import * as Card from "$lib/components/ui/card";
   import * as Alert from "$lib/components/ui/alert";
 
+  // propsからPageDataを取得
   let { data } = $props<{ data: PageData }>();
 
   const client = createGrpcClient(CompanyService);
@@ -147,7 +148,7 @@
             <Button 
               type="submit" 
               disabled={isSaving || !hasUnsavedChanges}
-              class={hasUnsavedChanges ? "animate-pulse" : ""}
+              class={hasUnsavedChanges ? "animate-pulse bg-orange-400 hover:bg-orange-500 text-white" : ""}
             >
               {isSaving ? "保存中..." : "保存"}
             </Button>
