@@ -1,11 +1,15 @@
 <script lang="ts">
   import { writable } from 'svelte/store';
+  import { Button } from '$lib/components/ui/button';
+  import * as Card from '$lib/components/ui/card';
 
   let fileInput: HTMLInputElement;
   let selectedFile = writable<File | null>(null);
   let ocrResult = writable<any>(null);
   let isLoading = writable(false);
   let errorMessage = writable<string | null>(null);
+  let previewUrl: string | null = null;
+  let previewType: 'image' | 'pdf' | null = null;
 
   async function handleOcr() {
     if (!$selectedFile) {
@@ -47,7 +51,26 @@
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
-      selectedFile.set(target.files[0]);
+      const f = target.files[0];
+      selectedFile.set(f);
+      // revoke old preview
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        previewUrl = null;
+        previewType = null;
+      }
+
+      const mime = f.type;
+      if (mime === 'application/pdf') {
+        previewType = 'pdf';
+        previewUrl = URL.createObjectURL(f);
+      } else if (mime.startsWith('image/')) {
+        previewType = 'image';
+        previewUrl = URL.createObjectURL(f);
+      } else {
+        previewType = null;
+        previewUrl = null;
+      }
     }
   }
 </script>
@@ -56,23 +79,65 @@
   <title>OCR</title>
 </svelte:head>
 
-<div class="container">
-  <h1>OCR</h1>
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-2xl font-bold mb-6">OCR</h1>
 
-  <div class="file-input-container">
-    <input type="file" accept=".pdf,application/pdf" on:change={handleFileSelect} bind:this={fileInput} />
-    <button on:click={handleOcr} disabled={$isLoading}>
-      {#if $isLoading}
-        Processing...
-      {:else}
-        Run OCR
+  <div class="grid md:grid-cols-2 gap-6">
+    <div>
+      <Card.Root>
+        <Card.Content class="space-y-4 p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-muted-foreground">ファイルを選択</p>
+              {#if $selectedFile}
+                <div class="mt-1 text-sm">{$selectedFile.name}</div>
+              {:else}
+                <div class="mt-1 text-sm text-muted-foreground">jpg / png / pdf をサポート</div>
+              {/if}
+            </div>
+            <div class="flex gap-2">
+              <label class="inline-block">
+                <input class="sr-only" type="file" accept="image/*,application/pdf" on:change={handleFileSelect} bind:this={fileInput} />
+                <Button variant="outline" onclick={() => fileInput.click()}>ファイル選択</Button>
+              </label>
+              <Button onclick={handleOcr} disabled={$isLoading}>
+                {#if $isLoading}
+                  Processing...
+                {:else}
+                  Run OCR
+                {/if}
+              </Button>
+            </div>
+          </div>
+
+          {#if previewUrl}
+            <div class="mt-4">
+              {#if previewType === 'image'}
+                <img src={previewUrl} alt="preview" class="w-48 h-auto rounded shadow-sm object-contain" />
+              {:else if previewType === 'pdf'}
+                <embed src={previewUrl} type="application/pdf" width="220" height="300" class="rounded shadow-sm" />
+              {/if}
+            </div>
+          {/if}
+
+          {#if $errorMessage}
+            <div class="text-destructive">{$errorMessage}</div>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+    </div>
+
+    <div>
+      {#if $ocrResult}
+        <Card.Root>
+          <Card.Content class="p-6">
+            <h2 class="text-lg font-semibold mb-2">OCR Result</h2>
+            <pre class="whitespace-pre-wrap">{JSON.stringify($ocrResult, null, 2)}</pre>
+          </Card.Content>
+        </Card.Root>
       {/if}
-    </button>
+    </div>
   </div>
-
-  {#if $selectedFile}
-    <p>Selected file: {$selectedFile.name}</p>
-  {/if}
 
   {#if $errorMessage}
     <div class="error-message">
@@ -80,12 +145,7 @@
     </div>
   {/if}
 
-  {#if $ocrResult}
-    <div class="result-container">
-      <h2>OCR Result</h2>
-      <pre>{JSON.stringify($ocrResult, null, 2)}</pre>
-    </div>
-  {/if}
+  
 </div>
 
 <style>

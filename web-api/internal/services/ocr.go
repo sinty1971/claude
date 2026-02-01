@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"image"
 	"io"
 	"log"
 	"net/http"
@@ -15,9 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"web-api/internal/core"
-
-	"github.com/disintegration/imaging"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 type OcrService struct {
@@ -290,65 +286,4 @@ func unquoteUnicode(s string) string {
 
 	})
 
-}
-
-// fixImageOrientation reads EXIF Orientation and rotates the image file in-place
-// for common orientation values (3, 6, 8). If no EXIF or unsupported format,
-// it returns nil (no-op).
-func fixImageOrientation(path string) error {
-	ext := strings.ToLower(filepath.Ext(path))
-	// EXIF is typically present in JPEG/TIFF. PNG usually doesn't have EXIF.
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".tif" && ext != ".tiff" && ext != ".png" {
-		return nil
-	}
-
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	x, err := exif.Decode(f)
-	if err != nil {
-		// no EXIF or parse error -> nothing to do
-		return nil
-	}
-
-	tag, err := x.Get(exif.Orientation)
-	if err != nil {
-		return nil
-	}
-	orient, err := tag.Int(0)
-	if err != nil {
-		return nil
-	}
-
-	if orient == 1 {
-		return nil
-	}
-
-	// reopen image via imaging (reads from disk)
-	img, err := imaging.Open(path)
-	if err != nil {
-		return err
-	}
-
-	var out image.Image
-	switch orient {
-	case 3:
-		out = imaging.Rotate180(img)
-	case 6:
-		out = imaging.Rotate90(img)
-	case 8:
-		out = imaging.Rotate270(img)
-	default:
-		// unsupported orientation values (2,4,5,7) - skip
-		return nil
-	}
-
-	// overwrite the file with rotated image
-	if err := imaging.Save(out, path); err != nil {
-		return err
-	}
-	return nil
 }

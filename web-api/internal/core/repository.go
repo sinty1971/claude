@@ -5,22 +5,15 @@ import (
 	"sync"
 )
 
-// Persistable は永続化可能なモデルのインターフェース
-type Persistable interface {
-	GetId() string
-	Save() error
-	Load() error
-}
-
 // Repository は永続化を自動管理するジェネリックリポジトリ
-type Repository[T Persistable] struct {
+type Repository[T Persistable1] struct {
 	cache    map[string]T
 	mu       sync.RWMutex
 	autoSave bool
 }
 
 // NewRepository は新しいRepositoryを作成
-func NewRepository[T Persistable](autoSave bool) *Repository[T] {
+func NewRepository[T Persistable1](autoSave bool) *Repository[T] {
 	return &Repository[T]{
 		cache:    make(map[string]T),
 		autoSave: autoSave,

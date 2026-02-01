@@ -124,6 +124,7 @@ func (srv *CompanyService) SyncAllToCache() {
 
 		dirPath := filepath.Join(srv.baseDirPath, entry.Name())
 		company, err := models.NewCompany(dirPath)
+		cm, err := models.NewProtoModel[*models.Company]()
 		if err != nil {
 			continue
 		}

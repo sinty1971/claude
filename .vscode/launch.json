@@ -1,4 +1,33 @@
 {
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug web-api server",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/web-api/cmd/server",
+      "env": {},
+      "args": []
+    },
+    {
+      "name": "Attach to headless Delve",
+      "type": "go",
+      "request": "attach",
+      "mode": "remote",
+      "host": "127.0.0.1",
+      "port": 2345
+    },
+    {
+      "name": "Debug tests (package)",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/web-api"
+    }
+  ]
+}
+{
     // IntelliSense を使用して利用可能な属性を学べます。
     // 既存の属性の説明をホバーして表示します。
     // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
