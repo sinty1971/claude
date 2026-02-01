@@ -22,54 +22,52 @@ import (
 type PersistModel[T Persistable] struct {
 	Model           T
 	Message         protoreflect.Message
-	PersistFilePath string
+	persistFilename string
 }
 
 // Persistable は proto の pr_ フィールドをpersistファイルに保存できるモデルのインターフェースを定義します。
 //   - protobuf メッセージを持っていることが前提となります。
 type Persistable interface {
 	// MessageFromDirPath は dirPath をもとにモデルの初期化を行います。
-	// initArg が 空文字の場合はデフォルト初期化を行います。
-	GenerateMessage(initArg string) (protoreflect.ProtoMessage, error)
+	// mes の情報をもとにメッセージの生成を行います。
+	GenerateMessage(message protoreflect.Message) (protoreflect.ProtoMessage, error)
 
 	// GenerateId はモデルのIDを取得します。
-	GenerateId(dirPath string) string
+	GenerateId(message protoreflect.Message) string
 
-	// Save はマニフェストを保存します。
-	Save() error
-
-	// Load はマニフェストを読み込みます。
-	Load() error
+	// UpdateMessage は current メッセージと source メッセージをもとに
+	// 更新後のメッセージを生成します。
+	UpdateMessage(current protoreflect.Message, source protoreflect.Message) error
 }
 
 // NewPersistModel は PersistModel インスタンスを作成します。
 func NewPersistModel[T Persistable](model T, persistFileName string) (*PersistModel[T], error) {
-	mes, err := model.GenerateMessage("")
+	// モデルからデフォルトメッセージを取得
+	mes, err := model.GenerateMessage(nil)
 	if err != nil {
 		return nil, err
 	}
-	m := &PersistModel[T]{
+
+	// PersistModel インスタンスを作成
+	return &PersistModel[T]{
 		Model:           model,
 		Message:         mes.ProtoReflect(),
-		PersistFilePath: persistFileName,
-	}
-	return m, nil
+		persistFilename: persistFileName,
+	}, nil
 }
 
-// BuildWithInitArg は initArg をもとにモデルの初期化を行います。
+// Initialize は initArg をもとにモデルの初期化を行います。
 // この関数が呼ばれたときに p.persistDirPath が設定されます。
-func (p *PersistModel[T]) BuildWithInitArg(initArg string) error {
+func (p *PersistModel[T]) Initialize(message protoreflect.Message) error {
 	// dirPath から Messageを取得
-	mes, err := p.Model.GenerateMessage(initArg)
+	mes, err := p.Model.GenerateMessage(message)
 	if err != nil {
 		return err
 	}
 
 	// メッセージを設定
 	p.Message = mes.ProtoReflect()
-
-	// persistFilePath の更新
-	err = p.updatePersistFilePath()
+	err = p.Load()
 	if err != nil {
 		return err
 	}
@@ -77,53 +75,24 @@ func (p *PersistModel[T]) BuildWithInitArg(initArg string) error {
 	return nil
 }
 
-// updatePersistFilePath は p.persistFilePath を p.message のフィールド "dir_path" から更新します。
-func (p *PersistModel[T]) updatePersistFilePath() error {
-	if p == nil || p.Message == nil {
-		return errors.New("message is nil")
-	}
-
-	fields := p.Message.Descriptor().Fields()
-	fd := fields.ByName(protoreflect.Name("dir_path"))
-	if fd == nil {
-		return errors.New("field 'dir_path' not found")
-	}
-
-	if !p.Message.Has(fd) {
-		return errors.New("field 'dir_path' is not set")
-	}
-
-	dirPath := p.Message.Get(fd).String()
-	filename := filepath.Base(dirPath)
-	if filename == "" {
-		return errors.New("invalid dir_path value")
-	}
-
-	p.PersistFilePath = filepath.Join(dirPath, filename)
-	return nil
-}
-
-func (p *PersistModel[T]) GetDirPath() (string, error) {
-	// nil チェック
+// GetPersistFilePath は p.persistFilename を p.message のフィールド "dir_path"から取得します。
+func (p *PersistModel[T]) GetPersistFilePath() (string, error) {
 	if p == nil || p.Message == nil {
 		return "", errors.New("message is nil")
 	}
 
 	// dir_path フィールドの取得
-	fields := p.Message.Descriptor().Fields()
-	fd := fields.ByName(protoreflect.Name("dir_path"))
-	if fd == nil {
-		return "", errors.New("field 'dir_path' not found")
+	dirPath, err := GetFieldAs[string](p.Message, "dir_path")
+	if err != nil {
+		return "", err
 	}
 
-	// dir_path フィールドの存在チェック
-	if !p.Message.Has(fd) {
-		return "", errors.New("field 'dir_path' is not set")
+	filename := filepath.Base(dirPath)
+	if filename == "" {
+		return "", errors.New("invalid dir_path value")
 	}
 
-	// dir_path フィールドの値を取得
-	dirPath := p.Message.Get(fd).String()
-	return dirPath, nil
+	return filepath.Join(dirPath, p.persistFilename), nil
 }
 
 // Load は Persist ファイルから永続化データのみを読み込みます。
@@ -131,7 +100,11 @@ func (p *PersistModel[T]) GetDirPath() (string, error) {
 func (p *PersistModel[T]) Load() error {
 
 	// YAMLファイルからテキストデータを読み込む
-	text, err := os.ReadFile(p.PersistFilePath)
+	persistFilePath, err := p.GetPersistFilePath()
+	if err != nil {
+		return err
+	}
+	text, err := os.ReadFile(persistFilePath)
 	if err != nil {
 		// ファイルが存在しない場合は新規作成
 		return p.Save()
@@ -168,13 +141,17 @@ func (p *PersistModel[T]) Save() error {
 	}
 
 	// ファイルに書き込み
-	return os.WriteFile(p.PersistFilePath, yamlBytes, 0644)
+	persistFilePath, err := p.GetPersistFilePath()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(persistFilePath, yamlBytes, 0644)
 }
 
-// Update は Persist データを更新します。
+// UpdatePersistFields は Persist データを更新します。
 //
 // source: PersistModel[T] - 更新元の PersistModel インスタンス
-func (p *PersistModel[T]) UpdateManifest(source *PersistModel[T]) error {
+func (p *PersistModel[T]) UpdatePersistFields(source *PersistModel[T]) error {
 	// 引数チェック
 	if source == nil || source.Message == nil {
 		return errors.New("Source PersistModel src is nil")
@@ -197,6 +174,31 @@ func (p *PersistModel[T]) UpdateManifest(source *PersistModel[T]) error {
 		p.Message.Set(f, v)
 	}
 	return nil
+}
+
+func (p *PersistModel[T]) Update(source *PersistModel[T]) error {
+
+	// source が nil の場合は m.dirPath から再初期化を行う
+	if source == nil {
+		// メッセージの再生成
+		mes, err := p.Model.GenerateMessage(p.Message)
+		if err != nil {
+			return err
+		}
+		p.Message = mes.ProtoReflect()
+
+		// Persist データのロード
+		return p.Load()
+	}
+
+	// source.Message データをもとに新たなメッセージを生成
+	err := p.Model.UpdateMessage(p.Message, source.Message)
+	if err != nil {
+		return err
+	}
+
+	// Persist データのロード
+	return p.Load()
 }
 
 // ExportJson は Persist フィールド値をJSONに変換します

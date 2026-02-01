@@ -83,10 +83,9 @@ func (srv *CompanyService) Start() error {
 	if err != nil {
 		panic(err)
 	}
-
 	srv.watcher = watcher
 
-	// 監視対象ディレクトリの設定
+	// 対象ディレクトリの監視開始
 	err = srv.watcher.Start()
 	if err != nil {
 		return err
@@ -106,14 +105,14 @@ func (srv *CompanyService) Cleanup() {
 
 // LoadAllCompanies は全ての会社情報をRepositoryに取り込みます
 func (srv *CompanyService) SyncAllToCache() {
+	// Repositoryをクリア
+	srv.repo.Clear()
+
 	// ファイルシステムから会社フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.baseDirPath)
 	if err != nil {
 		return
 	}
-
-	// Repositoryをクリア
-	srv.repo.Clear()
 
 	// 全てのCompanyインスタンスを作成
 	for _, entry := range entries {
@@ -122,38 +121,28 @@ func (srv *CompanyService) SyncAllToCache() {
 			continue
 		}
 
+		// PersistModel[*Company] の作成
 		dirPath := filepath.Join(srv.baseDirPath, entry.Name())
-		company, err := models.NewCompany(dirPath)
-		cm, err := models.NewProtoModel[*models.Company]()
+		company, err := models.NewPersistModelCompany(dirPath)
 		if err != nil {
 			continue
 		}
 
+		// マニフェストデータの読み込み
 		err = company.Load()
 		if err != nil {
-			log.Printf("マニフェストデータの読み込みに失敗しました 会社名 %s: %v", company.GetName(), err)
+			log.Printf("永続データの読み込みに失敗しました 会社名 %s: %v", company.Message.Interface().(*grpcv1.Company).GetName(), err)
 		}
 
 		// Repositoryに追加（初期ロード時は自動保存しない）
 		srv.repo.SetAutoSave(false)
-		if err := srv.repo.Set(company.GetId(), company); err != nil {
+		if err := srv.repo.Set(*company); err != nil {
 			log.Printf("リポジトリへの追加に失敗しました: %v", err)
 		}
 	}
 
 	// 自動保存を有効化
 	srv.repo.SetAutoSave(true)
-}
-
-// Update は指定 targetId のRepository情報を新しい会社情報で更新します（自動保存）
-//
-//	targetId: 更新対象会社Id
-//	source: 新しい会社情報、nilの場合は更新対象会社自身の更新を行います
-func (srv *CompanyService) Update(targetId string, source *models.Company) error {
-	// Repository経由で更新（自動的にSave()が呼ばれる）
-	return srv.repo.Update(targetId, func(target *models.Company) error {
-		return target.Update(source)
-	})
 }
 
 // watchFileSystemEvents はファイルシステム監視イベントを処理します
@@ -167,14 +156,14 @@ func (srv *CompanyService) watchFileSystemEvents() {
 
 			// eventから会社Idの取得
 			dirName := filepath.Base(filepath.Dir(event.Name))
-			id := core.GenerateIdFromString(dirName)
+			id := core.BytesToId([]byte(dirName))
 
 			// 会社情報の存在チェック
 			_, exist := srv.repo.Get(id)
 			if !exist {
 				srv.SyncAllToCache()
 			} else {
-				err := srv.Update(id, nil)
+				err := srv.repo.Update(id, nil)
 				if err != nil {
 					log.Printf("CompanyService: Failed to update company cache map for known company: %s, Error: %v", id, err)
 				}
@@ -209,23 +198,24 @@ func (srv *CompanyService) GetCompanies(
 	}
 
 	// 会社データモデルを作成
-	allCompanies := srv.repo.GetAll()
-	grpcv1Companies := make(map[string]*grpcv1.Company, len(allCompanies))
-	for _, v := range allCompanies {
-		if v != nil && v.Company != nil {
-			grpcv1Companies[v.GetId()] = v.Company
+	grpcCompanies := make(map[string]*grpcv1.Company, srv.repo.Count())
+	for _, mes := range srv.repo.GetAllAsMessage() {
+		grpcCompany, ok := mes.Interface().(*grpcv1.Company)
+		if !ok {
+			continue
 		}
+		grpcCompanies[grpcCompany.GetId()] = grpcCompany
 	}
 
 	// Responseの更新とリターン
-	res.SetCompanies(grpcv1Companies)
+	res.SetCompanies(grpcCompanies)
 	return res, nil
 }
 
 // GetCompany は会社IDから会社情報を取得します
 // gRPCサービスの実装です
 func (srv *CompanyService) GetCompany(
-	_ context.Context,
+	ctx context.Context,
 	req *grpcv1.GetCompanyRequest) (
 	res *grpcv1.GetCompanyResponse,
 	err error) {
@@ -244,7 +234,12 @@ func (srv *CompanyService) GetCompany(
 	}
 
 	// Responseの更新
-	res.SetCompany(company.Company)
+	companyMes, ok := company.Message.Interface().(*grpcv1.Company)
+	if !ok {
+		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
+		return
+	}
+	res.SetCompany(companyMes)
 
 	return
 }
@@ -254,13 +249,16 @@ func (srv *CompanyService) GetCompany(
 // 既存の Id の会社情報を更新します。そのため Id の変更の可能性があります。
 // また、フォルダーの移動も発生する可能性があります。
 func (srv *CompanyService) UpdateCompany(
-	// args
-	_ context.Context,
+	ctx context.Context,
 	req *grpcv1.UpdateCompanyRequest) (
-
-	// returns
 	res *grpcv1.UpdateCompanyResponse,
 	err error) {
+
+	// ウォッチャーの一時停止
+	if srv.watcher != nil {
+		srv.watcher.Pause()
+		defer srv.watcher.Resume()
+	}
 
 	// リクエスト情報の取得
 	targetId := req.GetTargetId()
@@ -269,28 +267,24 @@ func (srv *CompanyService) UpdateCompany(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("指定された target_id の会社データが存在しません"))
 	}
 
-	// prevMessageCompany の作成
-	prevMessageCompany := proto.Clone(target.Company).(*grpcv1.Company)
+	// prevCompanyMessage の作成
+	prevCompanyMessage, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Company)
+	if !ok {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
+	}
 
 	// source(proto.Message) から Company モデルを作成
-	source, err := models.NewCompanyFromMessage(req.GetSourceCompany())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
+	sourceCompanyMessage := req.GetSourceCompany()
 
-	if srv.watcher != nil {
-		srv.watcher.Pause()
-		defer srv.watcher.Resume()
-	}
-
-	err = srv.Update(targetId, source)
+	// 会社情報を更新
+	err = srv.repo.Update(targetId, sourceCompanyMessage.ProtoReflect())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	// Responseの作成
 	res = grpcv1.UpdateCompanyResponse_builder{}.Build()
-	res.SetPrevCompany(prevMessageCompany)
+	res.SetPrevCompany(prevCompanyMessage)
 
 	return res, nil
 }

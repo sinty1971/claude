@@ -143,7 +143,7 @@ func (srv *KojiService) SyncAllToCache() error {
 
 	// バッファ付きチャンネルで効率化
 	chanCount := make(chan int, entriesCount)
-	chanKojies := make(chan *models.Koji, entriesCount)
+	chanKojies := make(chan *core.PersistModel[*models.Koji], entriesCount)
 
 	// ワーカープールの起動
 	var wg sync.WaitGroup
@@ -153,7 +153,7 @@ func (srv *KojiService) SyncAllToCache() error {
 			defer wg.Done()
 			for i := range chanCount {
 				dirPath := filepath.Join(srv.baseDirPath, entries[i].Name())
-				koji, err := models.NewKoji(dirPath)
+				koji, err := models.NewPersistModelKoji(dirPath)
 				if err != nil {
 					chanKojies <- nil // エラーの場合はnilを返す
 					continue
@@ -189,7 +189,7 @@ func (srv *KojiService) SyncAllToCache() error {
 	srv.repo.SetAutoSave(false)
 	for koji := range chanKojies {
 		if koji != nil {
-			if err := srv.repo.Set(koji.GetId(), koji); err != nil {
+			if err := srv.repo.Set(*koji); err != nil {
 				log.Printf("リポジトリへの追加に失敗しました: %v", err)
 			}
 		}
@@ -197,22 +197,6 @@ func (srv *KojiService) SyncAllToCache() error {
 	srv.repo.SetAutoSave(true)
 
 	return nil
-}
-
-// Update は指定 targetId のキャッシュ情報を新しい会社情報で更新します
-//
-//	targetId: 更新対象会社Id
-//	source: 新しい会社情報
-func (srv *KojiService) Update(targetId string, source *models.Koji) error {
-	// 引数チェック
-	if source == nil {
-		return errors.New("更新情報 source の値が nil です")
-	}
-
-	// Repository経由で更新（自動的にSave()が呼ばれる）
-	return srv.repo.Update(targetId, func(target *models.Koji) error {
-		return target.Update(source)
-	})
 }
 
 // GetKojies は管理されている工事データ一覧を返す
@@ -226,12 +210,13 @@ func (srv *KojiService) GetKojies(
 	// レスポンスを初期化
 	res = grpcv1.GetKojiesResponse_builder{}.Build()
 
-	allKojies := srv.repo.GetAll()
-	grpcKojies := make(map[string]*grpcv1.Koji, len(allKojies))
-	for _, v := range allKojies {
-		if v != nil && v.Koji != nil {
-			grpcKojies[v.GetId()] = v.Koji
+	grpcKojies := make(map[string]*grpcv1.Koji, srv.repo.Count())
+	for _, mes := range srv.repo.GetAllAsMessage() {
+		grpcKoji, ok := mes.Interface().(*grpcv1.Koji)
+		if !ok {
+			continue
 		}
+		grpcKojies[grpcKoji.GetId()] = grpcKoji
 	}
 
 	res.SetKojies(grpcKojies)
@@ -241,11 +226,8 @@ func (srv *KojiService) GetKojies(
 
 // GetKojiById は指定されたIDの工事データを返す
 func (srv *KojiService) GetKoji(
-	// args
 	ctx context.Context,
 	req *grpcv1.GetKojiRequest) (
-
-	// returns
 	res *grpcv1.GetKojiResponse,
 	err error) {
 
@@ -263,19 +245,27 @@ func (srv *KojiService) GetKoji(
 	}
 
 	// Responseの更新
-	res.SetKoji(koji.Koji)
+	grpcKoji, ok := koji.Message.Interface().(*grpcv1.Koji)
+	if !ok {
+		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
+		return
+	}
+	res.SetKoji(grpcKoji)
 
 	return
 }
 
 func (srv *KojiService) UpdateKoji(
-	// args
 	ctx context.Context,
 	req *grpcv1.UpdateKojiRequest) (
-
-	// returns
 	res *grpcv1.UpdateKojiResponse,
 	err error) {
+
+	// ウォッチャーの一時停止
+	if srv.watcher != nil {
+		srv.watcher.Pause()
+		defer srv.watcher.Resume()
+	}
 
 	// 既存の工事情報を取得
 	targetId := req.GetTargetId()
@@ -285,23 +275,19 @@ func (srv *KojiService) UpdateKoji(
 	}
 
 	// 変更前の工事データのメッセージを保存
-	prevMessageKoji := proto.Clone(target.Koji).(*grpcv1.Koji)
-
-	newKoji, err := models.NewKojiFromMessage(req.GetSourceKoji())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	prevMessageKoji, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Koji)
+	if !ok {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
 	}
 
-	if srv.watcher != nil {
-		srv.watcher.Pause()
-		defer srv.watcher.Resume()
-	}
+	sourceKojiMessage := req.GetSourceKoji()
 
 	// 工事情報を更新
-	err = srv.Update(targetId, newKoji)
+	err = srv.repo.Update(targetId, sourceKojiMessage.ProtoReflect())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+
 	// Responseの作成
 	res = grpcv1.UpdateKojiResponse_builder{}.Build()
 	res.SetPrevKoji(prevMessageKoji)
@@ -315,56 +301,3 @@ func timestampValue(ts *timestamppb.Timestamp) any {
 	}
 	return ts.AsTime()
 }
-
-// RenameStandardFile は標準ファイルの名前を変更し、工事データも更新する
-// TODO: StandardFile型が定義されていないため、一時的にコメントアウト
-// func (ks *KojiService) RenameStandardFile(koji models.Koji, actuals []string) []string {
-// 	// マップの作成
-// 	actualToStandardMap := make(map[string]*models.StandardFile)
-// 	for i := range koji.StandardFiles {
-// 		sf := &koji.StandardFiles[i]
-// 		actualToStandardMap[sf.ActualName] = sf
-// 	}
-//
-// 	// 変更後の標準ファイル名を格納する配列
-// 	renamedFiles := make([]string, len(actuals))
-//
-// 	// 変更前の標準ファイル名をループ
-// 	count := 0
-// 	for _, actual := range actuals {
-// 		if sf, exists := actualToStandardMap[actual]; exists {
-// 			actualFullpath, err := ks.BaseFolderService.GetFullpath(sf.GetPath())
-// 			if err != nil {
-// 				continue
-// 			}
-//
-// 			standardFullpath, err := ks.BaseFolderService.GetFullpath(sf.Name)
-// 			if err != nil {
-// 				continue
-// 			}
-// 			count++
-// 		}
-//
-// 		// ファイル名変更後、工事の必須ファイル情報を更新
-// 		if count > 0 {
-// 			// 必須ファイル情報を再設定
-// 			err := ks.UpdateRequiredFiles(&koji)
-// 			if err == nil {
-// 				// 属性ファイルに反映
-// 				ks.DatabaseService.Save(&koji)
-// 			}
-// 		}
-// 	}
-//
-// 	// ファイル名変更後、工事の必須ファイル情報を更新
-// 	if count > 0 {
-// 		// 必須ファイル情報を再設定
-// 		err := ks.UpdateRequiredFiles(&koji)
-// 		if err == nil {
-// 			// 属性ファイルに反映
-// 			ks.DatabaseService.Save(&koji)
-// 		}
-// 	}
-//
-// 	return renamedFiles[:count]
-// }

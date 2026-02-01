@@ -6,13 +6,16 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+// GenerateIdFromBytes はバイト配列からハッシュ文字列IDを生成
+//
+
 // RadixTable は53進数変換用の文字テーブル
 // 0, I, O, Q, i, j, o, u, vを除く53文字（=10+26+26-9読み間違いを防ぐため）
 // 53^6 = 22,164,361,129 通り（約220億通り）
 const RadixTable = "123456789ABCDEFGHJKLMNPRSTUVWXYZabcdefghklmnpqrstwxyz"
 
-// ParseIdFromBytes はバイト配列からハッシュ文字列IDを生成
-func ParseIdFromBytes(data []byte) string {
+// BytesToId はバイト配列からハッシュ文字列IDを生成
+func BytesToId(data []byte) string {
 	// バイト配列からBLAKE2b-256ハッシュを計算し下位128ビットを取得
 	// BLAKE2b-256を使用（GoにはBLAKE3の標準実装がないため）
 	hash := blake2b.Sum256(data)
@@ -33,9 +36,4 @@ func ParseIdFromBytes(data []byte) string {
 	}
 
 	return string(bytes)
-}
-
-// GenerateIdFromString は文字列からハッシュ文字列IDを生成
-func GenerateIdFromString(str string) string {
-	return ParseIdFromBytes([]byte(str))
 }

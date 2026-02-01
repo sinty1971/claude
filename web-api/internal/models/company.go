@@ -12,30 +12,28 @@ import (
 	"web-api/internal/core"
 )
 
-// Company は gRPC grpc.v1.Company メッセージの拡張版です。
+// Company は core.PersistModel[*grpcv1.Company] の拡張版です。
 type Company struct{}
 
-// GetMessage はモデルの protobuf メッセージを取得します。
-func (m *Company) GenerateMessage(initArg string) (protoreflect.ProtoMessage, error) {
-	// initArg が 空文字 の場合はデフォルト初期化を行う
-	if initArg == "" {
+// GenerateMessage はモデルの protobuf メッセージを取得します。
+func (m *Company) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+	// mes が 空文字 の場合はデフォルト初期化を行う
+	if request == nil {
 		return grpcv1.Company_builder{}.Build(), nil
 	}
 
-	// initArg を dirPath として progobuf メッセージを取得する
-	return m.MessageFromDirPath(initArg)
-}
+	// message の型アサーション
+	req, ok := request.Interface().(*grpcv1.Company)
+	if !ok {
+		return nil, errors.New("message の型アサーションに失敗しました")
+	}
 
-// GenerateId は dirPath から会社IDを生成します
-func (m *Company) GenerateId(dirName string) string {
-	basename := core.GetBaseName(dirName)
-	return core.GenerateIdFromString(basename)
-}
+	// dirPath を取得する
+	dirPath := req.GetDirPath()
 
-// ParseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
-// 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
-// 戻り値Companyは: Id, Target, Cateory, Name, Tags のみ設定されます
-func (m *Company) MessageFromDirPath(dirPath string) (protoreflect.ProtoMessage, error) {
+	// ParseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
+	// 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
+	// 戻り値Companyは: Id, Target, Cateory, Name, Tags のみ設定されます
 
 	// ディレクトリ名の取得
 	dirName := core.GetBaseName(dirPath)
@@ -58,10 +56,11 @@ func (m *Company) MessageFromDirPath(dirPath string) (protoreflect.ProtoMessage,
 		return nil, err
 	}
 
+	// Companyメッセージの生成
 	mes := grpcv1.Company_builder{}.Build()
 
 	// 各フィールドの設定
-	mes.SetId(m.GenerateId(dirName))
+	mes.SetId(m.GenerateId(request))
 	mes.SetDirPath(dirPath)
 	mes.SetCategoryIndex(cat.GetIndex())
 	mes.SetName(sn)
@@ -69,91 +68,97 @@ func (m *Company) MessageFromDirPath(dirPath string) (protoreflect.ProtoMessage,
 	return mes, nil
 }
 
+// GenerateId は dirPath から会社IDを生成します
+func (m *Company) GenerateId(message protoreflect.Message) string {
+	mes, ok := message.Interface().(*grpcv1.Company)
+	if !ok {
+		return ""
+	}
+	dirPath := mes.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
+}
+
 // Update は会社情報を更新します
 // 必要に応じて会社フォルダー名の変更も行います
-func (m *Company) Update(target *core.PersistModel[*Company], source *core.PersistModel[*Company]) error {
+func (m *Company) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
 
-	// source が nil の場合は m.dirPath から再解析を行う
-	if source == nil {
-		// 会社フォルダーパスから再解析
-		targetDirPath, err := target.GetDirPath()
-		if err != nil {
-			return err
-		}
-		err = target.BuildWithInitArg(targetDirPath)
-		if err != nil {
-			return err
-		}
-		return target.Load()
-	}
-
-	// 新しい会社フォルダー名の取得
-	srcMes := source.Message.Interface().(*grpcv1.Company)
-	newDirName := m.generateDirName(
-		srcMes.GetCategoryIndex(),
-		srcMes.GetName(),
-	)
-	if newDirName == "" {
-		return errors.New("新しい会社フォルダー名の取得に失敗しました")
+	// source メッセージの型アサーション
+	srcMes, ok := source.Interface().(*grpcv1.Company)
+	if !ok {
+		return errors.New("source メッセージの型アサーションに失敗しました")
 	}
 
 	// 新しいパラメータを元に会社フォルダーパスを生成
-	trgMes := target.Message.Interface().(*grpcv1.Company)
-	newDirPath := filepath.Join(filepath.Dir(trgMes.GetDirPath()), newDirName)
+	baseName := m.generateBaseName(
+		srcMes.GetCategoryIndex(),
+		srcMes.GetName(),
+	)
+	if baseName == "" {
+		return errors.New("新しい会社フォルダー名の取得に失敗しました")
+	}
+
+	// target メッセージの型アサーション
+	mes, ok := target.Interface().(*grpcv1.Company)
+	if !ok {
+		return errors.New("target メッセージの型アサーションに失敗しました")
+	}
+
+	// 会社フォルダーパスの生成
+	parentPath := filepath.Dir(mes.GetDirPath())
+	dirPath := filepath.Join(parentPath, baseName)
 
 	// ファイル名変更の必要がある場合は会社フォルダー名を更新
-	if trgMes.GetDirPath() != newDirPath {
+	if dirPath != mes.GetDirPath() {
 
 		// フォルダー名変更
-		err := os.Rename(trgMes.GetDirPath(), newDirPath)
+		err := os.Rename(mes.GetDirPath(), dirPath)
 		if err != nil {
 			return err
 		}
 
-		// newId の取得
-		newId := m.GenerateId(newDirName)
-
 		// フィールドの更新
-		// マニフェスト以外の情報を更新
-		trgMes.SetId(newId)
-		trgMes.SetDirPath(newDirPath)
-		trgMes.SetCategoryIndex(srcMes.GetCategoryIndex())
-		trgMes.SetName(srcMes.GetName())
+		mes.SetDirPath(dirPath)
+		mes.SetCategoryIndex(srcMes.GetCategoryIndex())
+		mes.SetName(srcMes.GetName())
+
+		// Id フィールドの更新
+		newId := m.GenerateId(mes.ProtoReflect())
+		mes.SetId(newId)
+
 	}
 
-	// Manifest データの更新
-	err := target.UpdateManifest(source)
-	if err != nil {
-		return err
-	}
-
-	return m.Save()
+	return nil
 }
 
-// generateDirPath はパラメータをもとに会社フォルダー名変更します
+// generateBaseName はパラメータをもとに会社フォルダー名変更します
 //
 //	引数：
 //	  ci: カテゴリーインデックス
 //	  sn: 省略会社名
 //
 //	戻り値: 生成された会社フォルダーパス
-func (m *Company) generateDirName(ci int32, sn string) string {
+func (m *Company) generateBaseName(ci int32, sn string) string {
 	dirName := strconv.Itoa(int(ci)) + " " + sn
 	return dirName
 }
 
-// Save はマニフェストを保存します（Manifestable インターフェース実装）
-func (m *Company) Save() error {
-	if m.ManifestProvider == nil {
-		return errors.New("ManifestProvider is nil")
+// NewPersistModelCompany は指定された会社フォルダーから PersistModel[*Company] を作成します
+func NewPersistModelCompany(dirPath string) (*core.PersistModel[*Company], error) {
+	// PersistModel を作成
+	pm, err := core.NewPersistModel(&Company{}, "company.yaml")
+	if err != nil {
+		return nil, err
 	}
-	return m.ManifestProvider.Save()
-}
 
-// Load はマニフェストを読み込みます（Manifestable インターフェース実装）
-func (m *Company) Load() error {
-	if m.ManifestProvider == nil {
-		return errors.New("ManifestProvider is nil")
+	// 初期化
+	request := grpcv1.Company_builder{}.Build()
+	request.SetDirPath(dirPath)
+	err = pm.Initialize(request.ProtoReflect())
+	if err != nil {
+		return nil, err
 	}
-	return m.ManifestProvider.Load()
+
+	//
+	return pm, nil
 }

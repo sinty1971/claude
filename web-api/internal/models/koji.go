@@ -9,63 +9,25 @@ import (
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
 
-	"google.golang.org/protobuf/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-type Koji struct {
-	// Koji メッセージ本体
-	*grpcv1.Koji
-
-	// Persist共通モデルフィールド
-	*core.ManifestProvider
-}
-
-// NewKoji FolderNameからKojiを作成します
-func NewKoji(dirPath string) (*Koji, error) {
-	// インスタンス作成
-	koji := &Koji{}
-
-	// Koji メッセージ本体の初期化
-	koji.Koji = grpcv1.Koji_builder{}.Build()
-
-	// dirPath から情報を解析して設定
-	err := koji.ParseFromDirPath(dirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// ManifestProvider の初期化
-	koji.InitializeManifestProvider()
-
-	return koji, nil
-}
-
-func NewKojiFromMessage(message *grpcv1.Koji) (*Koji, error) {
-	// message が nil の場合はエラーを返す
-	if message == nil {
-		return nil, errors.New("msg is nil")
-	}
-
-	// インスタンス作成
-	koji := &Koji{}
-	koji.Koji = proto.Clone(message).(*grpcv1.Koji)
-
-	// ManifestProvider の初期化
-	koji.InitializeManifestProvider()
-
-	return koji, nil
-}
-
-func (m *Koji) InitializeManifestProvider() {
-	mp := &core.ManifestProvider{
-		Manifestable:     m,
-		ManifestFileName: "@koji.yaml",
-	}
-	m.ManifestProvider = mp
-}
+// Koji core.PersistModel[*grpcv1.Koji] の拡張版です。
+type Koji struct{}
 
 // ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
-func (m *Koji) ParseFromDirPath(dirPath string) error {
+func (m *Koji) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+	// mes が 空文字 の場合はデフォルト初期化を行う
+	if request == nil {
+		return grpcv1.Koji_builder{}.Build(), nil
+	}
+	// message の型アサーション
+	req, ok := request.Interface().(*grpcv1.Koji)
+	if !ok {
+		return nil, errors.New("message の型アサーションに失敗しました")
+	}
+	// dirPath を取得する
+	dirPath := req.GetDirPath()
 
 	// フォルダー名を取得
 	dirName := core.GetBaseName(dirPath)
@@ -73,7 +35,7 @@ func (m *Koji) ParseFromDirPath(dirPath string) error {
 	// ファイル名から工事開始日の取得と日付除外文字列の取得
 	start, dirNameRemovedDate, err := ParseTimestamp(dirName)
 	if err != nil || dirNameRemovedDate == "" {
-		return errors.New("工事フォルダー名から工事開始日が取得できません error: " + err.Error())
+		return nil, errors.New("工事フォルダー名から工事開始日が取得できません error: " + err.Error())
 	}
 
 	// 会社名と現場名の取得
@@ -87,21 +49,36 @@ func (m *Koji) ParseFromDirPath(dirPath string) error {
 			locationName = dirNameRemovedDate[idx+1:]
 		}
 	} else {
-		return errors.New("工事フォルダー名から会社名及び現場名が得できません")
+		return nil, errors.New("工事フォルダー名から会社名及び現場名が得できません")
 	}
 
-	// 各フィールドの設定
-	m.SetId(GenerateKojiIdFromDirName(dirName))
-	m.SetDirPath(dirPath)
-	m.SetStart(start.Timestamp)
-	m.SetCompanyName(companyName)
-	m.SetLocationName(locationName)
+	// Kojiメッセージの生成
+	mes := grpcv1.Koji_builder{}.Build()
 
-	return nil
+	// 各フィールドの設定
+	mes.SetDirPath(dirPath)
+	mes.SetStart(start.Timestamp)
+	mes.SetCompanyName(companyName)
+	mes.SetLocationName(locationName)
+
+	m.EnsureMfEndFromStart(mes)
+
+	// Id フィールドの設定
+	newId := m.GenerateId(mes.ProtoReflect())
+	mes.SetId(newId)
+
+	return mes, nil
 }
 
-func GenerateKojiIdFromDirName(dirName string) string {
-	return core.GenerateIdFromString(dirName)
+// GenerateId は dirPath から工事IDを生成します
+func (m *Koji) GenerateId(message protoreflect.Message) string {
+	mes, ok := message.Interface().(*grpcv1.Koji)
+	if !ok {
+		return ""
+	}
+	dirPath := mes.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
 }
 
 // GenerateKojiStatus はプロジェクトステータスを判定する
@@ -123,61 +100,58 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 	}
 }
 
-func (m *Koji) Update(source *Koji) error {
-	// source が nil の場合は自身の dirPath から再解析を行う
-	if source == nil {
-		err := m.ParseFromDirPath(m.GetDirPath())
-		if err != nil {
-			return err
-		}
-		return m.Load()
+// UpdateMessage は情報を更新します
+func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
+	// source メッセージの型アサーション
+	srcMes, ok := source.Interface().(*grpcv1.Koji)
+	if !ok {
+		return errors.New("source メッセージの型アサーションに失敗しました")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	sourceStart := Timestamp{Timestamp: source.GetStart()}
-	newDirPath, err := m.GenerateDirPath(
+	sourceStart := Timestamp{Timestamp: srcMes.GetStart()}
+	baseName, err := m.generateBaseName(
 		sourceStart,
-		source.GetCompanyName(),
-		source.GetLocationName())
+		srcMes.GetCompanyName(),
+		srcMes.GetLocationName())
 	if err != nil {
 		return err
 	}
 
-	newDirName := core.GetBaseName(newDirPath)
-	if newDirName == "" {
-		return errors.New("新しい工事フォルダー名の取得に失敗しました")
+	// target メッセージの型アサーション
+	mes, ok := target.Interface().(*grpcv1.Koji)
+	if !ok {
+		return errors.New("target メッセージの型アサーションに失敗しました")
 	}
 
+	parentPath := filepath.Dir(mes.GetDirPath())
+	dirPath := filepath.Join(parentPath, baseName)
+
 	// ディレクトリ名変更が必要な場合
-	if m.GetDirPath() != newDirPath {
-		err := os.Rename(m.GetDirPath(), newDirPath)
+	if dirPath != mes.GetDirPath() {
+		err := os.Rename(mes.GetDirPath(), dirPath)
 		if err != nil {
 			return err
 		}
 
-		newId := GenerateKojiIdFromDirName(newDirName)
+		// フィールドの更新
+		mes.SetDirPath(dirPath)
+		mes.SetStart(srcMes.GetStart())
+		mes.SetCompanyName(srcMes.GetCompanyName())
+		mes.SetLocationName(srcMes.GetLocationName())
 
-		// マニフェスト以外の情報を更新
-		m.SetId(newId)
-		m.SetDirPath(newDirPath)
-		m.SetStart(source.GetStart())
-		m.SetCompanyName(source.GetCompanyName())
-		m.SetLocationName(source.GetLocationName())
+		// mf_end が空の場合は start の値をコピー
+		m.EnsureMfEndFromStart(mes)
 
+		// Id フィールドの更新
+		newId := m.GenerateId(mes.ProtoReflect())
+		mes.SetId(newId)
 	}
 
-	// Manifestデータの更新
-	err = m.UpdateManifest(source.ManifestProvider)
-	if err != nil {
-		return err
-	}
-
-	m.EnsureMfEndFromStart()
-
-	return m.Save()
+	return nil
 }
 
-// GenerateDirPath はパラメータをもとに工事フォルダー名変更します
+// generateBaseName はパラメータをもとに工事フォルダー名変更します
 //
 //	引数： st: 工事開始日
 //	      cn: 会社名
@@ -185,13 +159,7 @@ func (m *Koji) Update(source *Koji) error {
 //	戻り値:
 //
 //		生成された工事フォルダーパス
-func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, error) {
-	// 基底パスの取得
-	dirBasePath := filepath.Dir(m.GetDirPath())
-	if dirBasePath == "" || dirBasePath == "." {
-		return "", errors.New("基底パスの取得に失敗しました")
-	}
-
+func (m *Koji) generateBaseName(st Timestamp, cn string, loc string) (string, error) {
 	// 開始日のフォーマット
 	startText, err := st.FormatTime("2006-0102")
 	if err != nil {
@@ -199,50 +167,48 @@ func (m *Koji) GenerateDirPath(st Timestamp, cn string, loc string) (string, err
 	}
 
 	// フルパスの生成
-	dirPath := filepath.Join(dirBasePath, startText+" "+cn+" "+loc)
-	return dirPath, nil
-}
-
-// Load は Manifest ファイルから永続化データを読み込みます
-func (m *Koji) Load() error {
-	err := m.ManifestProvider.Load()
-	if err != nil {
-		return err
-	}
-
-	updated := m.EnsureMfEndFromStart()
-	if updated {
-		return m.Save()
-	}
-	return nil
-}
-
-// Save はマニフェストを保存します（Manifestable インターフェース実装）
-func (m *Koji) Save() error {
-	if m.ManifestProvider == nil {
-		return errors.New("ManifestProvider is nil")
-	}
-	return m.ManifestProvider.Save()
+	baseName := startText + " " + cn + " " + loc
+	return baseName, nil
 }
 
 // EnsureMfEndFromStart は mf_end が空の場合に start の値をコピーします
-func (m *Koji) EnsureMfEndFromStart() bool {
+func (m *Koji) EnsureMfEndFromStart(mes *grpcv1.Koji) bool {
 
-	if m == nil || m.Koji == nil {
+	if mes == nil {
 		return false
 	}
 
 	// mf_end が有効な場合は終了
-	if m.GetMfEnd() != nil && m.GetMfEnd().IsValid() {
+	if mes.GetMfEnd() != nil && mes.GetMfEnd().IsValid() {
 		return false
 	}
 
 	// start の無効な場合は終了
-	if m.GetStart() == nil || !m.GetStart().IsValid() {
+	if mes.GetStart() == nil || !mes.GetStart().IsValid() {
 		return false
 	}
 
 	// start の値を mf_end にコピー
-	m.SetMfEnd(m.GetStart())
+	mes.SetMfEnd(mes.GetStart())
 	return true
+}
+
+// NewPersistModelKoji は指定された会社フォルダーから PersistModel[*Koji] を作成します
+func NewPersistModelKoji(dirPath string) (*core.PersistModel[*Koji], error) {
+	// PersistModel を作成
+	pm, err := core.NewPersistModel(&Koji{}, "koji.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	// 初期化
+	request := grpcv1.Koji_builder{}.Build()
+	request.SetDirPath(dirPath)
+	err = pm.Initialize(request.ProtoReflect())
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	return pm, nil
 }
