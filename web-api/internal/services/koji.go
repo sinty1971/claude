@@ -129,6 +129,9 @@ func (srv *KojiService) watchFileSystemEvents() {
 }
 
 func (srv *KojiService) SyncAllToCache() error {
+	// Repositoryをクリア
+	srv.repo.Clear()
+
 	// ファイルシステムから工事フォルダー一覧を取得
 	entries, err := os.ReadDir(srv.baseDirPath)
 	if err != nil {
@@ -267,20 +270,21 @@ func (srv *KojiService) UpdateKoji(
 		defer srv.watcher.Resume()
 	}
 
-	// 既存の工事情報を取得
+	// リクエスト情報の取得
 	targetId := req.GetTargetId()
-	target, exist := srv.repo.Get(targetId)
+	sourceKojiMessage := req.GetSourceKoji()
+
+	// 既存の工事情報を取得
+	prevKoji, exist := srv.repo.Get(targetId)
 	if !exist {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("koji not found"))
 	}
 
 	// 変更前の工事データのメッセージを保存
-	prevMessageKoji, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Koji)
+	prevMessageKoji, ok := proto.Clone(prevKoji.Message.Interface()).(*grpcv1.Koji)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
 	}
-
-	sourceKojiMessage := req.GetSourceKoji()
 
 	// 工事情報を更新
 	err = srv.repo.Update(targetId, sourceKojiMessage.ProtoReflect())

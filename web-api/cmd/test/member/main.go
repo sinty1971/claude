@@ -66,12 +66,12 @@ func showMember(ctx context.Context, client grpcv1connect.MemberServiceClient, t
 	fmt.Printf("Name: %s\n", member.GetName())
 	fmt.Printf("Pathist Folder: %s\n", member.GetDirPath())
 	fmt.Printf("Company Name: %s\n", member.GetCompanyName())
-	fmt.Printf("Role: %s\n", member.GetMfRole())
-	if member.GetMfEmail() != "" {
-		fmt.Printf("Email: %s\n", member.GetMfEmail())
+	fmt.Printf("Role: %s\n", member.GetPrRole())
+	if member.GetPrEmail() != "" {
+		fmt.Printf("Email: %s\n", member.GetPrEmail())
 	}
-	if member.GetMfMobile() != "" {
-		fmt.Printf("Phone: %s\n", member.GetMfMobile())
+	if member.GetPrMobile() != "" {
+		fmt.Printf("Phone: %s\n", member.GetPrMobile())
 	}
 }
 
@@ -110,7 +110,7 @@ func showAllMembers(ctx context.Context, client grpcv1connect.MemberServiceClien
 		if len(companyName) > 20 {
 			companyName = companyName[:17] + "..."
 		}
-		role := member.GetMfRole()
+		role := member.GetPrRole()
 		if len(role) > 15 {
 			role = role[:12] + "..."
 		}

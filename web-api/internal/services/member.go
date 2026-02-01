@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -89,28 +90,29 @@ func (srv *MemberService) Cleanup() {
 }
 
 func (srv *MemberService) SyncAllToCache() error {
-	// ターゲットディレクトリの抽出
-	targetDirs := srv.extractTargetDirPaths()
-
 	// Repositoryをクリア
 	srv.repo.Clear()
 
-	// 全てのMemberインスタンスを作成
-	for _, dirPath := range targetDirs {
+	// ターゲットディレクトリの抽出
+	requests := srv.extractTargetRequests()
 
-		member, err := models.NewMember(dirPath)
+	// 全てのMemberインスタンスを作成
+	for _, request := range requests {
+
+		member, err := models.NewPersistModelMember(request.GetDirPath())
 		if err != nil {
 			continue
 		}
 
 		err = member.Load()
 		if err != nil {
-			log.Printf("マニフェストデータの読み込みに失敗しました 作業員名 %s: %v", member.GetName(), err)
+			mes := member.Message.Interface().(*grpcv1.Member)
+			log.Printf("マニフェストデータの読み込みに失敗しました 作業員名 %s: %v", mes.GetName(), err)
 		}
 
 		// Repositoryに追加（初期ロード時は自動保存しない）
 		srv.repo.SetAutoSave(false)
-		if err := srv.repo.Set(member.GetId(), member); err != nil {
+		if err := srv.repo.Set(*member); err != nil {
 			log.Printf("リポジトリへの追加に失敗しました: %v", err)
 		}
 	}
@@ -121,16 +123,8 @@ func (srv *MemberService) SyncAllToCache() error {
 	return nil
 }
 
-// Update はメンバー情報を更新します（自動保存）
-func (srv *MemberService) Update(targetId string, source *models.Member) error {
-	// Repository経由で更新（自動的にSave()が呼ばれる）
-	return srv.repo.Update(targetId, func(target *models.Member) error {
-		return target.Update(source)
-	})
-}
-
 // 対象ディレクトリの抽出
-func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
+func (srv *MemberService) extractTargetRequests() (requests []*grpcv1.Member) {
 	// 対象ディレクトリ
 	// .../'1 会社'/'3 個人名' の形式
 	// .../'1 会社'/[会社名]/'社員'/[メンバー名] の形式
@@ -141,7 +135,7 @@ func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
 	}
 
 	// 十分な容量を確保
-	targetDirs = make([]string, len(entries)*100)
+	requests = make([]*grpcv1.Member, 0, len(entries)*100)
 
 	for _, entry := range entries {
 		// ディレクトリのみ処理
@@ -156,10 +150,14 @@ func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
 			continue
 		}
 
+		// request
+		request := grpcv1.Member_builder{}.Build()
+
 		// 一人親方ディレクトリである場合の処理
 		if core.ContainCompanyCategoryName(cat, "一人親方") {
 			dirPath := filepath.Join(srv.baseDirPath, entry.Name())
-			targetDirs = append(targetDirs, dirPath)
+			request.SetDirPath(dirPath)
+			requests = append(requests, request)
 			continue
 		}
 
@@ -180,7 +178,8 @@ func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
 					continue
 				}
 				dirPath := filepath.Join(activeDirPath, activeEntry.Name())
-				targetDirs = append(targetDirs, dirPath)
+				request.SetDirPath(dirPath)
+				requests = append(requests, request)
 			}
 
 			deactiveDirPath := filepath.Join(srv.baseDirPath, entry.Name(), "社員", "@退職者")
@@ -193,7 +192,8 @@ func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
 					continue
 				}
 				dirPath := filepath.Join(deactiveDirPath, deactiveEntry.Name())
-				targetDirs = append(targetDirs, dirPath)
+				request.SetDirPath(dirPath)
+				requests = append(requests, request)
 			}
 		}
 	}
@@ -203,75 +203,89 @@ func (srv *MemberService) extractTargetDirPaths() (targetDirs []string) {
 // GetMembers は全ての Member 情報を返します
 func (srv *MemberService) GetMembers(
 	ctx context.Context,
-	req *grpcv1.GetMembersRequest,
-) (*grpcv1.GetMembersResponse, error) {
+	req *grpcv1.GetMembersRequest) (
+	res *grpcv1.GetMembersResponse,
+	err error) {
+	_ = req // 現状フィルター未対応
+
+	// レスポンスの初期化
+	res = grpcv1.GetMembersResponse_builder{}.Build()
+
 	// Repositoryから全てのMemberを取得
-	allMembers := srv.repo.GetAll()
-	members := make(map[string]*grpcv1.Member, len(allMembers))
-	for _, member := range allMembers {
-		if member != nil && member.Member != nil {
-			members[member.GetId()] = member.Member
+	grpcMembers := make(map[string]*grpcv1.Member, srv.repo.Count())
+	for _, mes := range srv.repo.GetAllAsMessage() {
+		grpcMember, ok := mes.Interface().(*grpcv1.Member)
+		if !ok {
+			continue
 		}
+		grpcMembers[grpcMember.GetId()] = grpcMember
 	}
 
-	response := grpcv1.GetMembersResponse_builder{}.Build()
-	response.SetMembers(members)
-
-	return response, nil
+	// レスポンスの設定とリターン
+	res.SetMembers(grpcMembers)
+	return
 }
 
 // GetMember は指定された ID の Member 情報を返します
 func (srv *MemberService) GetMember(
 	ctx context.Context,
-	req *grpcv1.GetMemberRequest,
-) (*grpcv1.GetMemberResponse, error) {
-	id := req.GetTargetId()
+	req *grpcv1.GetMemberRequest) (
+	res *grpcv1.GetMemberResponse,
+	err error) {
 
-	member, exists := srv.repo.Get(id)
+	// レスポンスの初期化
+	res = grpcv1.GetMemberResponse_builder{}.Build()
+
+	// targetIdの取得
+	targetId := req.GetTargetId()
+
+	member, exists := srv.repo.Get(targetId)
 	if !exists {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	response := grpcv1.GetMemberResponse_builder{}.Build()
-	response.SetMember(member.Member)
+	grpcMember, ok := member.Message.Interface().(*grpcv1.Member)
+	if !ok {
+		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert member message type"))
+		return
+	}
 
-	return response, nil
+	// レスポンスの設定とリターン
+	res.SetMember(grpcMember)
+
+	return
 }
 
 // UpdateMember は Member 情報を更新します
 func (srv *MemberService) UpdateMember(
 	ctx context.Context,
-	req *grpcv1.UpdateMemberRequest,
-) (*grpcv1.UpdateMemberResponse, error) {
+	req *grpcv1.UpdateMemberRequest) (
+	res *grpcv1.UpdateMemberResponse,
+	err error) {
+
+	// レスポンスの初期化
+	res = grpcv1.UpdateMemberResponse_builder{}.Build()
+
+	// リクエスト情報の取得
 	targetId := req.GetTargetId()
-	sourceMember := req.GetSourceMember()
+	sourceGrpcMember := req.GetSourceMember()
 
-	if sourceMember == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
-	}
-
+	// 既存の Member 情報を取得
 	prevMember, exists := srv.repo.Get(targetId)
 	if !exists {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	// prevMemberMessage の作成
-	prevMemberMessage := proto.Clone(prevMember.Member).(*grpcv1.Member)
+	// prevGrpcMember の作成
+	prevGrpcMember := proto.Clone(prevMember.Message.Interface()).(*grpcv1.Member)
 
-	// source(proto.Message) から Member モデルを作成
-	source, err := models.NewMemberFromMessage(sourceMember)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-
-	// メンバー情報の更新（マニフェスト保存を含む）
-	err = srv.Update(targetId, source)
+	err = srv.repo.Update(targetId, sourceGrpcMember.ProtoReflect())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	response := grpcv1.UpdateMemberResponse_builder{}.Build()
-	response.SetPrevMember(prevMemberMessage)
+	// レスポンスの設定とリターン
+	res.SetPrevMember(prevGrpcMember)
 
-	return response, nil
+	return
 }

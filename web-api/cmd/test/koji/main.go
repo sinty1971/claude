@@ -72,8 +72,8 @@ func showKoji(ctx context.Context, client grpcv1connect.KojiServiceClient, targe
 	}
 	fmt.Printf("Company: %s\n", koji.GetCompanyName())
 	fmt.Printf("Location: %s\n", koji.GetLocationName())
-	if koji.GetMfEnd() != nil && koji.GetMfEnd().IsValid() {
-		fmt.Printf("End Date: %s\n", koji.GetMfEnd().AsTime().In(jst).Format("2006-01-02 15:04:05 MST"))
+	if koji.GetPrEnd() != nil && koji.GetPrEnd().IsValid() {
+		fmt.Printf("End Date: %s\n", koji.GetPrEnd().AsTime().In(jst).Format("2006-01-02 15:04:05 MST"))
 	} else {
 		fmt.Printf("End Date: N/A\n")
 	}

@@ -262,29 +262,29 @@ func (srv *CompanyService) UpdateCompany(
 
 	// リクエスト情報の取得
 	targetId := req.GetTargetId()
+	srcMes := req.GetSourceCompany()
+
+	// 対象会社情報の取得
 	target, exist := srv.repo.Get(targetId)
 	if !exist {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("指定された target_id の会社データが存在しません"))
 	}
 
-	// prevCompanyMessage の作成
-	prevCompanyMessage, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Company)
+	// 変更前の情報を保持
+	prevMes, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Company)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
 	}
 
-	// source(proto.Message) から Company モデルを作成
-	sourceCompanyMessage := req.GetSourceCompany()
-
 	// 会社情報を更新
-	err = srv.repo.Update(targetId, sourceCompanyMessage.ProtoReflect())
+	err = srv.repo.Update(targetId, srcMes.ProtoReflect())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	// Responseの作成
 	res = grpcv1.UpdateCompanyResponse_builder{}.Build()
-	res.SetPrevCompany(prevCompanyMessage)
+	res.SetPrevCompany(prevMes)
 
 	return res, nil
 }

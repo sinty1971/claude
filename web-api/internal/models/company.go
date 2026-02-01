@@ -15,14 +15,25 @@ import (
 // Company は core.PersistModel[*grpcv1.Company] の拡張版です。
 type Company struct{}
 
+// GenerateId は dirPath から会社IDを生成します
+func (m *Company) GenerateId(message protoreflect.Message) string {
+	mes, ok := message.Interface().(*grpcv1.Company)
+	if !ok {
+		return ""
+	}
+	dirPath := mes.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
+}
+
 // GenerateMessage はモデルの protobuf メッセージを取得します。
 func (m *Company) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
-	// mes が 空文字 の場合はデフォルト初期化を行う
+	// request が nil の場合はデフォルト初期化を行う
 	if request == nil {
 		return grpcv1.Company_builder{}.Build(), nil
 	}
 
-	// message の型アサーション
+	// request の型アサーション
 	req, ok := request.Interface().(*grpcv1.Company)
 	if !ok {
 		return nil, errors.New("message の型アサーションに失敗しました")
@@ -68,25 +79,14 @@ func (m *Company) GenerateMessage(request protoreflect.Message) (protoreflect.Pr
 	return mes, nil
 }
 
-// GenerateId は dirPath から会社IDを生成します
-func (m *Company) GenerateId(message protoreflect.Message) string {
-	mes, ok := message.Interface().(*grpcv1.Company)
-	if !ok {
-		return ""
-	}
-	dirPath := mes.GetDirPath()
-	basename := core.GetBaseName(dirPath)
-	return core.BytesToId([]byte(basename))
-}
-
 // Update は会社情報を更新します
 // 必要に応じて会社フォルダー名の変更も行います
 func (m *Company) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
-
-	// source メッセージの型アサーション
-	srcMes, ok := source.Interface().(*grpcv1.Company)
-	if !ok {
-		return errors.New("source メッセージの型アサーションに失敗しました")
+	// メッセージの型アサーション
+	mes, ok1 := target.Interface().(*grpcv1.Company)
+	srcMes, ok2 := source.Interface().(*grpcv1.Company)
+	if !ok1 || !ok2 {
+		return errors.New("message の型アサーションに失敗しました")
 	}
 
 	// 新しいパラメータを元に会社フォルダーパスを生成
@@ -96,12 +96,6 @@ func (m *Company) UpdateMessage(target protoreflect.Message, source protoreflect
 	)
 	if baseName == "" {
 		return errors.New("新しい会社フォルダー名の取得に失敗しました")
-	}
-
-	// target メッセージの型アサーション
-	mes, ok := target.Interface().(*grpcv1.Company)
-	if !ok {
-		return errors.New("target メッセージの型アサーションに失敗しました")
 	}
 
 	// 会社フォルダーパスの生成
@@ -146,7 +140,7 @@ func (m *Company) generateBaseName(ci int32, sn string) string {
 // NewPersistModelCompany は指定された会社フォルダーから PersistModel[*Company] を作成します
 func NewPersistModelCompany(dirPath string) (*core.PersistModel[*Company], error) {
 	// PersistModel を作成
-	pm, err := core.NewPersistModel(&Company{}, "company.yaml")
+	pm, err := core.NewPersistModel(&Company{}, "@company.yaml")
 	if err != nil {
 		return nil, err
 	}

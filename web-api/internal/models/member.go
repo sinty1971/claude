@@ -4,71 +4,22 @@ import (
 	"errors"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// Member は gRPC grpc.v1.Member メッセージの拡張版です。
-type Member struct {
-	// Member メッセージ本体
-	*grpcv1.Member
+// Member は core.PersistModel[*grpcv1.Member] の拡張版です。
+type Member struct{}
 
-	// ManifestProvider は Manifestデータの永続化を提供します
-	*core.ManifestProvider
-}
-
-// NewMember インスタンス作成と初期化を行います
-func NewMember(dirPath string) (*Member, error) {
-	member := &Member{
-		Member: grpcv1.Member_builder{}.Build(),
-	}
-
-	err := member.ParseFromDirPath(dirPath)
+// GenerateId は dirPath から会社IDを生成します
+func (m *Member) GenerateId(message protoreflect.Message) string {
+	pathInfo, err := messageToMemberPathInfo(message)
 	if err != nil {
-		return nil, err
+		return ""
 	}
-
-	// ManifestProvider の初期化
-	member.InitializeManifestProvider()
-
-	return member, nil
-}
-
-// NewMemberFromMessage は gRPC メッセージから Member インスタンスを生成します
-func NewMemberFromMessage(message *grpcv1.Member) (*Member, error) {
-	if message == nil {
-		return nil, errors.New("message is nil")
-	}
-
-	member := &Member{}
-	member.Member = proto.Clone(message).(*grpcv1.Member)
-
-	// ManifestProvider の初期化
-	member.InitializeManifestProvider()
-
-	return member, nil
-}
-
-// InitializeManifestProvider は ManifestProvider を初期化します
-func (m *Member) InitializeManifestProvider() {
-	mp := &core.ManifestProvider{
-		Manifestable:     m,
-		ManifestFileName: "@member.yaml",
-	}
-	m.ManifestProvider = mp
-}
-
-// GenerateMemberId は名前から MemberID を生成します
-func GenerateMemberIdFromName(dirName string) string {
-	return core.GenerateIdFromString(dirName)
-}
-
-// Id 生成用テキストを返します
-func (m *Member) GetIdSourceText() string {
-
-	return m.GetId()
+	return core.BytesToId([]byte(pathInfo.relativePath))
 }
 
 // memberPathInfo はメンバーのパス情報を保持します
@@ -78,36 +29,49 @@ type memberPathInfo struct {
 	companyName     string
 	memberName      string
 	isActive        bool
-	relativePath    []string // "1 会社" 以降の相対パス
+	relativePath    string // "1 会社" 以降の相対パス
 }
 
 // ParseFromDirPath はディレクトリパスから Member 情報を解析して設定します
-func (m *Member) ParseFromDirPath(dirPath string) error {
-	// パスを正規化
-	dirPath, err := core.ResolveAbsPath(dirPath)
-	if err != nil {
-		return err
+func (m *Member) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+	// request が nil の場合はデフォルト初期化を行う
+	if request == nil {
+		return grpcv1.Member_builder{}.Build(), nil
 	}
 
 	// パス情報を抽出
-	pathInfo, err := parseMemberPath(dirPath)
+	pathInfo, err := messageToMemberPathInfo(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Member フィールドを設定
-	m.SetId(pathInfo.generateId())
-	m.SetName(pathInfo.memberName)
-	m.SetCompanyName(pathInfo.companyName)
-	m.SetCompanyCategoryName(pathInfo.companyCategory.GetName())
-	m.SetIsActive(pathInfo.isActive)
-	m.SetDirPath(pathInfo.fullPath)
+	// Member メッセージの生成
+	mes := grpcv1.Member_builder{}.Build()
 
-	return nil
+	// Member フィールドを設定
+	mes.SetName(pathInfo.memberName)
+	mes.SetCompanyName(pathInfo.companyName)
+	mes.SetCompanyCategoryName(pathInfo.companyCategory.GetName())
+	mes.SetIsActive(pathInfo.isActive)
+	mes.SetDirPath(pathInfo.fullPath)
+
+	newId := m.GenerateId(mes.ProtoReflect())
+	mes.SetId(newId)
+
+	return mes, nil
 }
 
-// parseMemberPath はディレクトリパスを解析して memberPathInfo を返します
-func parseMemberPath(dirPath string) (*memberPathInfo, error) {
+// messageToMemberPathInfo はディレクトリパスを解析して memberPathInfo を返します
+func messageToMemberPathInfo(request protoreflect.Message) (*memberPathInfo, error) {
+	// request の型アサーション
+	req, ok := request.Interface().(*grpcv1.Member)
+	if !ok {
+		return nil, errors.New("message の型アサーションに失敗しました")
+	}
+
+	// dirPath を取得する
+	dirPath := req.GetDirPath()
+
 	parts := strings.Split(dirPath, "/")
 
 	// "1 会社" ディレクトリのインデックスを取得
@@ -136,7 +100,7 @@ func parseMemberPath(dirPath string) (*memberPathInfo, error) {
 			companyName:     companyCategory.GetName(),
 			memberName:      companyName,
 			isActive:        true,
-			relativePath:    relativePath[:1],
+			relativePath:    strings.Join(relativePath[:1], "/"),
 		}, nil
 	}
 
@@ -176,7 +140,7 @@ func parseCompanyMember(fullPath string, relativePath []string, category *grpcv1
 			companyName:     companyName,
 			memberName:      relativePath[3],
 			isActive:        false,
-			relativePath:    relativePath[:4],
+			relativePath:    strings.Join(relativePath[:4], "/"),
 		}, nil
 	}
 
@@ -187,13 +151,8 @@ func parseCompanyMember(fullPath string, relativePath []string, category *grpcv1
 		companyName:     companyName,
 		memberName:      relativePath[2],
 		isActive:        true,
-		relativePath:    relativePath[:3],
+		relativePath:    strings.Join(relativePath[:3], "/"),
 	}, nil
-}
-
-// generateId は ID 生成用の文字列から ID を生成します
-func (p *memberPathInfo) generateId() string {
-	return GenerateMemberIdFromName(strings.Join(p.relativePath, "/"))
 }
 
 // findIndex はスライス内で指定された値のインデックスを返します
@@ -208,34 +167,36 @@ func findIndex(slice []string, value string) int {
 
 // Update はメンバー情報を更新します
 // 必要に応じてメンバーフォルダー名の変更も行います
-func (m *Member) Update(source *Member) error {
-
-	// source が nil の場合は マニフェストからデータを読み込む
-	if source == nil {
-		return m.Load()
+func (m *Member) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
+	// target と source の型アサーション
+	_, ok1 := target.Interface().(*grpcv1.Member)
+	_, ok2 := source.Interface().(*grpcv1.Member)
+	if !ok1 || !ok2 {
+		return errors.New("message の型アサーションに失敗しました")
 	}
 
 	// Manifest データの更新
-	err := m.UpdateManifest(source.ManifestProvider)
+	// TODO: メンバー情報の更新ロジックを実装
+
+	return nil
+}
+
+// NewPersistModelMember は指定されたメンバーフォルダーから PersistModel[*Member] を作成します
+func NewPersistModelMember(dirPath string) (*core.PersistModel[*Member], error) {
+	// PersistModel を作成
+	pm, err := core.NewPersistModel(&Member{}, "@member.yaml")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return m.Save()
-}
-
-// Save はマニフェストを保存します（Manifestable インターフェース実装）
-func (m *Member) Save() error {
-	if m.ManifestProvider == nil {
-		return errors.New("ManifestProvider is nil")
+	// 初期化
+	request := grpcv1.Member_builder{}.Build()
+	request.SetDirPath(dirPath)
+	err = pm.Initialize(request.ProtoReflect())
+	if err != nil {
+		return nil, err
 	}
-	return m.ManifestProvider.Save()
-}
 
-// Load はマニフェストを読み込みます（Manifestable インターフェース実装）
-func (m *Member) Load() error {
-	if m.ManifestProvider == nil {
-		return errors.New("ManifestProvider is nil")
-	}
-	return m.ManifestProvider.Load()
+	//
+	return pm, nil
 }

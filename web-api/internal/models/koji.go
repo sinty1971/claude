@@ -15,13 +15,24 @@ import (
 // Koji core.PersistModel[*grpcv1.Koji] の拡張版です。
 type Koji struct{}
 
+// GenerateId は dirPath から工事IDを生成します
+func (m *Koji) GenerateId(message protoreflect.Message) string {
+	mes, ok := message.Interface().(*grpcv1.Koji)
+	if !ok {
+		return ""
+	}
+	dirPath := mes.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
+}
+
 // ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
 func (m *Koji) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
-	// mes が 空文字 の場合はデフォルト初期化を行う
+	// mes が nil の場合はデフォルト初期化を行う
 	if request == nil {
 		return grpcv1.Koji_builder{}.Build(), nil
 	}
-	// message の型アサーション
+	// request の型アサーション
 	req, ok := request.Interface().(*grpcv1.Koji)
 	if !ok {
 		return nil, errors.New("message の型アサーションに失敗しました")
@@ -61,24 +72,13 @@ func (m *Koji) GenerateMessage(request protoreflect.Message) (protoreflect.Proto
 	mes.SetCompanyName(companyName)
 	mes.SetLocationName(locationName)
 
-	m.EnsureMfEndFromStart(mes)
+	m.EnsurePrEndFromStart(mes)
 
 	// Id フィールドの設定
 	newId := m.GenerateId(mes.ProtoReflect())
 	mes.SetId(newId)
 
 	return mes, nil
-}
-
-// GenerateId は dirPath から工事IDを生成します
-func (m *Koji) GenerateId(message protoreflect.Message) string {
-	mes, ok := message.Interface().(*grpcv1.Koji)
-	if !ok {
-		return ""
-	}
-	dirPath := mes.GetDirPath()
-	basename := core.GetBaseName(dirPath)
-	return core.BytesToId([]byte(basename))
 }
 
 // GenerateKojiStatus はプロジェクトステータスを判定する
@@ -102,10 +102,11 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 
 // UpdateMessage は情報を更新します
 func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
-	// source メッセージの型アサーション
-	srcMes, ok := source.Interface().(*grpcv1.Koji)
-	if !ok {
-		return errors.New("source メッセージの型アサーションに失敗しました")
+	// target メッセージの型アサーション
+	mes, ok1 := target.Interface().(*grpcv1.Koji)
+	srcMes, ok2 := source.Interface().(*grpcv1.Koji)
+	if !ok1 || !ok2 {
+		return errors.New("message の型アサーションに失敗しました")
 	}
 
 	// 新しいパラメータを元に管理フォルダーパスを生成
@@ -116,12 +117,6 @@ func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Me
 		srcMes.GetLocationName())
 	if err != nil {
 		return err
-	}
-
-	// target メッセージの型アサーション
-	mes, ok := target.Interface().(*grpcv1.Koji)
-	if !ok {
-		return errors.New("target メッセージの型アサーションに失敗しました")
 	}
 
 	parentPath := filepath.Dir(mes.GetDirPath())
@@ -140,8 +135,8 @@ func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Me
 		mes.SetCompanyName(srcMes.GetCompanyName())
 		mes.SetLocationName(srcMes.GetLocationName())
 
-		// mf_end が空の場合は start の値をコピー
-		m.EnsureMfEndFromStart(mes)
+		// pr_end が空の場合は start の値をコピー
+		m.EnsurePrEndFromStart(mes)
 
 		// Id フィールドの更新
 		newId := m.GenerateId(mes.ProtoReflect())
@@ -171,15 +166,15 @@ func (m *Koji) generateBaseName(st Timestamp, cn string, loc string) (string, er
 	return baseName, nil
 }
 
-// EnsureMfEndFromStart は mf_end が空の場合に start の値をコピーします
-func (m *Koji) EnsureMfEndFromStart(mes *grpcv1.Koji) bool {
+// EnsurePrEndFromStart は pr_end が空の場合に start の値をコピーします
+func (m *Koji) EnsurePrEndFromStart(mes *grpcv1.Koji) bool {
 
 	if mes == nil {
 		return false
 	}
 
-	// mf_end が有効な場合は終了
-	if mes.GetMfEnd() != nil && mes.GetMfEnd().IsValid() {
+	// pr_end が有効な場合は終了
+	if mes.GetPrEnd() != nil && mes.GetPrEnd().IsValid() {
 		return false
 	}
 
@@ -188,15 +183,15 @@ func (m *Koji) EnsureMfEndFromStart(mes *grpcv1.Koji) bool {
 		return false
 	}
 
-	// start の値を mf_end にコピー
-	mes.SetMfEnd(mes.GetStart())
+	// start の値を pr_end にコピー
+	mes.SetPrEnd(mes.GetStart())
 	return true
 }
 
 // NewPersistModelKoji は指定された会社フォルダーから PersistModel[*Koji] を作成します
 func NewPersistModelKoji(dirPath string) (*core.PersistModel[*Koji], error) {
 	// PersistModel を作成
-	pm, err := core.NewPersistModel(&Koji{}, "koji.yaml")
+	pm, err := core.NewPersistModel(&Koji{}, "@koji.yaml")
 	if err != nil {
 		return nil, err
 	}
