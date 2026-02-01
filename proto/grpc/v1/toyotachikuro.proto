@@ -46,13 +46,13 @@ message Company {
   string name = 2;
   int32 category_index = 3;
   string dir_path = 4;
-  string mf_long_name = 5;
-  string mf_postal_code = 6;
-  string mf_address = 7;
-  string mf_tel = 8;
-  string mf_fax = 9;
-  string mf_email = 10;
-  string mf_website = 11;
+  string pr_long_name = 5;
+  string pr_postal_code = 6;
+  string pr_address = 7;
+  string pr_tel = 8;
+  string pr_fax = 9;
+  string pr_email = 10;
+  string pr_website = 11;
 }
 
 // CompanyService provides operations for managing companies
@@ -102,7 +102,7 @@ message Koji {
   string company_name = 3;
   string location_name = 4;
   string dir_path = 5;
-  google.protobuf.Timestamp mf_end = 6;
+  google.protobuf.Timestamp pr_end = 6;
 }
 
 // KojiService provides operations for managing construction projects
@@ -143,20 +143,20 @@ message Member {
   string company_name = 4;
   string company_category_name = 19;
   string dir_path = 5;
-  string mf_last_name = 6;
-  string mf_first_name = 7;
-  string mf_middle_name = 8;
-  string mf_kana_name = 9;
-  string mf_role = 10;
-  string mf_birthdate = 18;
-  string mf_blood_type = 20;
-  string mf_postal_code = 11;
-  string mf_address = 12;
-  string mf_mobile = 13;
-  string mf_tel = 14;
-  string mf_fax = 15;
-  string mf_email = 16;
-  string mf_website = 17;
+  string pr_last_name = 6;
+  string pr_first_name = 7;
+  string pr_middle_name = 8;
+  string pr_kana_name = 9;
+  string pr_role = 10;
+  string pr_birthdate = 18;
+  string pr_blood_type = 20;
+  string pr_postal_code = 11;
+  string pr_address = 12;
+  string pr_mobile = 13;
+  string pr_tel = 14;
+  string pr_fax = 15;
+  string pr_email = 16;
+  string pr_website = 17;
 }
 
 service MemberService {

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file grpc/v1/toyotachikuro.proto.
  */
 export const file_grpc_v1_toyotachikuro: GenFile = /*@__PURE__*/
-  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJIisKEkdldFBhdGhMaXN0UmVxdWVzdBIVCg1yZWxhdGl2ZV9wYXRoGAEgASgJIigKE0dldFBhdGhMaXN0UmVzcG9uc2USEQoJcGF0aF9saXN0GAEgAygJIi4KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJItUBCgdDb21wYW55EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMbWZfbG9uZ19uYW1lGAUgASgJEhYKDm1mX3Bvc3RhbF9jb2RlGAYgASgJEhIKCm1mX2FkZHJlc3MYByABKAkSDgoGbWZfdGVsGAggASgJEg4KBm1mX2ZheBgJIAEoCRIQCghtZl9lbWFpbBgKIAEoCRISCgptZl93ZWJzaXRlGAsgASgJIisKE0dldENvbXBhbmllc1JlcXVlc3QSFAoMZm9yY2VfcmVsb2FkGAEgASgIIpsBChRHZXRDb21wYW5pZXNSZXNwb25zZRI/Cgljb21wYW5pZXMYASADKAsyLC5ncnBjLnYxLkdldENvbXBhbmllc1Jlc3BvbnNlLkNvbXBhbmllc0VudHJ5GkIKDkNvbXBhbmllc0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmdycGMudjEuQ29tcGFueToCOAEiJgoRR2V0Q29tcGFueVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIjcKEkdldENvbXBhbnlSZXNwb25zZRIhCgdjb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55IlMKFFVwZGF0ZUNvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIoCg5zb3VyY2VfY29tcGFueRgCIAEoCzIQLmdycGMudjEuQ29tcGFueSI/ChVVcGRhdGVDb21wYW55UmVzcG9uc2USJgoMcHJldl9jb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55Ih0KG0dldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdCJMChxHZXRDb21wYW55Q2F0ZWdvcmllc1Jlc3BvbnNlEiwKCmNhdGVnb3JpZXMYASADKAsyGC5ncnBjLnYxLkNvbXBhbnlDYXRlZ29yeSKoAQoES29qaRIKCgJpZBgBIAEoCRIpCgVzdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMY29tcGFueV9uYW1lGAMgASgJEhUKDWxvY2F0aW9uX25hbWUYBCABKAkSEAoIZGlyX3BhdGgYBSABKAkSKgoGbWZfZW5kGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCISChBHZXRLb2ppZXNSZXF1ZXN0IokBChFHZXRLb2ppZXNSZXNwb25zZRI2CgZrb2ppZXMYASADKAsyJi5ncnBjLnYxLkdldEtvamllc1Jlc3BvbnNlLktvamllc0VudHJ5GjwKC0tvamllc0VudHJ5EgsKA2tleRgBIAEoCRIcCgV2YWx1ZRgCIAEoCzINLmdycGMudjEuS29qaToCOAEiIwoOR2V0S29qaVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIi4KD0dldEtvamlSZXNwb25zZRIbCgRrb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIkoKEVVwZGF0ZUtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIiCgtzb3VyY2Vfa29qaRgCIAEoCzINLmdycGMudjEuS29qaSI2ChJVcGRhdGVLb2ppUmVzcG9uc2USIAoJcHJldl9rb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIpoDCgZNZW1iZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIRCglpc19hY3RpdmUYAyABKAgSFAoMY29tcGFueV9uYW1lGAQgASgJEh0KFWNvbXBhbnlfY2F0ZWdvcnlfbmFtZRgTIAEoCRIQCghkaXJfcGF0aBgFIAEoCRIUCgxtZl9sYXN0X25hbWUYBiABKAkSFQoNbWZfZmlyc3RfbmFtZRgHIAEoCRIWCg5tZl9taWRkbGVfbmFtZRgIIAEoCRIUCgxtZl9rYW5hX25hbWUYCSABKAkSDwoHbWZfcm9sZRgKIAEoCRIUCgxtZl9iaXJ0aGRhdGUYEiABKAkSFQoNbWZfYmxvb2RfdHlwZRgUIAEoCRIWCg5tZl9wb3N0YWxfY29kZRgLIAEoCRISCgptZl9hZGRyZXNzGAwgASgJEhEKCW1mX21vYmlsZRgNIAEoCRIOCgZtZl90ZWwYDiABKAkSDgoGbWZfZmF4GA8gASgJEhAKCG1mX2VtYWlsGBAgASgJEhIKCm1mX3dlYnNpdGUYESABKAkiEwoRR2V0TWVtYmVyc1JlcXVlc3QikAEKEkdldE1lbWJlcnNSZXNwb25zZRI5CgdtZW1iZXJzGAEgAygLMiguZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2UuTWVtYmVyc0VudHJ5Gj8KDE1lbWJlcnNFbnRyeRILCgNrZXkYASABKAkSHgoFdmFsdWUYAiABKAsyDy5ncnBjLnYxLk1lbWJlcjoCOAEiJQoQR2V0TWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkiNAoRR2V0TWVtYmVyUmVzcG9uc2USHwoGbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIiUAoTVXBkYXRlTWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSJgoNc291cmNlX21lbWJlchgCIAEoCzIPLmdycGMudjEuTWVtYmVyIjwKFFVwZGF0ZU1lbWJlclJlc3BvbnNlEiQKC3ByZXZfbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIyXAoQRGlyZWN0b3J5U2VydmljZRJICgtHZXRQYXRoTGlzdBIbLmdycGMudjEuR2V0UGF0aExpc3RSZXF1ZXN0GhwuZ3JwYy52MS5HZXRQYXRoTGlzdFJlc3BvbnNlMn0KFkNvbXBhbnlDYXRlZ29yeVNlcnZpY2USYwoUR2V0Q29tcGFueUNhdGVnb3JpZXMSJC5ncnBjLnYxLkdldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdBolLmdycGMudjEuR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZTL0AQoOQ29tcGFueVNlcnZpY2USSwoMR2V0Q29tcGFuaWVzEhwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXF1ZXN0Gh0uZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZRJFCgpHZXRDb21wYW55EhouZ3JwYy52MS5HZXRDb21wYW55UmVxdWVzdBobLmdycGMudjEuR2V0Q29tcGFueVJlc3BvbnNlEk4KDVVwZGF0ZUNvbXBhbnkSHS5ncnBjLnYxLlVwZGF0ZUNvbXBhbnlSZXF1ZXN0Gh4uZ3JwYy52MS5VcGRhdGVDb21wYW55UmVzcG9uc2Uy1gEKC0tvamlTZXJ2aWNlEkIKCUdldEtvamllcxIZLmdycGMudjEuR2V0S29qaWVzUmVxdWVzdBoaLmdycGMudjEuR2V0S29qaWVzUmVzcG9uc2USPAoHR2V0S29qaRIXLmdycGMudjEuR2V0S29qaVJlcXVlc3QaGC5ncnBjLnYxLkdldEtvamlSZXNwb25zZRJFCgpVcGRhdGVLb2ppEhouZ3JwYy52MS5VcGRhdGVLb2ppUmVxdWVzdBobLmdycGMudjEuVXBkYXRlS29qaVJlc3BvbnNlMucBCg1NZW1iZXJTZXJ2aWNlEkUKCkdldE1lbWJlcnMSGi5ncnBjLnYxLkdldE1lbWJlcnNSZXF1ZXN0GhsuZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2USQgoJR2V0TWVtYmVyEhkuZ3JwYy52MS5HZXRNZW1iZXJSZXF1ZXN0GhouZ3JwYy52MS5HZXRNZW1iZXJSZXNwb25zZRJLCgxVcGRhdGVNZW1iZXISHC5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlcXVlc3QaHS5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlc3BvbnNlQoQBCgtjb20uZ3JwYy52MUISVG95b3RhY2hpa3Vyb1Byb3RvUAFaGndlYi1hcGkvZ2VuL2dycGMvdjE7Z3JwY3YxogIDR1hYqgIHR3JwYy5WMcoCB0dycGNcVjHiAhNHcnBjXFYxXEdQQk1ldGFkYXRh6gIIR3JwYzo6VjGSAwcIAtI+AhADYghlZGl0aW9uc3DoBw", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
+  fileDesc("ChtncnBjL3YxL3RveW90YWNoaWt1cm8ucHJvdG8SB2dycGMudjEiKQoJRGlyZWN0b3J5EgoKAmlkGAEgASgJEhAKCGRpcl9wYXRoGAQgASgJIisKEkdldFBhdGhMaXN0UmVxdWVzdBIVCg1yZWxhdGl2ZV9wYXRoGAEgASgJIigKE0dldFBhdGhMaXN0UmVzcG9uc2USEQoJcGF0aF9saXN0GAEgAygJIi4KD0NvbXBhbnlDYXRlZ29yeRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJItUBCgdDb21wYW55EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFgoOY2F0ZWdvcnlfaW5kZXgYAyABKAUSEAoIZGlyX3BhdGgYBCABKAkSFAoMcHJfbG9uZ19uYW1lGAUgASgJEhYKDnByX3Bvc3RhbF9jb2RlGAYgASgJEhIKCnByX2FkZHJlc3MYByABKAkSDgoGcHJfdGVsGAggASgJEg4KBnByX2ZheBgJIAEoCRIQCghwcl9lbWFpbBgKIAEoCRISCgpwcl93ZWJzaXRlGAsgASgJIisKE0dldENvbXBhbmllc1JlcXVlc3QSFAoMZm9yY2VfcmVsb2FkGAEgASgIIpsBChRHZXRDb21wYW5pZXNSZXNwb25zZRI/Cgljb21wYW5pZXMYASADKAsyLC5ncnBjLnYxLkdldENvbXBhbmllc1Jlc3BvbnNlLkNvbXBhbmllc0VudHJ5GkIKDkNvbXBhbmllc0VudHJ5EgsKA2tleRgBIAEoCRIfCgV2YWx1ZRgCIAEoCzIQLmdycGMudjEuQ29tcGFueToCOAEiJgoRR2V0Q29tcGFueVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIjcKEkdldENvbXBhbnlSZXNwb25zZRIhCgdjb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55IlMKFFVwZGF0ZUNvbXBhbnlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIoCg5zb3VyY2VfY29tcGFueRgCIAEoCzIQLmdycGMudjEuQ29tcGFueSI/ChVVcGRhdGVDb21wYW55UmVzcG9uc2USJgoMcHJldl9jb21wYW55GAEgASgLMhAuZ3JwYy52MS5Db21wYW55Ih0KG0dldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdCJMChxHZXRDb21wYW55Q2F0ZWdvcmllc1Jlc3BvbnNlEiwKCmNhdGVnb3JpZXMYASADKAsyGC5ncnBjLnYxLkNvbXBhbnlDYXRlZ29yeSKoAQoES29qaRIKCgJpZBgBIAEoCRIpCgVzdGFydBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMY29tcGFueV9uYW1lGAMgASgJEhUKDWxvY2F0aW9uX25hbWUYBCABKAkSEAoIZGlyX3BhdGgYBSABKAkSKgoGcHJfZW5kGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCISChBHZXRLb2ppZXNSZXF1ZXN0IokBChFHZXRLb2ppZXNSZXNwb25zZRI2CgZrb2ppZXMYASADKAsyJi5ncnBjLnYxLkdldEtvamllc1Jlc3BvbnNlLktvamllc0VudHJ5GjwKC0tvamllc0VudHJ5EgsKA2tleRgBIAEoCRIcCgV2YWx1ZRgCIAEoCzINLmdycGMudjEuS29qaToCOAEiIwoOR2V0S29qaVJlcXVlc3QSEQoJdGFyZ2V0X2lkGAEgASgJIi4KD0dldEtvamlSZXNwb25zZRIbCgRrb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIkoKEVVwZGF0ZUtvamlSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIiCgtzb3VyY2Vfa29qaRgCIAEoCzINLmdycGMudjEuS29qaSI2ChJVcGRhdGVLb2ppUmVzcG9uc2USIAoJcHJldl9rb2ppGAEgASgLMg0uZ3JwYy52MS5Lb2ppIpoDCgZNZW1iZXISCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIRCglpc19hY3RpdmUYAyABKAgSFAoMY29tcGFueV9uYW1lGAQgASgJEh0KFWNvbXBhbnlfY2F0ZWdvcnlfbmFtZRgTIAEoCRIQCghkaXJfcGF0aBgFIAEoCRIUCgxwcl9sYXN0X25hbWUYBiABKAkSFQoNcHJfZmlyc3RfbmFtZRgHIAEoCRIWCg5wcl9taWRkbGVfbmFtZRgIIAEoCRIUCgxwcl9rYW5hX25hbWUYCSABKAkSDwoHcHJfcm9sZRgKIAEoCRIUCgxwcl9iaXJ0aGRhdGUYEiABKAkSFQoNcHJfYmxvb2RfdHlwZRgUIAEoCRIWCg5wcl9wb3N0YWxfY29kZRgLIAEoCRISCgpwcl9hZGRyZXNzGAwgASgJEhEKCXByX21vYmlsZRgNIAEoCRIOCgZwcl90ZWwYDiABKAkSDgoGcHJfZmF4GA8gASgJEhAKCHByX2VtYWlsGBAgASgJEhIKCnByX3dlYnNpdGUYESABKAkiEwoRR2V0TWVtYmVyc1JlcXVlc3QikAEKEkdldE1lbWJlcnNSZXNwb25zZRI5CgdtZW1iZXJzGAEgAygLMiguZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2UuTWVtYmVyc0VudHJ5Gj8KDE1lbWJlcnNFbnRyeRILCgNrZXkYASABKAkSHgoFdmFsdWUYAiABKAsyDy5ncnBjLnYxLk1lbWJlcjoCOAEiJQoQR2V0TWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkiNAoRR2V0TWVtYmVyUmVzcG9uc2USHwoGbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIiUAoTVXBkYXRlTWVtYmVyUmVxdWVzdBIRCgl0YXJnZXRfaWQYASABKAkSJgoNc291cmNlX21lbWJlchgCIAEoCzIPLmdycGMudjEuTWVtYmVyIjwKFFVwZGF0ZU1lbWJlclJlc3BvbnNlEiQKC3ByZXZfbWVtYmVyGAEgASgLMg8uZ3JwYy52MS5NZW1iZXIyXAoQRGlyZWN0b3J5U2VydmljZRJICgtHZXRQYXRoTGlzdBIbLmdycGMudjEuR2V0UGF0aExpc3RSZXF1ZXN0GhwuZ3JwYy52MS5HZXRQYXRoTGlzdFJlc3BvbnNlMn0KFkNvbXBhbnlDYXRlZ29yeVNlcnZpY2USYwoUR2V0Q29tcGFueUNhdGVnb3JpZXMSJC5ncnBjLnYxLkdldENvbXBhbnlDYXRlZ29yaWVzUmVxdWVzdBolLmdycGMudjEuR2V0Q29tcGFueUNhdGVnb3JpZXNSZXNwb25zZTL0AQoOQ29tcGFueVNlcnZpY2USSwoMR2V0Q29tcGFuaWVzEhwuZ3JwYy52MS5HZXRDb21wYW5pZXNSZXF1ZXN0Gh0uZ3JwYy52MS5HZXRDb21wYW5pZXNSZXNwb25zZRJFCgpHZXRDb21wYW55EhouZ3JwYy52MS5HZXRDb21wYW55UmVxdWVzdBobLmdycGMudjEuR2V0Q29tcGFueVJlc3BvbnNlEk4KDVVwZGF0ZUNvbXBhbnkSHS5ncnBjLnYxLlVwZGF0ZUNvbXBhbnlSZXF1ZXN0Gh4uZ3JwYy52MS5VcGRhdGVDb21wYW55UmVzcG9uc2Uy1gEKC0tvamlTZXJ2aWNlEkIKCUdldEtvamllcxIZLmdycGMudjEuR2V0S29qaWVzUmVxdWVzdBoaLmdycGMudjEuR2V0S29qaWVzUmVzcG9uc2USPAoHR2V0S29qaRIXLmdycGMudjEuR2V0S29qaVJlcXVlc3QaGC5ncnBjLnYxLkdldEtvamlSZXNwb25zZRJFCgpVcGRhdGVLb2ppEhouZ3JwYy52MS5VcGRhdGVLb2ppUmVxdWVzdBobLmdycGMudjEuVXBkYXRlS29qaVJlc3BvbnNlMucBCg1NZW1iZXJTZXJ2aWNlEkUKCkdldE1lbWJlcnMSGi5ncnBjLnYxLkdldE1lbWJlcnNSZXF1ZXN0GhsuZ3JwYy52MS5HZXRNZW1iZXJzUmVzcG9uc2USQgoJR2V0TWVtYmVyEhkuZ3JwYy52MS5HZXRNZW1iZXJSZXF1ZXN0GhouZ3JwYy52MS5HZXRNZW1iZXJSZXNwb25zZRJLCgxVcGRhdGVNZW1iZXISHC5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlcXVlc3QaHS5ncnBjLnYxLlVwZGF0ZU1lbWJlclJlc3BvbnNlQoQBCgtjb20uZ3JwYy52MUISVG95b3RhY2hpa3Vyb1Byb3RvUAFaGndlYi1hcGkvZ2VuL2dycGMvdjE7Z3JwY3YxogIDR1hYqgIHR3JwYy5WMcoCB0dycGNcVjHiAhNHcnBjXFYxXEdQQk1ldGFkYXRh6gIIR3JwYzo6VjGSAwcIAtI+AhADYghlZGl0aW9uc3DoBw", [file_google_protobuf_go_features, file_google_protobuf_timestamp]);
 
 /**
  * Directory represents information about a directory
@@ -127,39 +127,39 @@ export type Company = Message<"grpc.v1.Company"> & {
   dirPath: string;
 
   /**
-   * @generated from field: string mf_long_name = 5;
+   * @generated from field: string pr_long_name = 5;
    */
-  mfLongName: string;
+  prLongName: string;
 
   /**
-   * @generated from field: string mf_postal_code = 6;
+   * @generated from field: string pr_postal_code = 6;
    */
-  mfPostalCode: string;
+  prPostalCode: string;
 
   /**
-   * @generated from field: string mf_address = 7;
+   * @generated from field: string pr_address = 7;
    */
-  mfAddress: string;
+  prAddress: string;
 
   /**
-   * @generated from field: string mf_tel = 8;
+   * @generated from field: string pr_tel = 8;
    */
-  mfTel: string;
+  prTel: string;
 
   /**
-   * @generated from field: string mf_fax = 9;
+   * @generated from field: string pr_fax = 9;
    */
-  mfFax: string;
+  prFax: string;
 
   /**
-   * @generated from field: string mf_email = 10;
+   * @generated from field: string pr_email = 10;
    */
-  mfEmail: string;
+  prEmail: string;
 
   /**
-   * @generated from field: string mf_website = 11;
+   * @generated from field: string pr_website = 11;
    */
-  mfWebsite: string;
+  prWebsite: string;
 };
 
 /**
@@ -341,9 +341,9 @@ export type Koji = Message<"grpc.v1.Koji"> & {
   dirPath: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp mf_end = 6;
+   * @generated from field: google.protobuf.Timestamp pr_end = 6;
    */
-  mfEnd?: Timestamp;
+  prEnd?: Timestamp;
 };
 
 /**
@@ -493,74 +493,74 @@ export type Member = Message<"grpc.v1.Member"> & {
   dirPath: string;
 
   /**
-   * @generated from field: string mf_last_name = 6;
+   * @generated from field: string pr_last_name = 6;
    */
-  mfLastName: string;
+  prLastName: string;
 
   /**
-   * @generated from field: string mf_first_name = 7;
+   * @generated from field: string pr_first_name = 7;
    */
-  mfFirstName: string;
+  prFirstName: string;
 
   /**
-   * @generated from field: string mf_middle_name = 8;
+   * @generated from field: string pr_middle_name = 8;
    */
-  mfMiddleName: string;
+  prMiddleName: string;
 
   /**
-   * @generated from field: string mf_kana_name = 9;
+   * @generated from field: string pr_kana_name = 9;
    */
-  mfKanaName: string;
+  prKanaName: string;
 
   /**
-   * @generated from field: string mf_role = 10;
+   * @generated from field: string pr_role = 10;
    */
-  mfRole: string;
+  prRole: string;
 
   /**
-   * @generated from field: string mf_birthdate = 18;
+   * @generated from field: string pr_birthdate = 18;
    */
-  mfBirthdate: string;
+  prBirthdate: string;
 
   /**
-   * @generated from field: string mf_blood_type = 20;
+   * @generated from field: string pr_blood_type = 20;
    */
-  mfBloodType: string;
+  prBloodType: string;
 
   /**
-   * @generated from field: string mf_postal_code = 11;
+   * @generated from field: string pr_postal_code = 11;
    */
-  mfPostalCode: string;
+  prPostalCode: string;
 
   /**
-   * @generated from field: string mf_address = 12;
+   * @generated from field: string pr_address = 12;
    */
-  mfAddress: string;
+  prAddress: string;
 
   /**
-   * @generated from field: string mf_mobile = 13;
+   * @generated from field: string pr_mobile = 13;
    */
-  mfMobile: string;
+  prMobile: string;
 
   /**
-   * @generated from field: string mf_tel = 14;
+   * @generated from field: string pr_tel = 14;
    */
-  mfTel: string;
+  prTel: string;
 
   /**
-   * @generated from field: string mf_fax = 15;
+   * @generated from field: string pr_fax = 15;
    */
-  mfFax: string;
+  prFax: string;
 
   /**
-   * @generated from field: string mf_email = 16;
+   * @generated from field: string pr_email = 16;
    */
-  mfEmail: string;
+  prEmail: string;
 
   /**
-   * @generated from field: string mf_website = 17;
+   * @generated from field: string pr_website = 17;
    */
-  mfWebsite: string;
+  prWebsite: string;
 };
 
 /**
