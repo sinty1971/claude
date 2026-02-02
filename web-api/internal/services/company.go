@@ -131,7 +131,7 @@ func (srv *CompanyService) SyncAllToCache() {
 		// マニフェストデータの読み込み
 		err = company.Load()
 		if err != nil {
-			log.Printf("永続データの読み込みに失敗しました 会社名 %s: %v", company.Message.Interface().(*grpcv1.Company).GetName(), err)
+			log.Printf("永続データの読み込みに失敗しました 会社名 %s: %v", company.Message.(*grpcv1.Company).GetName(), err)
 		}
 
 		// Repositoryに追加（初期ロード時は自動保存しない）
@@ -200,7 +200,7 @@ func (srv *CompanyService) GetCompanies(
 	// 会社データモデルを作成
 	grpcCompanies := make(map[string]*grpcv1.Company, srv.repo.Count())
 	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcCompany, ok := mes.Interface().(*grpcv1.Company)
+		grpcCompany, ok := mes.(*grpcv1.Company)
 		if !ok {
 			continue
 		}
@@ -234,7 +234,7 @@ func (srv *CompanyService) GetCompany(
 	}
 
 	// Responseの更新
-	companyMes, ok := company.Message.Interface().(*grpcv1.Company)
+	companyMes, ok := company.Message.(*grpcv1.Company)
 	if !ok {
 		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
 		return
@@ -271,13 +271,13 @@ func (srv *CompanyService) UpdateCompany(
 	}
 
 	// 変更前の情報を保持
-	prevMes, ok := proto.Clone(target.Message.Interface()).(*grpcv1.Company)
+	prevMes, ok := proto.Clone(target.Message).(*grpcv1.Company)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
 	}
 
 	// 会社情報を更新
-	err = srv.repo.Update(targetId, srcMes.ProtoReflect())
+	err = srv.repo.Update(targetId, srcMes)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

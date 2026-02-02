@@ -9,15 +9,15 @@ import (
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
 
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 )
 
 // Koji core.PersistModel[*grpcv1.Koji] の拡張版です。
 type Koji struct{}
 
 // GenerateId は dirPath から工事IDを生成します
-func (m *Koji) GenerateId(message protoreflect.Message) string {
-	mes, ok := message.Interface().(*grpcv1.Koji)
+func (m *Koji) GenerateId(message proto.Message) string {
+	mes, ok := message.(*grpcv1.Koji)
 	if !ok {
 		return ""
 	}
@@ -27,13 +27,13 @@ func (m *Koji) GenerateId(message protoreflect.Message) string {
 }
 
 // ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
-func (m *Koji) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+func (m *Koji) GenerateMessage(request proto.Message) (proto.Message, error) {
 	// mes が nil の場合はデフォルト初期化を行う
 	if request == nil {
 		return grpcv1.Koji_builder{}.Build(), nil
 	}
 	// request の型アサーション
-	req, ok := request.Interface().(*grpcv1.Koji)
+	req, ok := request.(*grpcv1.Koji)
 	if !ok {
 		return nil, errors.New("message の型アサーションに失敗しました")
 	}
@@ -75,7 +75,7 @@ func (m *Koji) GenerateMessage(request protoreflect.Message) (protoreflect.Proto
 	m.EnsurePrEndFromStart(mes)
 
 	// Id フィールドの設定
-	newId := m.GenerateId(mes.ProtoReflect())
+	newId := m.GenerateId(mes)
 	mes.SetId(newId)
 
 	return mes, nil
@@ -101,10 +101,10 @@ func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
 }
 
 // UpdateMessage は情報を更新します
-func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
+func (m *Koji) UpdateMessage(target proto.Message, source proto.Message) error {
 	// target メッセージの型アサーション
-	mes, ok1 := target.Interface().(*grpcv1.Koji)
-	srcMes, ok2 := source.Interface().(*grpcv1.Koji)
+	mes, ok1 := target.(*grpcv1.Koji)
+	srcMes, ok2 := source.(*grpcv1.Koji)
 	if !ok1 || !ok2 {
 		return errors.New("message の型アサーションに失敗しました")
 	}
@@ -139,7 +139,7 @@ func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Me
 		m.EnsurePrEndFromStart(mes)
 
 		// Id フィールドの更新
-		newId := m.GenerateId(mes.ProtoReflect())
+		newId := m.GenerateId(mes)
 		mes.SetId(newId)
 	}
 
@@ -152,7 +152,6 @@ func (m *Koji) UpdateMessage(target protoreflect.Message, source protoreflect.Me
 //	      cn: 会社名
 //	      loc: 現場名
 //	戻り値:
-//
 //		生成された工事フォルダーパス
 func (m *Koji) generateBaseName(st Timestamp, cn string, loc string) (string, error) {
 	// 開始日のフォーマット
@@ -199,7 +198,7 @@ func NewPersistModelKoji(dirPath string) (*core.PersistModel[*Koji], error) {
 	// 初期化
 	request := grpcv1.Koji_builder{}.Build()
 	request.SetDirPath(dirPath)
-	err = pm.Initialize(request.ProtoReflect())
+	err = pm.Initialize(request)
 	if err != nil {
 		return nil, err
 	}

@@ -215,7 +215,7 @@ func (srv *KojiService) GetKojies(
 
 	grpcKojies := make(map[string]*grpcv1.Koji, srv.repo.Count())
 	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcKoji, ok := mes.Interface().(*grpcv1.Koji)
+		grpcKoji, ok := mes.(*grpcv1.Koji)
 		if !ok {
 			continue
 		}
@@ -248,7 +248,7 @@ func (srv *KojiService) GetKoji(
 	}
 
 	// Responseの更新
-	grpcKoji, ok := koji.Message.Interface().(*grpcv1.Koji)
+	grpcKoji, ok := koji.Message.(*grpcv1.Koji)
 	if !ok {
 		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
 		return
@@ -281,13 +281,13 @@ func (srv *KojiService) UpdateKoji(
 	}
 
 	// 変更前の工事データのメッセージを保存
-	prevMessageKoji, ok := proto.Clone(prevKoji.Message.Interface()).(*grpcv1.Koji)
+	prevMessageKoji, ok := proto.Clone(prevKoji.Message).(*grpcv1.Koji)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
 	}
 
 	// 工事情報を更新
-	err = srv.repo.Update(targetId, sourceKojiMessage.ProtoReflect())
+	err = srv.repo.Update(targetId, sourceKojiMessage)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

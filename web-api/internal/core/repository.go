@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 )
 
 // Repository は永続化を自動管理するジェネリックリポジトリ
@@ -52,7 +52,7 @@ func (r *Repository[T]) Set(item PersistModel[T]) error {
 }
 
 // Update は既存アイテムを更新し、autoSaveが有効なら自動保存
-func (r *Repository[T]) Update(targetId string, source protoreflect.Message) error {
+func (r *Repository[T]) Update(targetId string, source proto.Message) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -97,11 +97,11 @@ func (r *Repository[T]) Delete(id string) error {
 }
 
 // GetAllAsMessage は全アイテムのメッセージを取得
-func (r *Repository[T]) GetAllAsMessage() []protoreflect.Message {
+func (r *Repository[T]) GetAllAsMessage() []proto.Message {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	messages := make([]protoreflect.Message, 0, len(r.cache))
+	messages := make([]proto.Message, 0, len(r.cache))
 	for _, item := range r.cache {
 		messages = append(messages, item.Message)
 	}
@@ -143,12 +143,12 @@ func (r *Repository[T]) SaveAll() error {
 }
 
 // AssertProtoAs は簡易コンバータ生成ヘルパーです。型アサーションを行い、失敗したらエラーを返します。
-func AssertProtoAs[R any](m protoreflect.Message) (R, error) {
+func AssertProtoAs[R any](m proto.Message) (R, error) {
 	var zero R
 	if m == nil {
 		return zero, fmt.Errorf("message is nil")
 	}
-	iface := m.Interface()
+	iface := m
 	if v, ok := iface.(R); ok {
 		return v, nil
 	}

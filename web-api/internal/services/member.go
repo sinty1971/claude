@@ -106,7 +106,7 @@ func (srv *MemberService) SyncAllToCache() error {
 
 		err = member.Load()
 		if err != nil {
-			mes := member.Message.Interface().(*grpcv1.Member)
+			mes := member.Message.(*grpcv1.Member)
 			log.Printf("マニフェストデータの読み込みに失敗しました 作業員名 %s: %v", mes.GetName(), err)
 		}
 
@@ -214,7 +214,7 @@ func (srv *MemberService) GetMembers(
 	// Repositoryから全てのMemberを取得
 	grpcMembers := make(map[string]*grpcv1.Member, srv.repo.Count())
 	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcMember, ok := mes.Interface().(*grpcv1.Member)
+		grpcMember, ok := mes.(*grpcv1.Member)
 		if !ok {
 			continue
 		}
@@ -244,7 +244,7 @@ func (srv *MemberService) GetMember(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	grpcMember, ok := member.Message.Interface().(*grpcv1.Member)
+	grpcMember, ok := member.Message.(*grpcv1.Member)
 	if !ok {
 		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert member message type"))
 		return
@@ -277,9 +277,9 @@ func (srv *MemberService) UpdateMember(
 	}
 
 	// prevGrpcMember の作成
-	prevGrpcMember := proto.Clone(prevMember.Message.Interface()).(*grpcv1.Member)
+	prevGrpcMember := proto.Clone(prevMember.Message).(*grpcv1.Member)
 
-	err = srv.repo.Update(targetId, sourceGrpcMember.ProtoReflect())
+	err = srv.repo.Update(targetId, sourceGrpcMember)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

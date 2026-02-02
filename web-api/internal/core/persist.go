@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gopkg.in/yaml.v3"
 )
@@ -21,7 +21,7 @@ import (
 // 一つの情報源はファイルシステムのパス名から取得されるのですが、それでは足りない場合があります。
 type PersistModel[T Persistable] struct {
 	Model           T
-	Message         protoreflect.Message
+	Message         proto.Message
 	persistFilename string
 }
 
@@ -30,14 +30,11 @@ type PersistModel[T Persistable] struct {
 type Persistable interface {
 	// MessageFromDirPath は dirPath をもとにモデルの初期化を行います。
 	// mes の情報をもとにメッセージの生成を行います。
-	GenerateMessage(message protoreflect.Message) (protoreflect.ProtoMessage, error)
+	GenerateMessage(request proto.Message) (proto.Message, error)
 
-	// GenerateId はモデルのIDを取得します。
-	GenerateId(message protoreflect.Message) string
-
-	// UpdateMessage は current メッセージと source メッセージをもとに
+	// UpdateMessage は target メッセージと source メッセージをもとに
 	// 更新後のメッセージを生成します。
-	UpdateMessage(current protoreflect.Message, source protoreflect.Message) error
+	UpdateMessage(target proto.Message, source proto.Message) error
 }
 
 // NewPersistModel は PersistModel インスタンスを作成します。
@@ -51,22 +48,22 @@ func NewPersistModel[T Persistable](model T, persistFileName string) (*PersistMo
 	// PersistModel インスタンスを作成
 	return &PersistModel[T]{
 		Model:           model,
-		Message:         mes.ProtoReflect(),
+		Message:         mes,
 		persistFilename: persistFileName,
 	}, nil
 }
 
 // Initialize は initArg をもとにモデルの初期化を行います。
 // この関数が呼ばれたときに p.persistDirPath が設定されます。
-func (p *PersistModel[T]) Initialize(message protoreflect.Message) error {
+func (p *PersistModel[T]) Initialize(request proto.Message) error {
 	// dirPath から Messageを取得
-	mes, err := p.Model.GenerateMessage(message)
+	mes, err := p.Model.GenerateMessage(request)
 	if err != nil {
 		return err
 	}
 
 	// メッセージを設定
-	p.Message = mes.ProtoReflect()
+	p.Message = mes
 	err = p.Load()
 	if err != nil {
 		return err
@@ -163,15 +160,15 @@ func (p *PersistModel[T]) UpdatePersistFields(source *PersistModel[T]) error {
 	}
 
 	// Persist フィールドのみを更新
-	fields := p.Message.Descriptor().Fields()
+	fields := p.Message.ProtoReflect().Descriptor().Fields()
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
-		v := source.Message.Get(f)
+		v := source.Message.ProtoReflect().Get(f)
 		name := string(f.Name())
 		if !strings.HasPrefix(name, "pr_") {
 			continue
 		}
-		p.Message.Set(f, v)
+		p.Message.ProtoReflect().Set(f, v)
 	}
 	return nil
 }
@@ -185,7 +182,7 @@ func (p *PersistModel[T]) Update(source *PersistModel[T]) error {
 		if err != nil {
 			return err
 		}
-		p.Message = mes.ProtoReflect()
+		p.Message = mes
 
 		// Persist データのロード
 		return p.Load()
@@ -207,7 +204,7 @@ func (p *PersistModel[T]) ExportJson() (*map[string]any, error) {
 	jsonbytes, err := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: true,
-	}.Marshal(p.Message.Interface())
+	}.Marshal(p.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +230,7 @@ func (p *PersistModel[T]) convertTimestampsToJST(jsonmap *map[string]any) {
 		return
 	}
 
-	ref := p.Message
+	ref := p.Message.ProtoReflect()
 	if ref == nil {
 		return
 	}
@@ -276,8 +273,11 @@ func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
 		return err
 	}
 
+	// p.Message の ProtoReflect を取得
+	msgRef := p.Message.ProtoReflect()
+
 	// 一時的な空のメッセージを作成してアンマーシャル
-	tempMsg := p.Message.Type().New()
+	tempMsg := msgRef.Type().New()
 
 	opts := protojson.UnmarshalOptions{AllowPartial: true}
 	if err := opts.Unmarshal(bytes, tempMsg.Interface()); err != nil {
@@ -285,7 +285,7 @@ func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
 	}
 
 	// pr_ フィールドのみを元のメッセージにコピー
-	fields := p.Message.Descriptor().Fields()
+	fields := msgRef.Descriptor().Fields()
 	tempRef := tempMsg
 	for i := 0; i < fields.Len(); i++ {
 		f := fields.Get(i)
@@ -293,7 +293,7 @@ func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
 			continue
 		}
 		if tempRef.Has(f) {
-			p.Message.Set(f, tempRef.Get(f))
+			msgRef.Set(f, tempRef.Get(f))
 		}
 	}
 

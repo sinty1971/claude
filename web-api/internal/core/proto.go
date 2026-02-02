@@ -5,29 +5,31 @@ import (
 	"reflect"
 	"strconv"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // GetFieldAs は protobuf メッセージのフィールドを指定型 V で返します。
 // サポート: 文字列・整数・符号無し整数・浮動小数点・真偽値・メッセージ型の直接アサーション。
 // 文字列フィールドを数値型に要求した場合はパースを試みます。
-func GetFieldAs[V any](message protoreflect.Message, fieldName string) (V, error) {
+func GetFieldAs[V any](message proto.Message, fieldName string) (V, error) {
 	var zero V
 
 	if message == nil {
 		return zero, errors.New("message is nil")
 	}
 
-	fields := message.Descriptor().Fields()
+	msgRef := message.ProtoReflect()
+	fields := msgRef.Descriptor().Fields()
 	fd := fields.ByName(protoreflect.Name(fieldName))
 	if fd == nil {
 		return zero, errors.New("field " + fieldName + " not found")
 	}
-	if !message.Has(fd) {
+	if !msgRef.Has(fd) {
 		return zero, errors.New("field '" + fieldName + "' is not set")
 	}
 
-	val := message.Get(fd)
+	val := msgRef.Get(fd)
 	var rval reflect.Value
 	typ := reflect.TypeOf(zero)
 

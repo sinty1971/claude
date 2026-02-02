@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
@@ -16,8 +16,8 @@ import (
 type Company struct{}
 
 // GenerateId は dirPath から会社IDを生成します
-func (m *Company) GenerateId(message protoreflect.Message) string {
-	mes, ok := message.Interface().(*grpcv1.Company)
+func (m *Company) GenerateId(message proto.Message) string {
+	mes, ok := message.(*grpcv1.Company)
 	if !ok {
 		return ""
 	}
@@ -27,14 +27,14 @@ func (m *Company) GenerateId(message protoreflect.Message) string {
 }
 
 // GenerateMessage はモデルの protobuf メッセージを取得します。
-func (m *Company) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+func (m *Company) GenerateMessage(request proto.Message) (proto.Message, error) {
 	// request が nil の場合はデフォルト初期化を行う
 	if request == nil {
 		return grpcv1.Company_builder{}.Build(), nil
 	}
 
 	// request の型アサーション
-	req, ok := request.Interface().(*grpcv1.Company)
+	req, ok := request.(*grpcv1.Company)
 	if !ok {
 		return nil, errors.New("message の型アサーションに失敗しました")
 	}
@@ -81,10 +81,10 @@ func (m *Company) GenerateMessage(request protoreflect.Message) (protoreflect.Pr
 
 // Update は会社情報を更新します
 // 必要に応じて会社フォルダー名の変更も行います
-func (m *Company) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
+func (m *Company) UpdateMessage(target proto.Message, source proto.Message) error {
 	// メッセージの型アサーション
-	mes, ok1 := target.Interface().(*grpcv1.Company)
-	srcMes, ok2 := source.Interface().(*grpcv1.Company)
+	mes, ok1 := target.(*grpcv1.Company)
+	srcMes, ok2 := source.(*grpcv1.Company)
 	if !ok1 || !ok2 {
 		return errors.New("message の型アサーションに失敗しました")
 	}
@@ -117,7 +117,7 @@ func (m *Company) UpdateMessage(target protoreflect.Message, source protoreflect
 		mes.SetName(srcMes.GetName())
 
 		// Id フィールドの更新
-		newId := m.GenerateId(mes.ProtoReflect())
+		newId := m.GenerateId(mes)
 		mes.SetId(newId)
 
 	}
@@ -148,7 +148,7 @@ func NewPersistModelCompany(dirPath string) (*core.PersistModel[*Company], error
 	// 初期化
 	request := grpcv1.Company_builder{}.Build()
 	request.SetDirPath(dirPath)
-	err = pm.Initialize(request.ProtoReflect())
+	err = pm.Initialize(request)
 	if err != nil {
 		return nil, err
 	}

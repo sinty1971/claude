@@ -1,4 +1,10 @@
 {
     "remote.autoForwardPortsFallback": 0,
     "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "chat.tools.terminal.autoApprove": {
+        "/^python -u scripts/migrate_manifest\\.py \\. 2>&1$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    },
 }

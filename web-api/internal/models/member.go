@@ -7,14 +7,14 @@ import (
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
 
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 )
 
 // Member は core.PersistModel[*grpcv1.Member] の拡張版です。
 type Member struct{}
 
 // GenerateId は dirPath から会社IDを生成します
-func (m *Member) GenerateId(message protoreflect.Message) string {
+func (m *Member) GenerateId(message proto.Message) string {
 	pathInfo, err := messageToMemberPathInfo(message)
 	if err != nil {
 		return ""
@@ -33,7 +33,7 @@ type memberPathInfo struct {
 }
 
 // ParseFromDirPath はディレクトリパスから Member 情報を解析して設定します
-func (m *Member) GenerateMessage(request protoreflect.Message) (protoreflect.ProtoMessage, error) {
+func (m *Member) GenerateMessage(request proto.Message) (proto.Message, error) {
 	// request が nil の場合はデフォルト初期化を行う
 	if request == nil {
 		return grpcv1.Member_builder{}.Build(), nil
@@ -55,16 +55,16 @@ func (m *Member) GenerateMessage(request protoreflect.Message) (protoreflect.Pro
 	mes.SetIsActive(pathInfo.isActive)
 	mes.SetDirPath(pathInfo.fullPath)
 
-	newId := m.GenerateId(mes.ProtoReflect())
+	newId := m.GenerateId(mes)
 	mes.SetId(newId)
 
 	return mes, nil
 }
 
 // messageToMemberPathInfo はディレクトリパスを解析して memberPathInfo を返します
-func messageToMemberPathInfo(request protoreflect.Message) (*memberPathInfo, error) {
+func messageToMemberPathInfo(request proto.Message) (*memberPathInfo, error) {
 	// request の型アサーション
-	req, ok := request.Interface().(*grpcv1.Member)
+	req, ok := request.(*grpcv1.Member)
 	if !ok {
 		return nil, errors.New("message の型アサーションに失敗しました")
 	}
@@ -167,10 +167,10 @@ func findIndex(slice []string, value string) int {
 
 // Update はメンバー情報を更新します
 // 必要に応じてメンバーフォルダー名の変更も行います
-func (m *Member) UpdateMessage(target protoreflect.Message, source protoreflect.Message) error {
+func (m *Member) UpdateMessage(target proto.Message, source proto.Message) error {
 	// target と source の型アサーション
-	_, ok1 := target.Interface().(*grpcv1.Member)
-	_, ok2 := source.Interface().(*grpcv1.Member)
+	_, ok1 := target.(*grpcv1.Member)
+	_, ok2 := source.(*grpcv1.Member)
 	if !ok1 || !ok2 {
 		return errors.New("message の型アサーションに失敗しました")
 	}
@@ -192,7 +192,7 @@ func NewPersistModelMember(dirPath string) (*core.PersistModel[*Member], error) 
 	// 初期化
 	request := grpcv1.Member_builder{}.Build()
 	request.SetDirPath(dirPath)
-	err = pm.Initialize(request.ProtoReflect())
+	err = pm.Initialize(request)
 	if err != nil {
 		return nil, err
 	}
