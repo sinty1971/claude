@@ -7,7 +7,7 @@ buf := `"$env:USERPROFILE/.local/bin/buf.exe"`
 
 # Start the API server (HTTP/2 over h2c)
 api:
-    cd ./web-api ; go run cmd/server/main.go
+    cd ./web-api ; go build -o bin/server.exe; ./bin/server.exe
 
 # Test file service
 test-file *ARGS:

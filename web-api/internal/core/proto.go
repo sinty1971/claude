@@ -20,8 +20,7 @@ func GetFieldAs[V any](message proto.Message, fieldName string) (V, error) {
 	}
 
 	msgRef := message.ProtoReflect()
-	fields := msgRef.Descriptor().Fields()
-	fd := fields.ByName(protoreflect.Name(fieldName))
+	fd := msgRef.Descriptor().Fields().ByName(protoreflect.Name(fieldName))
 	if fd == nil {
 		return zero, errors.New("field " + fieldName + " not found")
 	}
@@ -30,112 +29,39 @@ func GetFieldAs[V any](message proto.Message, fieldName string) (V, error) {
 	}
 
 	val := msgRef.Get(fd)
-	var rval reflect.Value
-	typ := reflect.TypeOf(zero)
+	return convertValue[V](val, fd.Kind())
+}
 
-	switch fd.Kind() {
+// convertValue はフィールド値を指定型 V に変換します
+func convertValue[V any](val protoreflect.Value, kind protoreflect.Kind) (V, error) {
+	var zero V
+	targetType := reflect.TypeOf(zero)
+
+	switch kind {
 	case protoreflect.StringKind:
-		s := val.String()
-		switch typ.Kind() {
-		case reflect.String:
-			return any(s).(V), nil
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			bits := typ.Bits()
-			i, err := strconv.ParseInt(s, 10, bits)
-			if err != nil {
-				return zero, err
-			}
-			rval = reflect.New(typ).Elem()
-			rval.SetInt(i)
-			return rval.Interface().(V), nil
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			bits := typ.Bits()
-			u, err := strconv.ParseUint(s, 10, bits)
-			if err != nil {
-				return zero, err
-			}
-			rval = reflect.New(typ).Elem()
-			rval.SetUint(u)
-			return rval.Interface().(V), nil
-		case reflect.Float32, reflect.Float64:
-			bits := typ.Bits()
-			f, err := strconv.ParseFloat(s, bits)
-			if err != nil {
-				return zero, err
-			}
-			rval = reflect.New(typ).Elem()
-			rval.SetFloat(f)
-			return rval.Interface().(V), nil
-		case reflect.Bool:
-			b, err := strconv.ParseBool(s)
-			if err != nil {
-				return zero, err
-			}
-			return any(b).(V), nil
-		default:
-			return zero, errors.New("unsupported target type for string field")
-		}
+		return convertFromString[V](val.String(), targetType)
 
 	case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
 		protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
-		i := val.Int()
-		switch typ.Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			rval = reflect.New(typ).Elem()
-			rval.SetInt(i)
-			return rval.Interface().(V), nil
-		case reflect.String:
-			return any(strconv.FormatInt(i, 10)).(V), nil
-		default:
-			return zero, errors.New("unsupported target type for int field")
-		}
+		return convertFromInt[V](val.Int(), targetType)
 
-	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind, protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		u := val.Uint()
-		switch typ.Kind() {
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			rval = reflect.New(typ).Elem()
-			rval.SetUint(u)
-			return rval.Interface().(V), nil
-		case reflect.String:
-			return any(strconv.FormatUint(u, 10)).(V), nil
-		default:
-			return zero, errors.New("unsupported target type for uint field")
-		}
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind,
+		protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return convertFromUint[V](val.Uint(), targetType)
 
 	case protoreflect.FloatKind, protoreflect.DoubleKind:
-		f := val.Float()
-		switch typ.Kind() {
-		case reflect.Float32, reflect.Float64:
-			rval = reflect.New(typ).Elem()
-			rval.SetFloat(f)
-			return rval.Interface().(V), nil
-		case reflect.String:
-			return any(strconv.FormatFloat(f, 'f', -1, typ.Bits())).(V), nil
-		default:
-			return zero, errors.New("unsupported target type for float field")
-		}
+		return convertFromFloat[V](val.Float(), targetType)
 
 	case protoreflect.BoolKind:
-		b := val.Bool()
-		if typ.Kind() == reflect.Bool {
-			return any(b).(V), nil
-		}
-		if typ.Kind() == reflect.String {
-			return any(strconv.FormatBool(b)).(V), nil
-		}
-		return zero, errors.New("unsupported target type for bool field")
+		return convertFromBool[V](val.Bool(), targetType)
 
 	case protoreflect.MessageKind, protoreflect.GroupKind:
-		// Try to assert the underlying proto message to V
 		if msg := val.Message().Interface(); msg != nil {
 			if res, ok := msg.(V); ok {
 				return res, nil
 			}
-			// allow returning as interface{} when V is interface type
-			rv := reflect.ValueOf(msg)
-			if rv.Type().AssignableTo(typ) {
-				return rv.Interface().(V), nil
+			if reflect.ValueOf(msg).Type().AssignableTo(targetType) {
+				return reflect.ValueOf(msg).Interface().(V), nil
 			}
 		}
 		return zero, errors.New("message field cannot be converted to requested type")
@@ -143,4 +69,86 @@ func GetFieldAs[V any](message proto.Message, fieldName string) (V, error) {
 	default:
 		return zero, errors.New("unsupported field kind")
 	}
+}
+
+// convertFromString は文字列を指定型に変換します
+func convertFromString[V any](s string, targetType reflect.Type) (V, error) {
+	var zero V
+	switch targetType.Kind() {
+	case reflect.String:
+		return any(s).(V), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i, err := strconv.ParseInt(s, 10, targetType.Bits())
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetInt(i) }), err
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		u, err := strconv.ParseUint(s, 10, targetType.Bits())
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetUint(u) }), err
+	case reflect.Float32, reflect.Float64:
+		f, err := strconv.ParseFloat(s, targetType.Bits())
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetFloat(f) }), err
+	case reflect.Bool:
+		b, err := strconv.ParseBool(s)
+		return any(b).(V), err
+	default:
+		return zero, errors.New("unsupported target type for string field")
+	}
+}
+
+// convertFromInt は整数を指定型に変換します
+func convertFromInt[V any](i int64, targetType reflect.Type) (V, error) {
+	var zero V
+	switch targetType.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetInt(i) }), nil
+	case reflect.String:
+		return any(strconv.FormatInt(i, 10)).(V), nil
+	default:
+		return zero, errors.New("unsupported target type for int field")
+	}
+}
+
+// convertFromUint は符号なし整数を指定型に変換します
+func convertFromUint[V any](u uint64, targetType reflect.Type) (V, error) {
+	var zero V
+	switch targetType.Kind() {
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetUint(u) }), nil
+	case reflect.String:
+		return any(strconv.FormatUint(u, 10)).(V), nil
+	default:
+		return zero, errors.New("unsupported target type for uint field")
+	}
+}
+
+// convertFromFloat は浮動小数点数を指定型に変換します
+func convertFromFloat[V any](f float64, targetType reflect.Type) (V, error) {
+	var zero V
+	switch targetType.Kind() {
+	case reflect.Float32, reflect.Float64:
+		return setReflectValue[V](targetType, func(rv reflect.Value) { rv.SetFloat(f) }), nil
+	case reflect.String:
+		return any(strconv.FormatFloat(f, 'f', -1, targetType.Bits())).(V), nil
+	default:
+		return zero, errors.New("unsupported target type for float field")
+	}
+}
+
+// convertFromBool は真偽値を指定型に変換します
+func convertFromBool[V any](b bool, targetType reflect.Type) (V, error) {
+	var zero V
+	switch targetType.Kind() {
+	case reflect.Bool:
+		return any(b).(V), nil
+	case reflect.String:
+		return any(strconv.FormatBool(b)).(V), nil
+	default:
+		return zero, errors.New("unsupported target type for bool field")
+	}
+}
+
+// setReflectValue は reflect 経由で値を設定するヘルパー
+func setReflectValue[V any](typ reflect.Type, setter func(reflect.Value)) V {
+	rv := reflect.New(typ).Elem()
+	setter(rv)
+	return rv.Interface().(V)
 }
