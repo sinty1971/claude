@@ -29,7 +29,7 @@ type CompanyService struct {
 	baseDirPath string
 
 	// repo は会社情報リポジトリ（自動保存有効）
-	repo *core.Repository[*models.Company]
+	repo *core.TypedRepository[*grpcv1.Company, *models.Company]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -48,7 +48,7 @@ func NewCompanyService(cs *ContainerService) *CompanyService {
 	return &CompanyService{
 		name:        "CompanyService",
 		baseDirPath: baseDirPath,
-		repo:        core.NewRepository[*models.Company](true), // 自動保存有効
+		repo:        core.NewTypedRepository[*grpcv1.Company, *models.Company](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -131,7 +131,7 @@ func (srv *CompanyService) SyncAllToCache() {
 		// マニフェストデータの読み込み
 		err = company.Load()
 		if err != nil {
-			log.Printf("永続データの読み込みに失敗しました 会社名 %s: %v", company.Message.(*grpcv1.Company).GetName(), err)
+			log.Printf("永続データの読み込みに失敗しました 会社名 %s: %v", company.Message.GetName(), err)
 		}
 
 		// Repositoryに追加（初期ロード時は自動保存しない）
@@ -199,11 +199,7 @@ func (srv *CompanyService) GetCompanies(
 
 	// 会社データモデルを作成
 	grpcCompanies := make(map[string]*grpcv1.Company, srv.repo.Count())
-	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcCompany, ok := mes.(*grpcv1.Company)
-		if !ok {
-			continue
-		}
+	for _, grpcCompany := range srv.repo.GetAllAsMessage() {
 		grpcCompanies[grpcCompany.GetId()] = grpcCompany
 	}
 
@@ -234,12 +230,7 @@ func (srv *CompanyService) GetCompany(
 	}
 
 	// Responseの更新
-	companyMes, ok := company.Message.(*grpcv1.Company)
-	if !ok {
-		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert company message type"))
-		return
-	}
-	res.SetCompany(companyMes)
+	res.SetCompany(company.Message)
 
 	return
 }

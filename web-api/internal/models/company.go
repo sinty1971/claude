@@ -6,45 +6,23 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"google.golang.org/protobuf/proto"
-
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
 )
 
-// Company は core.PersistModel[*grpcv1.Company] の拡張版です。
+// Company は core.PersistModel の型安全な実装です。
+// 新規実装ではこちらを使用してください。
 type Company struct{}
 
-// GenerateId は dirPath から会社IDを生成します
-func (m *Company) GenerateId(message proto.Message) string {
-	mes, ok := message.(*grpcv1.Company)
-	if !ok {
-		return ""
-	}
-	dirPath := mes.GetDirPath()
-	basename := core.GetBaseName(dirPath)
-	return core.BytesToId([]byte(basename))
-}
-
-// GenerateMessage はモデルの protobuf メッセージを取得します。
-func (m *Company) GenerateMessage(request proto.Message) (proto.Message, error) {
-	// request が nil の場合はデフォルト初期化を行う
-	if request == nil {
+// InitializeFromMessage は message メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+func (m *Company) InitializeFromMessage(message *grpcv1.Company) (*grpcv1.Company, error) {
+	// message が nil の場合はデフォルト初期化を行う
+	if message == nil {
 		return grpcv1.Company_builder{}.Build(), nil
 	}
 
-	// request の型アサーション
-	req, ok := request.(*grpcv1.Company)
-	if !ok {
-		return nil, errors.New("message の型アサーションに失敗しました")
-	}
-
 	// dirPath を取得する
-	dirPath := req.GetDirPath()
-
-	// ParseFromDirPath は"[0-9] [会社名]"形式のファイル名となっているパスを解析します
-	// 会社名内のハイフン（含まれる場合）以前の文字列を会社名、ハイフン以降の文字列を関連名として扱います
-	// 戻り値Companyは: Id, Target, Cateory, Name, Tags のみ設定されます
+	dirPath := message.GetDirPath()
 
 	// ディレクトリ名の取得
 	dirName := core.GetBaseName(dirPath)
@@ -71,7 +49,7 @@ func (m *Company) GenerateMessage(request proto.Message) (proto.Message, error) 
 	mes := grpcv1.Company_builder{}.Build()
 
 	// 各フィールドの設定
-	mes.SetId(m.GenerateId(request))
+	mes.SetId(m.generateId(message))
 	mes.SetDirPath(dirPath)
 	mes.SetCategoryIndex(cat.GetIndex())
 	mes.SetName(sn)
@@ -79,50 +57,47 @@ func (m *Company) GenerateMessage(request proto.Message) (proto.Message, error) 
 	return mes, nil
 }
 
-// Update は会社情報を更新します
-// 必要に応じて会社フォルダー名の変更も行います
-func (m *Company) UpdateMessage(target proto.Message, source proto.Message) error {
-	// メッセージの型アサーション
-	mes, ok1 := target.(*grpcv1.Company)
-	srcMes, ok2 := source.(*grpcv1.Company)
-	if !ok1 || !ok2 {
-		return errors.New("message の型アサーションに失敗しました")
-	}
-
+// UpdateMessage は source の値に基づいて target メッセージを更新します。
+func (m *Company) UpdateMessage(target *grpcv1.Company, source *grpcv1.Company) error {
 	// 新しいパラメータを元に会社フォルダーパスを生成
 	baseName := m.generateBaseName(
-		srcMes.GetCategoryIndex(),
-		srcMes.GetName(),
+		source.GetCategoryIndex(),
+		source.GetName(),
 	)
 	if baseName == "" {
 		return errors.New("新しい会社フォルダー名の取得に失敗しました")
 	}
 
 	// 会社フォルダーパスの生成
-	parentPath := filepath.Dir(mes.GetDirPath())
+	parentPath := filepath.Dir(target.GetDirPath())
 	dirPath := filepath.Join(parentPath, baseName)
 
 	// ファイル名変更の必要がある場合は会社フォルダー名を更新
-	if dirPath != mes.GetDirPath() {
-
+	if dirPath != target.GetDirPath() {
 		// フォルダー名変更
-		err := os.Rename(mes.GetDirPath(), dirPath)
+		err := os.Rename(target.GetDirPath(), dirPath)
 		if err != nil {
 			return err
 		}
 
 		// フィールドの更新
-		mes.SetDirPath(dirPath)
-		mes.SetCategoryIndex(srcMes.GetCategoryIndex())
-		mes.SetName(srcMes.GetName())
+		target.SetDirPath(dirPath)
+		target.SetCategoryIndex(source.GetCategoryIndex())
+		target.SetName(source.GetName())
 
 		// Id フィールドの更新
-		newId := m.GenerateId(mes)
-		mes.SetId(newId)
-
+		newId := m.generateId(target)
+		target.SetId(newId)
 	}
 
 	return nil
+}
+
+// generateId は dirPath から会社IDを生成します
+func (m *Company) generateId(message *grpcv1.Company) string {
+	dirPath := message.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
 }
 
 // generateBaseName はパラメータをもとに会社フォルダー名変更します
@@ -137,8 +112,9 @@ func (m *Company) generateBaseName(ci int32, sn string) string {
 	return dirName
 }
 
-// NewPersistModelCompany は指定された会社フォルダーから PersistModel[*Company] を作成します
-func NewPersistModelCompany(dirPath string) (*core.PersistModel[*Company], error) {
+// NewPersistModelCompany は指定された会社フォルダーから PersistModel[*Company] を作成します。
+// 新規実装ではこちらを使用してください。
+func NewPersistModelCompany(dirPath string) (*core.PersistModel[*grpcv1.Company, *Company], error) {
 	// PersistModel を作成
 	pm, err := core.NewPersistModel(&Company{}, "@company.yaml")
 	if err != nil {
@@ -153,6 +129,5 @@ func NewPersistModelCompany(dirPath string) (*core.PersistModel[*Company], error
 		return nil, err
 	}
 
-	//
 	return pm, nil
 }

@@ -10,37 +10,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Member は core.PersistModel[*grpcv1.Member] の拡張版です。
+// Member は core.PersistModel の型安全な実装です。
+// 新規実装ではこちらを使用してください。
 type Member struct{}
 
-// GenerateId は dirPath から会社IDを生成します
-func (m *Member) GenerateId(message proto.Message) string {
-	pathInfo, err := messageToMemberPathInfo(message)
-	if err != nil {
-		return ""
-	}
-	return core.BytesToId([]byte(pathInfo.relativePath))
-}
-
-// memberPathInfo はメンバーのパス情報を保持します
-type memberPathInfo struct {
-	fullPath        string
-	companyCategory *grpcv1.CompanyCategory
-	companyName     string
-	memberName      string
-	isActive        bool
-	relativePath    string // "1 会社" 以降の相対パス
-}
-
-// ParseFromDirPath はディレクトリパスから Member 情報を解析して設定します
-func (m *Member) GenerateMessage(request proto.Message) (proto.Message, error) {
+// InitializeFromMessage は request メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+func (m *Member) InitializeFromMessage(message *grpcv1.Member) (*grpcv1.Member, error) {
 	// request が nil の場合はデフォルト初期化を行う
-	if request == nil {
+	if message == nil {
 		return grpcv1.Member_builder{}.Build(), nil
 	}
 
 	// パス情報を抽出
-	pathInfo, err := messageToMemberPathInfo(request)
+	pathInfo, err := messageToMemberPathInfo(message)
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +37,55 @@ func (m *Member) GenerateMessage(request proto.Message) (proto.Message, error) {
 	mes.SetIsActive(pathInfo.isActive)
 	mes.SetDirPath(pathInfo.fullPath)
 
-	newId := m.GenerateId(mes)
+	newId := m.generateId(mes)
 	mes.SetId(newId)
 
 	return mes, nil
+}
+
+// UpdateMessage は source の値に基づいて target メッセージを更新します。
+func (m *Member) UpdateMessage(target *grpcv1.Member, source *grpcv1.Member) error {
+	// TODO: メンバー情報の更新ロジックを実装
+	return nil
+}
+
+// generateId は dirPath からメンバーIDを生成します（型安全版）
+func (m *Member) generateId(message *grpcv1.Member) string {
+	pathInfo, err := messageToMemberPathInfo(message)
+	if err != nil {
+		return ""
+	}
+	return core.BytesToId([]byte(pathInfo.relativePath))
+}
+
+// NewPersistModelMember は指定されたメンバーフォルダーから PersistModel[*Member] を作成します。
+// 新規実装ではこちらを使用してください。
+func NewPersistModelMember(dirPath string) (*core.PersistModel[*grpcv1.Member, *Member], error) {
+	// PersistModel を作成
+	pm, err := core.NewPersistModel(&Member{}, "@member.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	// 初期化
+	request := grpcv1.Member_builder{}.Build()
+	request.SetDirPath(dirPath)
+	err = pm.Initialize(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return pm, nil
+}
+
+// memberPathInfo はメンバーのパス情報を保持します
+type memberPathInfo struct {
+	fullPath        string
+	companyCategory *grpcv1.CompanyCategory
+	companyName     string
+	memberName      string
+	isActive        bool
+	relativePath    string // "1 会社" 以降の相対パス
 }
 
 // messageToMemberPathInfo はディレクトリパスを解析して memberPathInfo を返します
@@ -163,40 +190,4 @@ func findIndex(slice []string, value string) int {
 		}
 	}
 	return -1
-}
-
-// Update はメンバー情報を更新します
-// 必要に応じてメンバーフォルダー名の変更も行います
-func (m *Member) UpdateMessage(target proto.Message, source proto.Message) error {
-	// target と source の型アサーション
-	_, ok1 := target.(*grpcv1.Member)
-	_, ok2 := source.(*grpcv1.Member)
-	if !ok1 || !ok2 {
-		return errors.New("message の型アサーションに失敗しました")
-	}
-
-	// Manifest データの更新
-	// TODO: メンバー情報の更新ロジックを実装
-
-	return nil
-}
-
-// NewPersistModelMember は指定されたメンバーフォルダーから PersistModel[*Member] を作成します
-func NewPersistModelMember(dirPath string) (*core.PersistModel[*Member], error) {
-	// PersistModel を作成
-	pm, err := core.NewPersistModel(&Member{}, "@member.yaml")
-	if err != nil {
-		return nil, err
-	}
-
-	// 初期化
-	request := grpcv1.Member_builder{}.Build()
-	request.SetDirPath(dirPath)
-	err = pm.Initialize(request)
-	if err != nil {
-		return nil, err
-	}
-
-	//
-	return pm, nil
 }

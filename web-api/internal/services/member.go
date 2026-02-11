@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -30,7 +29,7 @@ type MemberService struct {
 	baseDirPath string
 
 	// repo はMember情報リポジトリ（自動保存有効）
-	repo *core.Repository[*models.Member]
+	repo *core.TypedRepository[*grpcv1.Member, *models.Member]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -51,7 +50,7 @@ func NewMemberService(cs *ContainerService) *MemberService {
 		name:        "MemberService",
 		cs:          cs,
 		baseDirPath: baseDirPath,
-		repo:        core.NewRepository[*models.Member](true), // 自動保存有効
+		repo:        core.NewTypedRepository[*grpcv1.Member, *models.Member](true), // 自動保存有効
 	}
 }
 
@@ -106,7 +105,7 @@ func (srv *MemberService) SyncAllToCache() error {
 
 		err = member.Load()
 		if err != nil {
-			mes := member.Message.(*grpcv1.Member)
+			mes := member.Message
 			log.Printf("マニフェストデータの読み込みに失敗しました 作業員名 %s: %v", mes.GetName(), err)
 		}
 
@@ -213,11 +212,7 @@ func (srv *MemberService) GetMembers(
 
 	// Repositoryから全てのMemberを取得
 	grpcMembers := make(map[string]*grpcv1.Member, srv.repo.Count())
-	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcMember, ok := mes.(*grpcv1.Member)
-		if !ok {
-			continue
-		}
+	for _, grpcMember := range srv.repo.GetAllAsMessage() {
 		grpcMembers[grpcMember.GetId()] = grpcMember
 	}
 
@@ -244,11 +239,7 @@ func (srv *MemberService) GetMember(
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	grpcMember, ok := member.Message.(*grpcv1.Member)
-	if !ok {
-		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert member message type"))
-		return
-	}
+	grpcMember := member.Message
 
 	// レスポンスの設定とリターン
 	res.SetMember(grpcMember)

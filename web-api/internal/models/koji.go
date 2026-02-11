@@ -5,40 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
-
-	"google.golang.org/protobuf/proto"
 )
 
-// Koji core.PersistModel[*grpcv1.Koji] の拡張版です。
+// Koji は core.PersistModel の型安全な実装です。
+// 新規実装ではこちらを使用してください。
 type Koji struct{}
 
-// GenerateId は dirPath から工事IDを生成します
-func (m *Koji) GenerateId(message proto.Message) string {
-	mes, ok := message.(*grpcv1.Koji)
-	if !ok {
-		return ""
-	}
-	dirPath := mes.GetDirPath()
-	basename := core.GetBaseName(dirPath)
-	return core.BytesToId([]byte(basename))
-}
-
-// ParseFromDirPath は dirPath から工事開始日・会社名・現場名を取得
-func (m *Koji) GenerateMessage(request proto.Message) (proto.Message, error) {
-	// mes が nil の場合はデフォルト初期化を行う
-	if request == nil {
+// InitializeFromMessage は message メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+func (m *Koji) InitializeFromMessage(message *grpcv1.Koji) (*grpcv1.Koji, error) {
+	// message が nil の場合はデフォルト初期化を行う
+	if message == nil {
 		return grpcv1.Koji_builder{}.Build(), nil
 	}
-	// request の型アサーション
-	req, ok := request.(*grpcv1.Koji)
-	if !ok {
-		return nil, errors.New("message の型アサーションに失敗しました")
-	}
+
 	// dirPath を取得する
-	dirPath := req.GetDirPath()
+	dirPath := message.GetDirPath()
 
 	// フォルダー名を取得
 	dirName := core.GetBaseName(dirPath)
@@ -75,84 +58,59 @@ func (m *Koji) GenerateMessage(request proto.Message) (proto.Message, error) {
 	m.EnsurePrEndFromStart(mes)
 
 	// Id フィールドの設定
-	newId := m.GenerateId(mes)
+	newId := m.generateId(mes)
 	mes.SetId(newId)
 
 	return mes, nil
 }
 
-// GenerateKojiStatus はプロジェクトステータスを判定する
-func GenerateKojiStatus(start *Timestamp, end *Timestamp) string {
-	if start == nil || end == nil {
-		return "不明"
-	}
-
-	now := time.Now()
-
-	if !start.IsValid() || !end.IsValid() {
-		return "不明"
-	} else if now.Before(start.AsTime()) {
-		return "予定"
-	} else if now.After(end.AsTime()) {
-		return "完了"
-	} else {
-		return "進行中"
-	}
-}
-
-// UpdateMessage は情報を更新します
-func (m *Koji) UpdateMessage(target proto.Message, source proto.Message) error {
-	// target メッセージの型アサーション
-	mes, ok1 := target.(*grpcv1.Koji)
-	srcMes, ok2 := source.(*grpcv1.Koji)
-	if !ok1 || !ok2 {
-		return errors.New("message の型アサーションに失敗しました")
-	}
-
+// UpdateMessage は source の値に基づいて target メッセージを更新します。
+func (m *Koji) UpdateMessage(target *grpcv1.Koji, source *grpcv1.Koji) error {
 	// 新しいパラメータを元に管理フォルダーパスを生成
-	sourceStart := Timestamp{Timestamp: srcMes.GetStart()}
+	sourceStart := Timestamp{Timestamp: source.GetStart()}
 	baseName, err := m.generateBaseName(
 		sourceStart,
-		srcMes.GetCompanyName(),
-		srcMes.GetLocationName())
+		source.GetCompanyName(),
+		source.GetLocationName())
 	if err != nil {
 		return err
 	}
 
-	parentPath := filepath.Dir(mes.GetDirPath())
+	parentPath := filepath.Dir(target.GetDirPath())
 	dirPath := filepath.Join(parentPath, baseName)
 
 	// ディレクトリ名変更が必要な場合
-	if dirPath != mes.GetDirPath() {
-		err := os.Rename(mes.GetDirPath(), dirPath)
+	if dirPath != target.GetDirPath() {
+		err := os.Rename(target.GetDirPath(), dirPath)
 		if err != nil {
 			return err
 		}
 
 		// フィールドの更新
-		mes.SetDirPath(dirPath)
-		mes.SetStart(srcMes.GetStart())
-		mes.SetCompanyName(srcMes.GetCompanyName())
-		mes.SetLocationName(srcMes.GetLocationName())
+		target.SetDirPath(dirPath)
+		target.SetStart(source.GetStart())
+		target.SetCompanyName(source.GetCompanyName())
+		target.SetLocationName(source.GetLocationName())
 
 		// pr_end が空の場合は start の値をコピー
-		m.EnsurePrEndFromStart(mes)
+		m.EnsurePrEndFromStart(target)
 
 		// Id フィールドの更新
-		newId := m.GenerateId(mes)
-		mes.SetId(newId)
+		newId := m.generateId(target)
+		target.SetId(newId)
 	}
 
 	return nil
 }
 
+// generateId は dirPath から工事IDを生成します
+func (m *Koji) generateId(message *grpcv1.Koji) string {
+	dirPath := message.GetDirPath()
+	basename := core.GetBaseName(dirPath)
+	return core.BytesToId([]byte(basename))
+}
+
 // generateBaseName はパラメータをもとに工事フォルダー名変更します
-//
-//	引数： st: 工事開始日
-//	      cn: 会社名
-//	      loc: 現場名
-//	戻り値:
-//		生成された工事フォルダーパス
 func (m *Koji) generateBaseName(st Timestamp, cn string, loc string) (string, error) {
 	// 開始日のフォーマット
 	startText, err := st.FormatTime("2006-0102")
@@ -167,7 +125,6 @@ func (m *Koji) generateBaseName(st Timestamp, cn string, loc string) (string, er
 
 // EnsurePrEndFromStart は pr_end が空の場合に start の値をコピーします
 func (m *Koji) EnsurePrEndFromStart(mes *grpcv1.Koji) bool {
-
 	if mes == nil {
 		return false
 	}
@@ -187,8 +144,9 @@ func (m *Koji) EnsurePrEndFromStart(mes *grpcv1.Koji) bool {
 	return true
 }
 
-// NewPersistModelKoji は指定された会社フォルダーから PersistModel[*Koji] を作成します
-func NewPersistModelKoji(dirPath string) (*core.PersistModel[*Koji], error) {
+// NewPersistModelKoji は指定された会社フォルダーから PersistModel[*Koji] を作成します。
+// 新規実装ではこちらを使用してください。
+func NewPersistModelKoji(dirPath string) (*core.PersistModel[*grpcv1.Koji, *Koji], error) {
 	// PersistModel を作成
 	pm, err := core.NewPersistModel(&Koji{}, "@koji.yaml")
 	if err != nil {
@@ -203,6 +161,5 @@ func NewPersistModelKoji(dirPath string) (*core.PersistModel[*Koji], error) {
 		return nil, err
 	}
 
-	//
 	return pm, nil
 }

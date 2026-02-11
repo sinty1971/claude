@@ -7,36 +7,42 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Repository は永続化を自動管理するジェネリックリポジトリ
-type Repository[T Persistable] struct {
-	cache    map[string]PersistModel[T]
+// TypedRepository は型安全な永続化リポジトリです。
+// 新規実装ではこちらを使用してください。
+type TypedRepository[M proto.Message, T Persistable[M]] struct {
+	cache    map[string]PersistModel[M, T]
 	mu       sync.RWMutex
 	autoSave bool
 }
 
-// NewRepository は新しいRepositoryを作成
-func NewRepository[T Persistable](autoSave bool) *Repository[T] {
-	return &Repository[T]{
-		cache:    make(map[string]PersistModel[T]),
+// NewTypedRepository は新しい TypedRepository を作成します。
+func NewTypedRepository[M proto.Message, T Persistable[M]](autoSave bool) *TypedRepository[M, T] {
+	return &TypedRepository[M, T]{
+		cache:    make(map[string]PersistModel[M, T]),
 		autoSave: autoSave,
 	}
 }
 
-// Get はIDでアイテムを取得
-func (r *Repository[T]) Get(id string) (PersistModel[T], bool) {
+// Get はIDでアイテムを取得します。
+func (r *TypedRepository[M, T]) Get(id string) (PersistModel[M, T], bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	m, exists := r.cache[id]
 	return m, exists
 }
 
-// Set はアイテムを設定し、autoSaveが有効なら自動保存
-func (r *Repository[T]) Set(item PersistModel[T]) error {
-	// ロックして設定
+// Set はアイテムを設定し、autoSaveが有効なら自動保存します。
+func (r *TypedRepository[M, T]) Set(item PersistModel[M, T]) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	id, err := GetFieldAs[string](item.Message, "id")
+	// M を proto.Message にキャスト
+	msg, ok := any(item.Message).(proto.Message)
+	if !ok {
+		return fmt.Errorf("failed to cast Message to proto.Message")
+	}
+
+	id, err := GetFieldAs[string](msg, "id")
 	if err != nil {
 		return fmt.Errorf("failed to get id: %w", err)
 	}
@@ -51,8 +57,8 @@ func (r *Repository[T]) Set(item PersistModel[T]) error {
 	return nil
 }
 
-// Update は既存アイテムを更新し、autoSaveが有効なら自動保存
-func (r *Repository[T]) Update(targetId string, source proto.Message) error {
+// Update は既存アイテムを更新し、autoSaveが有効なら自動保存します。
+func (r *TypedRepository[M, T]) Update(targetId string, source M) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -65,13 +71,19 @@ func (r *Repository[T]) Update(targetId string, source proto.Message) error {
 		return fmt.Errorf("update function failed: %w", err)
 	}
 
+	// M を proto.Message にキャスト
+	msg, ok := any(target.Message).(proto.Message)
+	if !ok {
+		return fmt.Errorf("failed to cast Message to proto.Message")
+	}
+
 	// 更新後のIDを取得
-	updatedId, err := GetFieldAs[string](target.Message, "id")
+	updatedId, err := GetFieldAs[string](msg, "id")
 	if err != nil {
 		return fmt.Errorf("failed to get updated id: %w", err)
 	}
 
-	// 更新後のIDが変わっていたらキャッシュキー taretId を削除
+	// 更新後のIDが変わっていたらキャッシュキーを更新
 	if updatedId != targetId {
 		delete(r.cache, targetId)
 	}
@@ -87,8 +99,8 @@ func (r *Repository[T]) Update(targetId string, source proto.Message) error {
 	return nil
 }
 
-// Delete はアイテムを削除
-func (r *Repository[T]) Delete(id string) error {
+// Delete はアイテムを削除します。
+func (r *TypedRepository[M, T]) Delete(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -96,41 +108,41 @@ func (r *Repository[T]) Delete(id string) error {
 	return nil
 }
 
-// GetAllAsMessage は全アイテムのメッセージを取得
-func (r *Repository[T]) GetAllAsMessage() []proto.Message {
+// GetAllAsMessage は全アイテムのメッセージを取得します。
+func (r *TypedRepository[M, T]) GetAllAsMessage() []M {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	messages := make([]proto.Message, 0, len(r.cache))
+	messages := make([]M, 0, len(r.cache))
 	for _, item := range r.cache {
 		messages = append(messages, item.Message)
 	}
 	return messages
 }
 
-// Count はアイテム数を返す
-func (r *Repository[T]) Count() int {
+// Count はアイテム数を返します。
+func (r *TypedRepository[M, T]) Count() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.cache)
 }
 
-// Clear は全アイテムをクリア
-func (r *Repository[T]) Clear() {
+// Clear は全アイテムをクリアします。
+func (r *TypedRepository[M, T]) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.cache = make(map[string]PersistModel[T])
+	r.cache = make(map[string]PersistModel[M, T])
 }
 
-// SetAutoSave は自動保存の有効/無効を切り替え
-func (r *Repository[T]) SetAutoSave(enabled bool) {
+// SetAutoSave は自動保存の有効/無効を切り替えます。
+func (r *TypedRepository[M, T]) SetAutoSave(enabled bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.autoSave = enabled
 }
 
-// SaveAll は全アイテムを強制保存
-func (r *Repository[T]) SaveAll() error {
+// SaveAll は全アイテムを強制保存します。
+func (r *TypedRepository[M, T]) SaveAll() error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -140,17 +152,4 @@ func (r *Repository[T]) SaveAll() error {
 		}
 	}
 	return nil
-}
-
-// AssertProtoAs は簡易コンバータ生成ヘルパーです。型アサーションを行い、失敗したらエラーを返します。
-func AssertProtoAs[R any](m proto.Message) (R, error) {
-	var zero R
-	if m == nil {
-		return zero, fmt.Errorf("message is nil")
-	}
-	iface := m
-	if v, ok := iface.(R); ok {
-		return v, nil
-	}
-	return zero, fmt.Errorf("cannot assert message to %T", zero)
 }

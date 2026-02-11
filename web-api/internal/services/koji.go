@@ -31,7 +31,7 @@ type KojiService struct {
 	baseDirPath string
 
 	// repo は工事データのリポジトリ（自動保存有効）
-	repo *core.Repository[*models.Koji]
+	repo *core.TypedRepository[*grpcv1.Koji, *models.Koji]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -50,7 +50,7 @@ func NewKojiService(cs *ContainerService) *KojiService {
 	return &KojiService{
 		name:        "KojiService",
 		baseDirPath: baseDirPath,
-		repo:        core.NewRepository[*models.Koji](true), // 自動保存有効
+		repo:        core.NewTypedRepository[*grpcv1.Koji, *models.Koji](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -146,7 +146,7 @@ func (srv *KojiService) SyncAllToCache() error {
 
 	// バッファ付きチャンネルで効率化
 	chanCount := make(chan int, entriesCount)
-	chanKojies := make(chan *core.PersistModel[*models.Koji], entriesCount)
+	chanKojies := make(chan *core.PersistModel[*grpcv1.Koji, *models.Koji], entriesCount)
 
 	// ワーカープールの起動
 	var wg sync.WaitGroup
@@ -214,11 +214,7 @@ func (srv *KojiService) GetKojies(
 	res = grpcv1.GetKojiesResponse_builder{}.Build()
 
 	grpcKojies := make(map[string]*grpcv1.Koji, srv.repo.Count())
-	for _, mes := range srv.repo.GetAllAsMessage() {
-		grpcKoji, ok := mes.(*grpcv1.Koji)
-		if !ok {
-			continue
-		}
+	for _, grpcKoji := range srv.repo.GetAllAsMessage() {
 		grpcKojies[grpcKoji.GetId()] = grpcKoji
 	}
 
@@ -248,12 +244,7 @@ func (srv *KojiService) GetKoji(
 	}
 
 	// Responseの更新
-	grpcKoji, ok := koji.Message.(*grpcv1.Koji)
-	if !ok {
-		err = connect.NewError(connect.CodeInternal, errors.New("failed to assert koji message type"))
-		return
-	}
-	res.SetKoji(grpcKoji)
+	res.SetKoji(koji.Message)
 
 	return
 }

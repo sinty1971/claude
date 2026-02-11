@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -15,55 +14,74 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// PersistModelの定義
-// protobuf メッセージの特定のフィールド群を永続化するためのモデルです。
-// 特定のフィールド群とは、フィールド名が "pr_" で始まるフィールドを指します。
-// 一つの情報源はファイルシステムのパス名から取得されるのですが、それでは足りない場合があります。
-type PersistModel[T Persistable] struct {
+// Persistable は型安全な Persistable インターフェースです。
+// Generics を使用することで、コンパイル時の型チェックが効き、
+// 実行時の型アサーションエラーを防ぐことができます。
+//
+// 新規実装ではこちらを使用してください。既存の Persistable からの移行も推奨します。
+type Persistable[M proto.Message] interface {
+	// InitializeFromDirPath は message メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+	// message が nil の場合は、デフォルト初期化されたメッセージを返します。
+	// message が非 nil の場合は、message.DirPath などのファイルシステム情報を解析し、
+	// 対応するドメインモデル（ID, Name, Category など）を設定したメッセージを返します。
+	//
+	// 型パラメータ M により、型安全性が保証されます。
+	InitializeFromMessage(message M) (M, error)
+
+	// UpdateMessage は source の値に基づいて target メッセージを更新します。
+	// この処理には、メッセージフィールドの更新に加えて、必要に応じてファイルシステム操作
+	// （ディレクトリ名の変更など）も含まれる場合があります。
+	//
+	// 例: 会社名が変更された場合、"1 旧会社名" → "1 新会社名" のようにディレクトリをリネームし、
+	// target.DirPath や target.Id などのフィールドを更新します。
+	//
+	// 型パラメータ M により、型安全性が保証されます。
+	UpdateMessage(target M, source M) error
+}
+
+// PersistModel は型安全な PersistModel です。
+// Generics を使用することで、コンパイル時の型チェックが効き、
+// 実行時の型アサーションエラーを防ぐことができます。
+//
+// 新規実装ではこちらを使用してください。既存の PersistModel からの移行も推奨します。
+type PersistModel[M proto.Message, T Persistable[M]] struct {
 	Model           T
-	Message         proto.Message
+	Message         M
 	persistFilename string
 }
 
-// Persistable は proto の pr_ フィールドをpersistファイルに保存できるモデルのインターフェースを定義します。
-//   - protobuf メッセージを持っていることが前提となります。
-type Persistable interface {
-	// MessageFromDirPath は dirPath をもとにモデルの初期化を行います。
-	// mes の情報をもとにメッセージの生成を行います。
-	GenerateMessage(request proto.Message) (proto.Message, error)
-
-	// UpdateMessage は target メッセージと source メッセージをもとに
-	// 更新後のメッセージを生成します。
-	UpdateMessage(target proto.Message, source proto.Message) error
-}
-
-// NewPersistModel は PersistModel インスタンスを作成します。
-func NewPersistModel[T Persistable](model T, persistFileName string) (*PersistModel[T], error) {
+// NewPersistModel は TypedPersistModel インスタンスを作成します。
+//
+//	model: TypedPersistable モデルインスタンス
+//	persistFileName: 永続化ファイル名
+func NewPersistModel[M proto.Message, T Persistable[M]](model T, persistFileName string) (*PersistModel[M, T], error) {
 	// モデルからデフォルトメッセージを取得
-	mes, err := model.GenerateMessage(nil)
+	var nilMsg M
+	mes, err := model.InitializeFromMessage(nilMsg)
 	if err != nil {
 		return nil, err
 	}
 
-	// PersistModel インスタンスを作成
-	return &PersistModel[T]{
+	// TypedPersistModel インスタンスを作成
+	return &PersistModel[M, T]{
 		Model:           model,
 		Message:         mes,
 		persistFilename: persistFileName,
 	}, nil
 }
 
-// Initialize は initArg をもとにモデルの初期化を行います。
-// この関数が呼ばれたときに p.persistDirPath が設定されます。
-func (p *PersistModel[T]) Initialize(request proto.Message) error {
-	// dirPath から Messageを取得
-	mes, err := p.Model.GenerateMessage(request)
+// Initialize は message をもとにモデルの初期化を行います。
+func (p *PersistModel[M, T]) Initialize(message M) error {
+	// メッセージを取得
+	mes, err := p.Model.InitializeFromMessage(message)
 	if err != nil {
 		return err
 	}
 
 	// メッセージを設定
 	p.Message = mes
+
+	// Persist データのロード
 	err = p.Load()
 	if err != nil {
 		return err
@@ -72,35 +90,16 @@ func (p *PersistModel[T]) Initialize(request proto.Message) error {
 	return nil
 }
 
-// GetPersistFilePath は p.persistFilename を p.message のフィールド "dir_path"から取得します。
-func (p *PersistModel[T]) GetPersistFilePath() (string, error) {
-	if p == nil || p.Message == nil {
-		return "", errors.New("message is nil")
-	}
-
-	// dir_path フィールドの取得
-	dirPath, err := GetFieldAs[string](p.Message, "dir_path")
-	if err != nil {
-		return "", err
-	}
-
-	filename := filepath.Base(dirPath)
-	if filename == "" {
-		return "", errors.New("invalid dir_path value")
-	}
-
-	return filepath.Join(dirPath, p.persistFilename), nil
-}
-
 // Load は Persist ファイルから永続化データのみを読み込みます。
 // ファイル形式は YAML です。
-func (p *PersistModel[T]) Load() error {
-
+func (p *PersistModel[M, T]) Load() error {
 	// YAMLファイルからテキストデータを読み込む
 	persistFilePath, err := p.GetPersistFilePath()
 	if err != nil {
 		return err
 	}
+
+	// ファイル読み込み
 	text, err := os.ReadFile(persistFilePath)
 	if err != nil {
 		// ファイルが存在しない場合は新規作成
@@ -124,7 +123,7 @@ func (p *PersistModel[T]) Load() error {
 
 // Save は protobuf メッセージの 接頭語が "pr_" で始まるデータを Persist ファイルに保存します。
 // ファイル形式は YAML です。
-func (p *PersistModel[T]) Save() error {
+func (p *PersistModel[M, T]) Save() error {
 	// JSONマップの取得
 	jsonmap, err := p.ExportJson()
 	if err != nil {
@@ -145,40 +144,38 @@ func (p *PersistModel[T]) Save() error {
 	return os.WriteFile(persistFilePath, yamlBytes, 0644)
 }
 
-// UpdatePersistFields は Persist データを更新します。
-//
-// source: PersistModel[T] - 更新元の PersistModel インスタンス
-func (p *PersistModel[T]) UpdatePersistFields(source *PersistModel[T]) error {
-	// 引数チェック
-	if source == nil || source.Message == nil {
-		return errors.New("Source PersistModel src is nil")
+// GetPersistFilePath は p.persistFilename を p.message のフィールド "dir_path"から取得します。
+func (p *PersistModel[M, T]) GetPersistFilePath() (string, error) {
+	if p == nil {
+		return "", errors.New("ポインタレシーバがnilです")
 	}
 
-	// pのTとsourceのTが同じ型であることを確認
-	if reflect.TypeOf(p.Model) != reflect.TypeOf(source.Model) {
-		return errors.New("model type mismatch")
+	// M を proto.Message にキャスト
+	msg, ok := any(p.Message).(proto.Message)
+	if !ok {
+		return "", errors.New("Message が proto.Message にキャストできません")
 	}
 
-	// Persist フィールドのみを更新
-	fields := p.Message.ProtoReflect().Descriptor().Fields()
-	for i := 0; i < fields.Len(); i++ {
-		f := fields.Get(i)
-		v := source.Message.ProtoReflect().Get(f)
-		name := string(f.Name())
-		if !strings.HasPrefix(name, "pr_") {
-			continue
-		}
-		p.Message.ProtoReflect().Set(f, v)
+	// dir_path フィールドの取得
+	dirPath, err := GetFieldAs[string](msg, "dir_path")
+	if err != nil {
+		return "", err
 	}
-	return nil
+
+	filename := filepath.Base(dirPath)
+	if filename == "" {
+		return "", errors.New("dir_path の値が無効です")
+	}
+
+	return filepath.Join(dirPath, p.persistFilename), nil
 }
 
-func (p *PersistModel[T]) Update(source *PersistModel[T]) error {
-
-	// source が nil の場合は m.dirPath から再初期化を行う
+// Update は source データをもとに更新を行います。
+func (p *PersistModel[M, T]) Update(source *PersistModel[M, T]) error {
+	// source が nil の場合は p.Message から再初期化を行う
 	if source == nil {
 		// メッセージの再生成
-		mes, err := p.Model.GenerateMessage(p.Message)
+		mes, err := p.Model.InitializeFromMessage(p.Message)
 		if err != nil {
 			return err
 		}
@@ -188,7 +185,7 @@ func (p *PersistModel[T]) Update(source *PersistModel[T]) error {
 		return p.Load()
 	}
 
-	// source.Message データをもとに新たなメッセージを生成
+	// source.Message データをもとに新たなメッセージを更新
 	err := p.Model.UpdateMessage(p.Message, source.Message)
 	if err != nil {
 		return err
@@ -198,13 +195,47 @@ func (p *PersistModel[T]) Update(source *PersistModel[T]) error {
 	return p.Load()
 }
 
+// UpdatePersistFields は Persist データを更新します。
+func (p *PersistModel[M, T]) UpdatePersistFields(source *PersistModel[M, T]) error {
+	// 引数チェック
+	if source == nil {
+		return errors.New("Source TypedPersistModel is nil")
+	}
+
+	// M を proto.Message にキャスト
+	targetMsg, ok1 := any(p.Message).(proto.Message)
+	sourceMsg, ok2 := any(source.Message).(proto.Message)
+	if !ok1 || !ok2 {
+		return errors.New("Message を proto.Message にキャストできません")
+	}
+
+	// Persist フィールドのみを更新
+	fields := targetMsg.ProtoReflect().Descriptor().Fields()
+	for i := 0; i < fields.Len(); i++ {
+		f := fields.Get(i)
+		v := sourceMsg.ProtoReflect().Get(f)
+		name := string(f.Name())
+		if !strings.HasPrefix(name, "pr_") {
+			continue
+		}
+		targetMsg.ProtoReflect().Set(f, v)
+	}
+	return nil
+}
+
 // ExportJson は Persist フィールド値をJSONに変換します
-func (p *PersistModel[T]) ExportJson() (*map[string]any, error) {
+func (p *PersistModel[M, T]) ExportJson() (*map[string]any, error) {
+	// M を proto.Message にキャスト
+	msg, ok := any(p.Message).(proto.Message)
+	if !ok {
+		return nil, errors.New("Message が proto.Message にキャストできません")
+	}
+
 	// camelCase キーで JSON にマーシャル
 	jsonbytes, err := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: true,
-	}.Marshal(p.Message)
+	}.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -219,18 +250,18 @@ func (p *PersistModel[T]) ExportJson() (*map[string]any, error) {
 	}
 
 	// タイムスタンプフィールドを日本時間（JST）に変換
-	p.convertTimestampsToJST(jsonmap)
+	p.convertTimestampsToJST(jsonmap, msg)
 
 	return jsonmap, nil
 }
 
 // convertTimestampsToJST はマップ内のタイムスタンプを日本時間のフォーマットに変換します
-func (p *PersistModel[T]) convertTimestampsToJST(jsonmap *map[string]any) {
-	if p == nil || p.Message == nil {
+func (p *PersistModel[M, T]) convertTimestampsToJST(jsonmap *map[string]any, msg proto.Message) {
+	if msg == nil {
 		return
 	}
 
-	ref := p.Message.ProtoReflect()
+	ref := msg.ProtoReflect()
 	if ref == nil {
 		return
 	}
@@ -262,8 +293,7 @@ func (p *PersistModel[T]) convertTimestampsToJST(jsonmap *map[string]any) {
 }
 
 // ImportJson はJSONマップを Persist フィールドに設定します
-func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
-
+func (p *PersistModel[M, T]) ImportJson(jsonmap *map[string]any) error {
 	// タイムスタンプ文字列をUTC形式に正規化
 	p.normalizeTimestampsToUTC(jsonmap)
 
@@ -273,12 +303,19 @@ func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
 		return err
 	}
 
+	// M を proto.Message にキャスト
+	msg, ok := any(p.Message).(proto.Message)
+	if !ok {
+		return errors.New("Message が proto.Message にキャストできません")
+	}
+
 	// p.Message の ProtoReflect を取得
-	msgRef := p.Message.ProtoReflect()
+	msgRef := msg.ProtoReflect()
 
 	// 一時的な空のメッセージを作成してアンマーシャル
 	tempMsg := msgRef.Type().New()
 
+	// pr_ フィールドのみを含む一時メッセージにアンマーシャル
 	opts := protojson.UnmarshalOptions{AllowPartial: true}
 	if err := opts.Unmarshal(bytes, tempMsg.Interface()); err != nil {
 		return err
@@ -301,7 +338,7 @@ func (p *PersistModel[T]) ImportJson(jsonmap *map[string]any) error {
 }
 
 // normalizeTimestampsToUTC はマップ内のタイムスタンプ文字列をUTC形式に正規化します
-func (p *PersistModel[T]) normalizeTimestampsToUTC(jsonmap *map[string]any) {
+func (p *PersistModel[M, T]) normalizeTimestampsToUTC(jsonmap *map[string]any) {
 	if jsonmap == nil {
 		return
 	}
