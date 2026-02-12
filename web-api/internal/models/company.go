@@ -3,7 +3,6 @@ package models
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	grpcv1 "web-api/gen/grpc/v1"
@@ -14,7 +13,7 @@ import (
 // 新規実装ではこちらを使用してください。
 type Company struct{}
 
-// InitializeFromMessage は message メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+// InitializeFromMessage は message メッセージを元に、ファイルシステム情報を反映した proto.Message を構築します。
 func (m *Company) InitializeFromMessage(message *grpcv1.Company) (*grpcv1.Company, error) {
 	// message が nil の場合はデフォルト初期化を行う
 	if message == nil {
@@ -25,7 +24,7 @@ func (m *Company) InitializeFromMessage(message *grpcv1.Company) (*grpcv1.Compan
 	dirPath := message.GetDirPath()
 
 	// ディレクトリ名の取得
-	dirName := core.GetBaseName(dirPath)
+	dirName := core.PathBase(dirPath)
 
 	// ディレクトリ名解析
 	// 3文字以上のdirNameかチェック
@@ -49,10 +48,12 @@ func (m *Company) InitializeFromMessage(message *grpcv1.Company) (*grpcv1.Compan
 	mes := grpcv1.Company_builder{}.Build()
 
 	// 各フィールドの設定
-	mes.SetId(m.generateId(message))
 	mes.SetDirPath(dirPath)
 	mes.SetCategoryIndex(cat.GetIndex())
 	mes.SetName(sn)
+
+	// Id フィールドの更新
+	m.updateId(mes)
 
 	return mes, nil
 }
@@ -69,8 +70,8 @@ func (m *Company) UpdateMessage(target *grpcv1.Company, source *grpcv1.Company) 
 	}
 
 	// 会社フォルダーパスの生成
-	parentPath := filepath.Dir(target.GetDirPath())
-	dirPath := filepath.Join(parentPath, baseName)
+	parentPath := core.PathDir(target.GetDirPath())
+	dirPath := core.PathJoin(parentPath, baseName)
 
 	// ファイル名変更の必要がある場合は会社フォルダー名を更新
 	if dirPath != target.GetDirPath() {
@@ -86,17 +87,21 @@ func (m *Company) UpdateMessage(target *grpcv1.Company, source *grpcv1.Company) 
 		target.SetName(source.GetName())
 
 		// Id フィールドの更新
-		newId := m.generateId(target)
-		target.SetId(newId)
+		m.updateId(target)
 	}
 
 	return nil
 }
 
 // generateId は dirPath から会社IDを生成します
-func (m *Company) generateId(message *grpcv1.Company) string {
+func (m *Company) updateId(message *grpcv1.Company) {
 	dirPath := message.GetDirPath()
-	basename := core.GetBaseName(dirPath)
+	id := GenerateCompanyId(dirPath)
+	message.SetId(id)
+}
+
+func GenerateCompanyId(dirPath string) string {
+	basename := core.PathBase(dirPath)
 	return core.BytesToId([]byte(basename))
 }
 
@@ -116,7 +121,7 @@ func (m *Company) generateBaseName(ci int32, sn string) string {
 // 新規実装ではこちらを使用してください。
 func NewPersistModelCompany(dirPath string) (*core.PersistModel[*grpcv1.Company, *Company], error) {
 	// PersistModel を作成
-	pm, err := core.NewPersistModel(&Company{}, "@company.yaml")
+	persistModel, err := core.NewPersistModel(&Company{}, "@company.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -124,10 +129,10 @@ func NewPersistModelCompany(dirPath string) (*core.PersistModel[*grpcv1.Company,
 	// 初期化
 	request := grpcv1.Company_builder{}.Build()
 	request.SetDirPath(dirPath)
-	err = pm.Initialize(request)
+	err = persistModel.Initialize(request)
 	if err != nil {
 		return nil, err
 	}
 
-	return pm, nil
+	return persistModel, nil
 }

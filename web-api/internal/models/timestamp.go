@@ -21,8 +21,8 @@ type Timestamp struct {
 	*timestamppb.Timestamp
 }
 
-// GetID 時間データからIDを生成
-func (ts *Timestamp) GetID() string {
+// GetId 時間データからIDを生成
+func (ts *Timestamp) GetId() string {
 	// 秒とナノ秒からバイト配列を生成
 	bytes := big.NewInt(int64(ts.GetSeconds())*1_000_000_000 + int64(ts.GetNanos())).Bytes()
 
@@ -33,7 +33,7 @@ func (ts *Timestamp) GetID() string {
 // MarshalYAML implements yaml.Marshaler
 func (ts *Timestamp) MarshalYAML() (any, error) {
 	// nil チェック
-	if ts == nil || ts.Timestamp.CheckValid() == nil {
+	if ts == nil || ts.Timestamp.CheckValid() != nil {
 		return "", errors.New("(ts *Timestamp) MarshalYAML() で値が nil もしくは不正です")
 	}
 	return ts.Timestamp.AsTime().Format(time.RFC3339Nano), nil

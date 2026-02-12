@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	grpcv1 "web-api/gen/grpc/v1"
@@ -29,7 +28,7 @@ type MemberService struct {
 	baseDirPath string
 
 	// repo はMember情報リポジトリ（自動保存有効）
-	repo *core.TypedRepository[*grpcv1.Member, *models.Member]
+	repo *core.Repository[*grpcv1.Member, *models.Member]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -50,7 +49,7 @@ func NewMemberService(cs *ContainerService) *MemberService {
 		name:        "MemberService",
 		cs:          cs,
 		baseDirPath: baseDirPath,
-		repo:        core.NewTypedRepository[*grpcv1.Member, *models.Member](true), // 自動保存有効
+		repo:        core.NewRepository[*grpcv1.Member, *models.Member](true), // 自動保存有効
 	}
 }
 
@@ -154,7 +153,7 @@ func (srv *MemberService) extractTargetRequests() (requests []*grpcv1.Member) {
 
 		// 一人親方ディレクトリである場合の処理
 		if core.ContainCompanyCategoryName(cat, "一人親方") {
-			dirPath := filepath.Join(srv.baseDirPath, entry.Name())
+			dirPath := core.PathJoin(srv.baseDirPath, entry.Name())
 			request.SetDirPath(dirPath)
 			requests = append(requests, request)
 			continue
@@ -164,7 +163,7 @@ func (srv *MemberService) extractTargetRequests() (requests []*grpcv1.Member) {
 		if core.ContainCompanyCategoryName(cat, "自社組合") ||
 			core.ContainCompanyCategoryName(cat, "下請会社") ||
 			core.ContainCompanyCategoryName(cat, "築炉会社") {
-			activeDirPath := filepath.Join(srv.baseDirPath, entry.Name(), "社員")
+			activeDirPath := core.PathJoin(srv.baseDirPath, entry.Name(), "社員")
 			activeEntries, err := os.ReadDir(activeDirPath)
 			if err != nil {
 				continue
@@ -176,12 +175,12 @@ func (srv *MemberService) extractTargetRequests() (requests []*grpcv1.Member) {
 				if strings.HasPrefix(activeEntry.Name(), "@") {
 					continue
 				}
-				dirPath := filepath.Join(activeDirPath, activeEntry.Name())
+				dirPath := core.PathJoin(activeDirPath, activeEntry.Name())
 				request.SetDirPath(dirPath)
 				requests = append(requests, request)
 			}
 
-			deactiveDirPath := filepath.Join(srv.baseDirPath, entry.Name(), "社員", "@退職者")
+			deactiveDirPath := core.PathJoin(srv.baseDirPath, entry.Name(), "社員", "@退職者")
 			deactiveEntries, err := os.ReadDir(deactiveDirPath)
 			if err != nil {
 				continue
@@ -190,7 +189,7 @@ func (srv *MemberService) extractTargetRequests() (requests []*grpcv1.Member) {
 				if !deactiveEntry.IsDir() {
 					continue
 				}
-				dirPath := filepath.Join(deactiveDirPath, deactiveEntry.Name())
+				dirPath := core.PathJoin(deactiveDirPath, deactiveEntry.Name())
 				request.SetDirPath(dirPath)
 				requests = append(requests, request)
 			}

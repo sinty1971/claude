@@ -21,6 +21,7 @@ func (m *Template) InitializeFromMessage(message proto.Message) (proto.Message, 
 // GenerateId は message からIDを生成します
 func (m *Template) generateId(message proto.Message) string {
 	// idString := "some_field_value"
+	_ = message
 	return core.BytesToId([]byte(""))
 }
 

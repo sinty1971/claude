@@ -23,7 +23,7 @@ func ResolveAbsPath(absPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		absPath = filepath.Join(usr.HomeDir, absPath[2:])
+		absPath = PathJoin(usr.HomeDir, absPath[2:])
 	}
 
 	// シンボリックリンクを解決して絶対パスチェック
@@ -41,8 +41,14 @@ func ResolveAbsPath(absPath string) (string, error) {
 	return absPath, nil
 }
 
+// パスからディレクトリ名を取得します
+func PathDir(pathname string) string {
+	dirname := filepath.Dir(pathname)
+	return strings.ReplaceAll(dirname, "\\", "/")
+}
+
 // パスからファイル名またはフォルダー名を取得します
-func GetBaseName(pathname string) string {
+func PathBase(pathname string) string {
 	basename := filepath.Base(pathname)
 	if basename == "." || basename == "/" || basename == "\\" {
 		return ""
@@ -50,10 +56,23 @@ func GetBaseName(pathname string) string {
 	return basename
 }
 
-// IsExcel エクセルファイルかどうかをチェック
-func FilenameIsExcel(filename string) bool {
+// PathJoin は filepath.Join の代わりに常に '/' を区切り文字として使う関数
+func PathJoin(elem ...string) string {
+	path := filepath.Join(elem...)
+	return strings.ReplaceAll(path, "\\", "/")
+}
+
+// PathSplit はパスを '/' で分割する関数
+func PathSplit(path string) []string {
+	// まず \\ を / に統一
+	path = strings.ReplaceAll(path, "\\", "/")
+	return strings.Split(path, "/")
+}
+
+// PathIsExcel エクセルファイルかどうかをチェック
+func PathIsExcel(path string) bool {
 	excelSuffix := []string{".xlsx", ".xls"}
-	nameLower := strings.ToLower(filename)
+	nameLower := strings.ToLower(path)
 
 	for _, suffix := range excelSuffix {
 		if strings.HasSuffix(nameLower, suffix) {
@@ -65,5 +84,5 @@ func FilenameIsExcel(filename string) bool {
 
 // EntryIsExcelFile エクセルファイルかどうかをチェック
 func EntryIsExcelFile(entry os.DirEntry) bool {
-	return FilenameIsExcel(entry.Name())
+	return PathIsExcel(entry.Name())
 }

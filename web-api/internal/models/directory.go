@@ -7,7 +7,7 @@ import (
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
 
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/proto"
 )
 
 // grpcv1.Folder 関連のヘルパー
@@ -18,9 +18,9 @@ import (
 type Directory struct{}
 
 // ParseFrom は指定されたフルパスからファイル情報を解析して設定します
-func (m *Directory) GenerateMessage(message protoreflect.Message) error {
+func (m *Directory) GenerateMessage(message proto.Message) error {
 	// message の型アサーション
-	mes, ok := message.Interface().(*grpcv1.Directory)
+	mes, ok := message.(*grpcv1.Directory)
 	if !ok {
 		return errors.New("invalid message type")
 	}

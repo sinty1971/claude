@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	grpcv1 "web-api/gen/grpc/v1"
 	grpcv1connect "web-api/gen/grpc/v1/grpcv1connect"
@@ -29,7 +28,7 @@ type CompanyService struct {
 	baseDirPath string
 
 	// repo は会社情報リポジトリ（自動保存有効）
-	repo *core.TypedRepository[*grpcv1.Company, *models.Company]
+	repo *core.Repository[*grpcv1.Company, *models.Company]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -48,7 +47,7 @@ func NewCompanyService(cs *ContainerService) *CompanyService {
 	return &CompanyService{
 		name:        "CompanyService",
 		baseDirPath: baseDirPath,
-		repo:        core.NewTypedRepository[*grpcv1.Company, *models.Company](true), // 自動保存有効
+		repo:        core.NewRepository[*grpcv1.Company, *models.Company](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -122,7 +121,7 @@ func (srv *CompanyService) SyncAllToCache() {
 		}
 
 		// PersistModel[*Company] の作成
-		dirPath := filepath.Join(srv.baseDirPath, entry.Name())
+		dirPath := core.PathJoin(srv.baseDirPath, entry.Name())
 		company, err := models.NewPersistModelCompany(dirPath)
 		if err != nil {
 			continue
@@ -155,8 +154,8 @@ func (srv *CompanyService) watchFileSystemEvents() {
 			}
 
 			// eventから会社Idの取得
-			dirName := filepath.Base(filepath.Dir(event.Name))
-			id := core.BytesToId([]byte(dirName))
+			dirPath := core.PathDir(event.Name)
+			id := models.GenerateCompanyId(dirPath)
 
 			// 会社情報の存在チェック
 			_, exist := srv.repo.Get(id)

@@ -117,7 +117,7 @@ func (srv *DirectoryService) GetFiles(
 		wg.Go(func() {
 			for idx := range channelIn {
 				dir := dirs[idx]
-				fullpath := filepath.Join(absPath, dir.Name())
+				fullpath := core.PathJoin(absPath, dir.Name())
 				channelOut <- fullpath
 			}
 		})
@@ -153,7 +153,7 @@ func (srv *DirectoryService) GetAbsPathFrom(relPath string) (res string, err err
 		return "", errors.New("絶対パスは使用できません")
 	}
 
-	res = filepath.Join(srv.BaseDirPath, relPath)
+	res = core.PathJoin(srv.BaseDirPath, relPath)
 
 	return // naked return
 }
@@ -247,8 +247,8 @@ func (srv *DirectoryService) absCopyDir(absSrc, absDst string) error {
 
 	// 各エントリを処理
 	for _, entry := range entries {
-		srcPath := filepath.Join(absSrc, entry.Name())
-		dstPath := filepath.Join(absDst, entry.Name())
+		srcPath := core.PathJoin(absSrc, entry.Name())
+		dstPath := core.PathJoin(absDst, entry.Name())
 
 		if entry.IsDir() {
 			// サブディレクトリの場合、再帰的にコピー

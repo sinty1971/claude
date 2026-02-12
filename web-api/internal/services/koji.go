@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 	"web-api/internal/core"
 
@@ -31,7 +30,7 @@ type KojiService struct {
 	baseDirPath string
 
 	// repo は工事データのリポジトリ（自動保存有効）
-	repo *core.TypedRepository[*grpcv1.Koji, *models.Koji]
+	repo *core.Repository[*grpcv1.Koji, *models.Koji]
 
 	// watcher はファイルシステム監視オブジェクト
 	watcher *core.Watcher
@@ -50,7 +49,7 @@ func NewKojiService(cs *ContainerService) *KojiService {
 	return &KojiService{
 		name:        "KojiService",
 		baseDirPath: baseDirPath,
-		repo:        core.NewTypedRepository[*grpcv1.Koji, *models.Koji](true), // 自動保存有効
+		repo:        core.NewRepository[*grpcv1.Koji, *models.Koji](true), // 自動保存有効
 		cs:          cs,
 	}
 }
@@ -155,7 +154,7 @@ func (srv *KojiService) SyncAllToCache() error {
 		go func() {
 			defer wg.Done()
 			for i := range chanCount {
-				dirPath := filepath.Join(srv.baseDirPath, entries[i].Name())
+				dirPath := core.PathJoin(srv.baseDirPath, entries[i].Name())
 				koji, err := models.NewPersistModelKoji(dirPath)
 				if err != nil {
 					chanKojies <- nil // エラーの場合はnilを返す

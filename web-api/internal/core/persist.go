@@ -20,7 +20,7 @@ import (
 //
 // 新規実装ではこちらを使用してください。既存の Persistable からの移行も推奨します。
 type Persistable[M proto.Message] interface {
-	// InitializeFromDirPath は message メッセージを元に、ファイルシステム情報を反映した protobuf メッセージを構築します。
+	// InitializeFromDirPath は message メッセージを元に、ファイルシステム情報を反映した proto.Message を構築します。
 	// message が nil の場合は、デフォルト初期化されたメッセージを返します。
 	// message が非 nil の場合は、message.DirPath などのファイルシステム情報を解析し、
 	// 対応するドメインモデル（ID, Name, Category など）を設定したメッセージを返します。
@@ -94,7 +94,7 @@ func (p *PersistModel[M, T]) Initialize(message M) error {
 // ファイル形式は YAML です。
 func (p *PersistModel[M, T]) Load() error {
 	// YAMLファイルからテキストデータを読み込む
-	persistFilePath, err := p.GetPersistFilePath()
+	persistFilePath, err := p.getPersistFilePath()
 	if err != nil {
 		return err
 	}
@@ -137,15 +137,15 @@ func (p *PersistModel[M, T]) Save() error {
 	}
 
 	// ファイルに書き込み
-	persistFilePath, err := p.GetPersistFilePath()
+	persistFilePath, err := p.getPersistFilePath()
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(persistFilePath, yamlBytes, 0644)
 }
 
-// GetPersistFilePath は p.persistFilename を p.message のフィールド "dir_path"から取得します。
-func (p *PersistModel[M, T]) GetPersistFilePath() (string, error) {
+// getPersistFilePath は p.persistFilename を p.message のフィールド "dir_path"から取得します。
+func (p *PersistModel[M, T]) getPersistFilePath() (string, error) {
 	if p == nil {
 		return "", errors.New("ポインタレシーバがnilです")
 	}
@@ -167,7 +167,7 @@ func (p *PersistModel[M, T]) GetPersistFilePath() (string, error) {
 		return "", errors.New("dir_path の値が無効です")
 	}
 
-	return filepath.Join(dirPath, p.persistFilename), nil
+	return PathJoin(dirPath, p.persistFilename), nil
 }
 
 // Update は source データをもとに更新を行います。
@@ -193,34 +193,6 @@ func (p *PersistModel[M, T]) Update(source *PersistModel[M, T]) error {
 
 	// Persist データのロード
 	return p.Load()
-}
-
-// UpdatePersistFields は Persist データを更新します。
-func (p *PersistModel[M, T]) UpdatePersistFields(source *PersistModel[M, T]) error {
-	// 引数チェック
-	if source == nil {
-		return errors.New("Source TypedPersistModel is nil")
-	}
-
-	// M を proto.Message にキャスト
-	targetMsg, ok1 := any(p.Message).(proto.Message)
-	sourceMsg, ok2 := any(source.Message).(proto.Message)
-	if !ok1 || !ok2 {
-		return errors.New("Message を proto.Message にキャストできません")
-	}
-
-	// Persist フィールドのみを更新
-	fields := targetMsg.ProtoReflect().Descriptor().Fields()
-	for i := 0; i < fields.Len(); i++ {
-		f := fields.Get(i)
-		v := sourceMsg.ProtoReflect().Get(f)
-		name := string(f.Name())
-		if !strings.HasPrefix(name, "pr_") {
-			continue
-		}
-		targetMsg.ProtoReflect().Set(f, v)
-	}
-	return nil
 }
 
 // ExportJson は Persist フィールド値をJSONに変換します

@@ -7,24 +7,24 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TypedRepository は型安全な永続化リポジトリです。
+// Repository は型安全な永続化リポジトリです。
 // 新規実装ではこちらを使用してください。
-type TypedRepository[M proto.Message, T Persistable[M]] struct {
+type Repository[M proto.Message, T Persistable[M]] struct {
 	cache    map[string]PersistModel[M, T]
 	mu       sync.RWMutex
 	autoSave bool
 }
 
-// NewTypedRepository は新しい TypedRepository を作成します。
-func NewTypedRepository[M proto.Message, T Persistable[M]](autoSave bool) *TypedRepository[M, T] {
-	return &TypedRepository[M, T]{
+// NewRepository は新しい Repository を作成します。
+func NewRepository[M proto.Message, T Persistable[M]](autoSave bool) *Repository[M, T] {
+	return &Repository[M, T]{
 		cache:    make(map[string]PersistModel[M, T]),
 		autoSave: autoSave,
 	}
 }
 
 // Get はIDでアイテムを取得します。
-func (r *TypedRepository[M, T]) Get(id string) (PersistModel[M, T], bool) {
+func (r *Repository[M, T]) Get(id string) (PersistModel[M, T], bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	m, exists := r.cache[id]
@@ -32,7 +32,7 @@ func (r *TypedRepository[M, T]) Get(id string) (PersistModel[M, T], bool) {
 }
 
 // Set はアイテムを設定し、autoSaveが有効なら自動保存します。
-func (r *TypedRepository[M, T]) Set(item PersistModel[M, T]) error {
+func (r *Repository[M, T]) Set(item PersistModel[M, T]) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -58,7 +58,7 @@ func (r *TypedRepository[M, T]) Set(item PersistModel[M, T]) error {
 }
 
 // Update は既存アイテムを更新し、autoSaveが有効なら自動保存します。
-func (r *TypedRepository[M, T]) Update(targetId string, source M) error {
+func (r *Repository[M, T]) Update(targetId string, source M) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -100,7 +100,7 @@ func (r *TypedRepository[M, T]) Update(targetId string, source M) error {
 }
 
 // Delete はアイテムを削除します。
-func (r *TypedRepository[M, T]) Delete(id string) error {
+func (r *Repository[M, T]) Delete(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -109,7 +109,7 @@ func (r *TypedRepository[M, T]) Delete(id string) error {
 }
 
 // GetAllAsMessage は全アイテムのメッセージを取得します。
-func (r *TypedRepository[M, T]) GetAllAsMessage() []M {
+func (r *Repository[M, T]) GetAllAsMessage() []M {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -121,28 +121,28 @@ func (r *TypedRepository[M, T]) GetAllAsMessage() []M {
 }
 
 // Count はアイテム数を返します。
-func (r *TypedRepository[M, T]) Count() int {
+func (r *Repository[M, T]) Count() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.cache)
 }
 
 // Clear は全アイテムをクリアします。
-func (r *TypedRepository[M, T]) Clear() {
+func (r *Repository[M, T]) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.cache = make(map[string]PersistModel[M, T])
 }
 
 // SetAutoSave は自動保存の有効/無効を切り替えます。
-func (r *TypedRepository[M, T]) SetAutoSave(enabled bool) {
+func (r *Repository[M, T]) SetAutoSave(enabled bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.autoSave = enabled
 }
 
 // SaveAll は全アイテムを強制保存します。
-func (r *TypedRepository[M, T]) SaveAll() error {
+func (r *Repository[M, T]) SaveAll() error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

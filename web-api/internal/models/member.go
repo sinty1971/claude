@@ -2,12 +2,11 @@ package models
 
 import (
 	"errors"
+	"log"
 	"strings"
 
 	grpcv1 "web-api/gen/grpc/v1"
 	"web-api/internal/core"
-
-	"google.golang.org/protobuf/proto"
 )
 
 // Member は core.PersistModel の型安全な実装です。
@@ -37,8 +36,8 @@ func (m *Member) InitializeFromMessage(message *grpcv1.Member) (*grpcv1.Member, 
 	mes.SetIsActive(pathInfo.isActive)
 	mes.SetDirPath(pathInfo.fullPath)
 
-	newId := m.generateId(mes)
-	mes.SetId(newId)
+	// Id フィールドの更新
+	m.updateId(mes, pathInfo.relativePath)
 
 	return mes, nil
 }
@@ -49,20 +48,21 @@ func (m *Member) UpdateMessage(target *grpcv1.Member, source *grpcv1.Member) err
 	return nil
 }
 
-// generateId は dirPath からメンバーIDを生成します（型安全版）
-func (m *Member) generateId(message *grpcv1.Member) string {
-	pathInfo, err := messageToMemberPathInfo(message)
-	if err != nil {
-		return ""
-	}
-	return core.BytesToId([]byte(pathInfo.relativePath))
+// generateId は relativePath からメンバーIDを生成します（型安全版）
+func (m *Member) updateId(message *grpcv1.Member, relativePath string) {
+	id := GenerateMemberId(relativePath)
+	message.SetId(id)
+}
+
+func GenerateMemberId(relativePath string) string {
+	return core.BytesToId([]byte(relativePath))
 }
 
 // NewPersistModelMember は指定されたメンバーフォルダーから PersistModel[*Member] を作成します。
 // 新規実装ではこちらを使用してください。
 func NewPersistModelMember(dirPath string) (*core.PersistModel[*grpcv1.Member, *Member], error) {
 	// PersistModel を作成
-	pm, err := core.NewPersistModel(&Member{}, "@member.yaml")
+	persistModel, err := core.NewPersistModel(&Member{}, "@member.yaml")
 	if err != nil {
 		return nil, err
 	}
@@ -70,12 +70,12 @@ func NewPersistModelMember(dirPath string) (*core.PersistModel[*grpcv1.Member, *
 	// 初期化
 	request := grpcv1.Member_builder{}.Build()
 	request.SetDirPath(dirPath)
-	err = pm.Initialize(request)
+	err = persistModel.Initialize(request)
 	if err != nil {
 		return nil, err
 	}
 
-	return pm, nil
+	return persistModel, nil
 }
 
 // memberPathInfo はメンバーのパス情報を保持します
@@ -89,17 +89,13 @@ type memberPathInfo struct {
 }
 
 // messageToMemberPathInfo はディレクトリパスを解析して memberPathInfo を返します
-func messageToMemberPathInfo(request proto.Message) (*memberPathInfo, error) {
-	// request の型アサーション
-	req, ok := request.(*grpcv1.Member)
-	if !ok {
-		return nil, errors.New("message の型アサーションに失敗しました")
-	}
-
+func messageToMemberPathInfo(request *grpcv1.Member) (*memberPathInfo, error) {
 	// dirPath を取得する
-	dirPath := req.GetDirPath()
+	dirPath := request.GetDirPath()
 
-	parts := strings.Split(dirPath, "/")
+	// パスを分割
+	parts := core.PathSplit(dirPath)
+	log.Println("DEBUG: memberPathInfo parts =", parts)
 
 	// "1 会社" ディレクトリのインデックスを取得
 	companyIdx := findIndex(parts, "1 会社")
