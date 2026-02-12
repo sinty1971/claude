@@ -71,7 +71,7 @@
                 {/if}
               </Table.Cell>
               <Table.Cell class="hidden lg:table-cell">{displayDate(koji.start)}</Table.Cell>
-              <Table.Cell class="hidden lg:table-cell">{displayDate(koji.mfEnd)}</Table.Cell>
+              <Table.Cell class="hidden lg:table-cell">{displayDate(koji.prEnd)}</Table.Cell>
               <Table.Cell>
                 <Button variant="ghost" size="sm" href={`/kojies/${koji.id}`}>編集</Button>
               </Table.Cell>

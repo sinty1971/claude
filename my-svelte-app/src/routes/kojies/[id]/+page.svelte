@@ -41,7 +41,7 @@
     companyName: "",
     locationName: "",
     start: "",
-    mfEnd: "",
+    prEnd: "",
   });
   let initialForm = $state<typeof form | null>(null);
   let isSaving = $state(false);
@@ -55,7 +55,7 @@
       form.companyName = data.koji.companyName ?? "";
       form.locationName = data.koji.locationName ?? "";
       form.start = toInputValue(data.koji.start);
-      form.mfEnd = toInputValue(data.koji.mfEnd);
+      form.prEnd = toInputValue(data.koji.prEnd);
       initialForm = { ...form };
     }
   });
@@ -81,7 +81,7 @@
           companyName: form.companyName,
           locationName: form.locationName,
           start: toTimestamp(form.start),
-          mfEnd: toTimestamp(form.mfEnd),
+          prEnd: toTimestamp(form.prEnd),
         },
       });
       const response = await client.updateKoji(request);
@@ -91,7 +91,7 @@
         companyName: form.companyName,
         locationName: form.locationName,
         start: toTimestamp(form.start),
-        mfEnd: toTimestamp(form.mfEnd),
+        prEnd: toTimestamp(form.prEnd),
       };
       // 初期値を更新
       initialForm = { ...form };
@@ -197,11 +197,11 @@
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfEnd" class="md:text-right">終了</Label>
+            <Label for="prEnd" class="md:text-right">終了</Label>
             <Input 
-              id="mfEnd" 
+              id="prEnd" 
               type="date" 
-              bind:value={form.mfEnd} 
+              bind:value={form.prEnd} 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>

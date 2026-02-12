@@ -31,8 +31,8 @@ export const load: PageServerLoad = async () => {
     companiesList.sort((a, b) => {
       const categoryCompare = (a.categoryIndex ?? 0) - (b.categoryIndex ?? 0);
       if (categoryCompare !== 0) return categoryCompare;
-      const nameA = a.name || a.mfLongName || '名称未設定';
-      const nameB = b.name || b.mfLongName || '名称未設定';
+      const nameA = a.name || a.prLongName || '名称未設定';
+      const nameB = b.name || b.prLongName || '名称未設定';
       return nameA.localeCompare(nameB, 'ja');
     });
 

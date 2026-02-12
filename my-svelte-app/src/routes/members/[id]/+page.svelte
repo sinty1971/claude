@@ -21,20 +21,20 @@
   let member = $state<Member | null>(null);
   let form = $state({
     name: "",
-    mfLastName: "",
-    mfFirstName: "",
-    mfMiddleName: "",
-    mfKanaName: "",
-    mfRole: "",
-    mfBirthdate: "",
-    mfBloodType: "",
-    mfPostalCode: "",
-    mfAddress: "",
-    mfMobile: "",
-    mfTel: "",
-    mfFax: "",
-    mfEmail: "",
-    mfWebsite: "",
+    prLastName: "",
+    prFirstName: "",
+    prMiddleName: "",
+    prKanaName: "",
+    prRole: "",
+    prBirthdate: "",
+    prBloodType: "",
+    prPostalCode: "",
+    prAddress: "",
+    prMobile: "",
+    prTel: "",
+    prFax: "",
+    prEmail: "",
+    prWebsite: "",
   });
   let initialForm = $state<typeof form | null>(null);
 
@@ -47,20 +47,20 @@
     if (data.member && (!member || data.member.id !== member.id)) {
       member = data.member;
       form.name = data.member.name ?? "";
-      form.mfLastName = data.member.mfLastName ?? "";
-      form.mfFirstName = data.member.mfFirstName ?? "";
-      form.mfMiddleName = data.member.mfMiddleName ?? "";
-      form.mfKanaName = data.member.mfKanaName ?? "";
-      form.mfRole = data.member.mfRole ?? "";
-      form.mfBirthdate = data.member.mfBirthdate ?? "";
-      form.mfBloodType = data.member.mfBloodType ?? "";
-      form.mfPostalCode = data.member.mfPostalCode ?? "";
-      form.mfAddress = data.member.mfAddress ?? "";
-      form.mfMobile = data.member.mfMobile ?? "";
-      form.mfTel = data.member.mfTel ?? "";
-      form.mfFax = data.member.mfFax ?? "";
-      form.mfEmail = data.member.mfEmail ?? "";
-      form.mfWebsite = data.member.mfWebsite ?? "";
+      form.prLastName = data.member.prLastName ?? "";
+      form.prFirstName = data.member.prFirstName ?? "";
+      form.prMiddleName = data.member.prMiddleName ?? "";
+      form.prKanaName = data.member.prKanaName ?? "";
+      form.prRole = data.member.prRole ?? "";
+      form.prBirthdate = data.member.prBirthdate ?? "";
+      form.prBloodType = data.member.prBloodType ?? "";
+      form.prPostalCode = data.member.prPostalCode ?? "";
+      form.prAddress = data.member.prAddress ?? "";
+      form.prMobile = data.member.prMobile ?? "";
+      form.prTel = data.member.prTel ?? "";
+      form.prFax = data.member.prFax ?? "";
+      form.prEmail = data.member.prEmail ?? "";
+      form.prWebsite = data.member.prWebsite ?? "";
       initialForm = { ...form };
     }
   });
@@ -161,154 +161,154 @@
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfLastName" class="md:text-right">姓</Label>
+            <Label for="prLastName" class="md:text-right">姓</Label>
             <Input 
-              id="mfLastName" 
+              id="prLastName" 
               type="text" 
-              bind:value={form.mfLastName}
+              bind:value={form.prLastName}
               placeholder="姓" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfFirstName" class="md:text-right">名</Label>
+            <Label for="prFirstName" class="md:text-right">名</Label>
             <Input 
-              id="mfFirstName" 
+              id="prFirstName" 
               type="text" 
-              bind:value={form.mfFirstName}
+              bind:value={form.prFirstName}
               placeholder="名" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfMiddleName" class="md:text-right">ミドルネーム</Label>
+            <Label for="prMiddleName" class="md:text-right">ミドルネーム</Label>
             <Input 
-              id="mfMiddleName" 
+              id="prMiddleName" 
               type="text" 
-              bind:value={form.mfMiddleName}
+              bind:value={form.prMiddleName}
               placeholder="ミドルネーム" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfKanaName" class="md:text-right">カナ名</Label>
+            <Label for="prKanaName" class="md:text-right">カナ名</Label>
             <Input 
-              id="mfKanaName" 
+              id="prKanaName" 
               type="text" 
-              bind:value={form.mfKanaName}
+              bind:value={form.prKanaName}
               placeholder="カナ名" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfRole" class="md:text-right">役職</Label>
+            <Label for="prRole" class="md:text-right">役職</Label>
             <Input 
-              id="mfRole" 
+              id="prRole" 
               type="text" 
-              bind:value={form.mfRole}
+              bind:value={form.prRole}
               placeholder="役職" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfBirthdate" class="md:text-right">生年月日</Label>
+            <Label for="prBirthdate" class="md:text-right">生年月日</Label>
             <Input 
-              id="mfBirthdate" 
+              id="prBirthdate" 
               type="date" 
-              bind:value={form.mfBirthdate}
+              bind:value={form.prBirthdate}
               placeholder="生年月日" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfBloodType" class="md:text-right">血液型</Label>
+            <Label for="prBloodType" class="md:text-right">血液型</Label>
             <Input 
-              id="mfBloodType" 
+              id="prBloodType" 
               type="text" 
-              bind:value={form.mfBloodType}
+              bind:value={form.prBloodType}
               placeholder="血液型" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfPostalCode" class="md:text-right">郵便番号</Label>
+            <Label for="prPostalCode" class="md:text-right">郵便番号</Label>
             <Input 
-              id="mfPostalCode" 
+              id="prPostalCode" 
               type="text" 
-              bind:value={form.mfPostalCode}
+              bind:value={form.prPostalCode}
               placeholder="郵便番号" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfAddress" class="md:text-right">住所</Label>
+            <Label for="prAddress" class="md:text-right">住所</Label>
             <Input 
-              id="mfAddress" 
+              id="prAddress" 
               type="text" 
-              bind:value={form.mfAddress}
+              bind:value={form.prAddress}
               placeholder="住所" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfMobile" class="md:text-right">携帯</Label>
+            <Label for="prMobile" class="md:text-right">携帯</Label>
             <Input 
-              id="mfMobile" 
+              id="prMobile" 
               type="text" 
-              bind:value={form.mfMobile}
+              bind:value={form.prMobile}
               placeholder="携帯" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfTel" class="md:text-right">電話</Label>
+            <Label for="prTel" class="md:text-right">電話</Label>
             <Input 
-              id="mfTel" 
+              id="prTel" 
               type="text" 
-              bind:value={form.mfTel}
+              bind:value={form.prTel}
               placeholder="電話" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfFax" class="md:text-right">FAX</Label>
+            <Label for="prFax" class="md:text-right">FAX</Label>
             <Input 
-              id="mfFax" 
+              id="prFax" 
               type="text" 
-              bind:value={form.mfFax}
+              bind:value={form.prFax}
               placeholder="FAX" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfEmail" class="md:text-right">メール</Label>
+            <Label for="prEmail" class="md:text-right">メール</Label>
             <Input 
-              id="mfEmail" 
+              id="prEmail" 
               type="email" 
-              bind:value={form.mfEmail}
+              bind:value={form.prEmail}
               placeholder="メール" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfWebsite" class="md:text-right">ウェブサイト</Label>
+            <Label for="prWebsite" class="md:text-right">ウェブサイト</Label>
             <Input 
-              id="mfWebsite" 
+              id="prWebsite" 
               type="url" 
-              bind:value={form.mfWebsite}
+              bind:value={form.prWebsite}
               placeholder="ウェブサイト" 
               onkeydown={handleEnterKeyNavigation} 
             />

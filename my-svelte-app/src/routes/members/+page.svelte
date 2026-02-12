@@ -127,14 +127,14 @@
             <Table.Row>
               <Table.Cell>
                 <div class="font-semibold">{displayTitle(member)}</div>
-                {#if member.mfKanaName}
-                  <div class="text-sm text-muted-foreground mt-0.5">{member.mfKanaName}</div>
+                {#if member.prKanaName}
+                  <div class="text-sm text-muted-foreground mt-0.5">{member.prKanaName}</div>
                 {/if}
               </Table.Cell>
               <Table.Cell class="hidden sm:table-cell">{member.companyName || "-"}</Table.Cell>
-              <Table.Cell class="hidden md:table-cell">{member.mfRole || "-"}</Table.Cell>
-              <Table.Cell class="hidden md:table-cell">{member.mfEmail || "-"}</Table.Cell>
-              <Table.Cell class="hidden lg:table-cell">{member.mfMobile || member.mfTel || "-"}</Table.Cell>
+              <Table.Cell class="hidden md:table-cell">{member.prRole || "-"}</Table.Cell>
+              <Table.Cell class="hidden md:table-cell">{member.prEmail || "-"}</Table.Cell>
+              <Table.Cell class="hidden lg:table-cell">{member.prMobile || member.prTel || "-"}</Table.Cell>
               <Table.Cell>
                 <Button variant="ghost" size="sm" href={`/members/${member.id}`}>編集</Button>
               </Table.Cell>

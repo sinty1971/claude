@@ -24,48 +24,33 @@
   let form = $state({
     name: "",
     categoryIndex: 0,
-    mfLongName: "",
-    mfPostalCode: "",
-    mfAddress: "",
-    mfTel: "",
-    mfFax: "",
-    mfEmail: "",
-    mfWebsite: "",
+    prLongName: "",
+    prPostalCode: "",
+    prAddress: "",
+    prTel: "",
+    prFax: "",
+    prEmail: "",
+    prWebsite: "",
   });
   let initialForm = $state<typeof form | null>(null);
-
-  // 初期化時にdata.companyがあればセット
-  if (data.company) {
-    company = data.company;
-    form.name = data.company.name ?? "";
-    form.categoryIndex = data.company.categoryIndex ?? 0;
-    form.mfLongName = data.company.mfLongName ?? "";
-    form.mfPostalCode = data.company.mfPostalCode ?? "";
-    form.mfAddress = data.company.mfAddress ?? "";
-    form.mfTel = data.company.mfTel ?? "";
-    form.mfFax = data.company.mfFax ?? "";
-    form.mfEmail = data.company.mfEmail ?? "";
-    form.mfWebsite = data.company.mfWebsite ?? "";
-    initialForm = { ...form };
-  }
   let isSaving = $state(false);
   let errorMessage: string | null = $state(null);
   let savedAt: Date | null = $state(null);
 
-  // company が変更されたときにフォームと初期値を更新
+  // data.companyの変更を監視してフォームを更新
   $effect(() => {
-    // data.companyが変化した場合のみ実行
+    // data.companyが存在し、変更があった場合のみ実行
     if (data.company && (!company || data.company.id !== company.id)) {
       company = data.company;
       form.name = data.company.name ?? "";
       form.categoryIndex = data.company.categoryIndex ?? 0;
-      form.mfLongName = data.company.mfLongName ?? "";
-      form.mfPostalCode = data.company.mfPostalCode ?? "";
-      form.mfAddress = data.company.mfAddress ?? "";
-      form.mfTel = data.company.mfTel ?? "";
-      form.mfFax = data.company.mfFax ?? "";
-      form.mfEmail = data.company.mfEmail ?? "";
-      form.mfWebsite = data.company.mfWebsite ?? "";
+      form.prLongName = data.company.prLongName ?? "";
+      form.prPostalCode = data.company.prPostalCode ?? "";
+      form.prAddress = data.company.prAddress ?? "";
+      form.prTel = data.company.prTel ?? "";
+      form.prFax = data.company.prFax ?? "";
+      form.prEmail = data.company.prEmail ?? "";
+      form.prWebsite = data.company.prWebsite ?? "";
       initialForm = { ...form };
     }
   });
@@ -76,7 +61,7 @@
   );
 
   const displayName = (source: Company | null): string =>
-    source?.name || source?.mfLongName || "名称未設定";
+    source?.name || source?.prLongName || "名称未設定";
 
   const saveCompany = async (): Promise<void> => {
     if (!company) return;
@@ -183,77 +168,77 @@
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfLongName" class="md:text-right">正式名称</Label>
+            <Label for="prLongName" class="md:text-right">正式名称</Label>
             <Input 
-              id="mfLongName" 
+              id="prLongName" 
               type="text" 
-              bind:value={form.mfLongName}
+              bind:value={form.prLongName}
               placeholder="正式名称" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfPostalCode" class="md:text-right">郵便番号</Label>
+            <Label for="prPostalCode" class="md:text-right">郵便番号</Label>
             <Input 
-              id="mfPostalCode" 
+              id="prPostalCode" 
               type="text" 
-              bind:value={form.mfPostalCode}
+              bind:value={form.prPostalCode}
               placeholder="郵便番号" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfAddress" class="md:text-right">住所</Label>
+            <Label for="prAddress" class="md:text-right">住所</Label>
             <Input 
-              id="mfAddress" 
+              id="prAddress" 
               type="text" 
-              bind:value={form.mfAddress}
+              bind:value={form.prAddress}
               placeholder="住所" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfTel" class="md:text-right">電話</Label>
+            <Label for="prTel" class="md:text-right">電話</Label>
             <Input 
-              id="mfTel" 
+              id="prTel" 
               type="text" 
-              bind:value={form.mfTel}
+              bind:value={form.prTel}
               placeholder="電話番号" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfFax" class="md:text-right">FAX</Label>
+            <Label for="prFax" class="md:text-right">FAX</Label>
             <Input 
-              id="mfFax" 
+              id="prFax" 
               type="text" 
-              bind:value={form.mfFax}
+              bind:value={form.prFax}
               placeholder="FAX" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfEmail" class="md:text-right">メール</Label>
+            <Label for="prEmail" class="md:text-right">メール</Label>
             <Input 
-              id="mfEmail" 
+              id="prEmail" 
               type="email" 
-              bind:value={form.mfEmail}
+              bind:value={form.prEmail}
               placeholder="メールアドレス" 
               onkeydown={handleEnterKeyNavigation} 
             />
           </div>
 
           <div class="grid md:grid-cols-[140px_1fr] gap-4 items-center">
-            <Label for="mfWebsite" class="md:text-right">Web</Label>
+            <Label for="prWebsite" class="md:text-right">Web</Label>
             <Input 
-              id="mfWebsite" 
+              id="prWebsite" 
               type="url" 
-              bind:value={form.mfWebsite}
+              bind:value={form.prWebsite}
               placeholder="Webサイト" 
               onkeydown={handleEnterKeyNavigation} 
             />

@@ -14,7 +14,7 @@
   );
 
   const displayTitle = (company: Company): string => {
-    const name = company.name || company.mfLongName || "名称未設定";
+    const name = company.name || company.prLongName || "名称未設定";
     return `${name} (${company.id})`;
   };
 
@@ -59,12 +59,12 @@
               </Table.Cell>
               <Table.Cell>
                 <div class="font-semibold">{displayTitle(company)}</div>
-                {#if company.mfLongName && company.name}
-                  <div class="text-sm text-muted-foreground mt-0.5">{company.mfLongName}</div>
+                {#if company.prLongName && company.name}
+                  <div class="text-sm text-muted-foreground mt-0.5">{company.prLongName}</div>
                 {/if}
               </Table.Cell>
-              <Table.Cell class="hidden md:table-cell">{company.mfAddress || "-"}</Table.Cell>
-              <Table.Cell class="hidden lg:table-cell">{company.mfTel || "-"}</Table.Cell>
+              <Table.Cell class="hidden md:table-cell">{company.prAddress || "-"}</Table.Cell>
+              <Table.Cell class="hidden lg:table-cell">{company.prTel || "-"}</Table.Cell>
               <Table.Cell>
                 <Button variant="ghost" size="sm" href={`/companies/${company.id}`}>編集</Button>
               </Table.Cell>
